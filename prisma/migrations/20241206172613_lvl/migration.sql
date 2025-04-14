@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "user" ALTER COLUMN "level" SET DEFAULT 'LEVEL_1';

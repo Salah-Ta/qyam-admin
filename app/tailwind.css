@@ -1,0 +1,257 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  h1 {
+    @apply text-3xl font-semibold  md:text-6xl text-primary;
+  }
+  h2 {
+    @apply text-2xl font-semibold  md:text-5xl text-primary;
+  }
+  h3 {
+    @apply text-xl  md:text-[40px] font-bold text-primary;
+  }
+  h4 {
+    @apply text-lg md:text-3xl font-medium;
+  }
+  h5 {
+    @apply text-[10px]  md:text-sm lg:text-2xl font-medium;
+  }
+  h6 {
+    @apply text-[8px] md:text-xl font-medium;
+  }
+
+  p {
+    @apply leading-loose  font-medium md:text-xl text-sm;
+  }
+
+  @font-face {
+    font-family: "PingARLT";
+    src: url("/app/assets/fonts/PingARLT-Regular.ttf") format("truetype");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  @font-face {
+    font-family: "PingARLT";
+    src: url("/app/assets/fonts/PingARLT-Medium.ttf") format("truetype");
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  @font-face {
+    font-family: "PingARLT";
+    src: url("/app/assets/fonts/PingARLT-Bold.ttf") format("truetype");
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+  }
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 3.9%;
+    --primary: 0 0% 9%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 0 0% 96.1%;
+    --secondary-foreground: 0 0% 9%;
+    --muted: 0 0% 96.1%;
+    --muted-foreground: 0 0% 45.1%;
+    --accent: 0 0% 96.1%;
+    --accent-foreground: 0 0% 9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 89.8%;
+    --input: 0 0% 89.8%;
+    --ring: 0 0% 3.9%;
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+    --radius: 0.5rem;
+  }
+  .dark {
+    --background: 0 0% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 0 0% 9%;
+    --secondary: 0 0% 14.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 14.9%;
+    --muted-foreground: 0 0% 63.9%;
+    --accent: 0 0% 14.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 14.9%;
+    --input: 0 0% 14.9%;
+    --ring: 0 0% 83.1%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+  }
+}
+
+@layer components {
+  .animated-path {
+    @apply animate-[dash_7s_infinite];
+    stroke-dasharray: 1000;
+    stroke-dashoffset: 1000;
+  }
+
+  .scroller {
+    @apply w-fit overflow-hidden; /* max-w-md maps to 400px in Tailwind's default config */
+  }
+
+  .scroller__inner {
+    @apply p-4 flex flex-wrap items-center  justify-center gap-4; /* Maps to padding-block: 1rem, display: flex, flex-wrap: wrap, gap: 1rem */
+  }
+
+  .scroller[data-animated="true"] {
+    @apply overflow-hidden;
+    -webkit-mask: linear-gradient(
+      90deg,
+      transparent,
+      white 20%,
+      white 80%,
+      transparent
+    );
+    mask: linear-gradient(
+      90deg,
+      transparent,
+      white 20%,
+      white 80%,
+      transparent
+    );
+  }
+
+  .scroller[data-animated="true"] .scroller__inner {
+    @apply max-w-fit;
+    flex-wrap: nowrap; /* Ensures the items stay in a single line for scrolling */
+    animation: scroll 10s linear infinite;
+  }
+
+  @keyframes scroll {
+  
+    to {
+      transform: translate(calc(-50% - 0.5rem));
+    }
+  }
+
+
+  .analytics-box-filled{
+    @apply  p-5 text-white border shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] rounded-lg border-solid border-[#E4E7EC];
+    background: linear-gradient(
+      256deg,
+      #0d3151 -46.15%,
+      #2a504d 43.52%,
+      #80ab40  94.77%
+    )
+
+  }
+
+  
+  .analytics-box{
+    @apply  p-5 text-black border shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] rounded-lg border-solid border-[#E4E7EC];
+  }
+  .attachment-container {
+
+    @apply bg-white border-[#D0D5DD] shadow-[0px_1.375px_2.75px_0px_rgba(16,24,40,0.05)] p-2 rounded-[11px] border-[1.375px] border-dashed;
+  
+  }
+
+  .admin-stat-box{
+    @apply border-[#D0D5DD] shadow-[0px_1.492px_2.985px_0px_rgba(16,24,40,0.05)] rounded-[11.938px] border-[1.492px] border-solid py-3 px-6 w-44 bg-white text-[#667085] font-bold text-center text-lg md:text-2xl;
+  }
+
+
+
+}
+
+:root {
+  color-scheme: light;
+  font-family: PingARLT, Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  color: black;
+  background-color: #F2F4F7;
+  line-height: 1.5;
+  font-weight: 400;
+  color-scheme: light dark;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+html,
+body {
+  @apply bg-white overflow-x-hidden scroll-smooth;
+  @media (prefers-color-scheme: light) {
+    color-scheme: light;
+  }
+}
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+.toast-icon-success svg {
+  color: #22c55e !important; 
+}
+
+.toast-icon-error svg {
+  color: #ef4444 !important; 
+}
+
+.toast-icon-info svg {
+  color: #3b82f6 !important; 
+}
+
+.toast-icon-warning svg {
+  color: #eab308 !important; 
+}
+
+
+.q1-editor{
+  direction: rtl;
+  text-align: left;
+}
+
+.q1-editor .ql-align-center{
+  text-align: center;
+}
+.q1-editor .ql-align-right{
+  text-align: right;
+}
+
+
+.q1-container{
+  direction: rtl;
+}
+
+
+
+
+.q1-snow .q1-toolbar{
+  direction: rtl;
+}
+
+.q1-snow .q1-formats{
+  margin-right: 0px;
+  margin-left: 15px;
+}
