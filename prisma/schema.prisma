@@ -28,9 +28,18 @@ model User {
   noStudents      Int               @default(0)
   region          String            @default("none")
   level           String            @default("LEVEL_1")
+  regionId      String?
+  userRegion        Region?  @relation(fields: [regionId], references: [id])
+  eduAdminId    String?
+  userEduAdmin      EduAdmin? @relation(fields: [eduAdminId], references: [id])
+  schoolId      String?
+  userSchool        School?  @relation(fields: [schoolId], references: [id])
   Session         Session[]
   Account         Account[]
   UserCertificate UserCertificate[]
+  reports         Report[]          // User's reports
+  sentMessages     Message[] @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
 
   @@unique([email])
   @@map("user")
@@ -154,10 +163,126 @@ model UserCertificate {
 }
 
 model Region {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id        String     @id @default(cuid())
+  name      String     @unique
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  users     User[]
+  eduAdmins EduAdmin[]
 
   @@map("region")
+}
+
+model EduAdmin {
+  id        String   @id @default(cuid())
+  name      String
+  regionId  String
+  region    Region   @relation(fields: [regionId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  users     User[]
+  schools   School[]
+
+  @@map("eduAdministration")
+}
+
+model School {
+  id         String   @id @default(cuid())
+  name       String
+  address    String
+  eduAdminId String
+  eduAdmin   EduAdmin @relation(fields: [eduAdminId], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  users     User[]
+
+  @@map("school")
+}
+
+model Report {
+  id                     String              @id @default(cuid())
+  userId                 String
+  user                   User                @relation(fields: [userId], references: [id])
+  volunteerHours         Float
+  economicValue          Float
+  volunteerOpportunities Int
+  activitiesCount        Int
+  volunteerCount         Int
+  skillsEconomicValue    Float
+  skillsTrainedCount     Int
+  attachedFiles          String[]            // Array of file URLs or keys
+  createdAt              DateTime            @default(now())
+  updatedAt              DateTime            @updatedAt
+  skills                 SkillReport[]
+  testimonials           TestimonialReport[]
+
+  @@map("report")
+}
+
+model Skill {
+  id          String         @id @default(cuid())
+  name        String         @unique
+  description String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  reports     SkillReport[]
+
+  @@map("skill")
+}
+
+model SkillReport {
+  skillId   String
+  reportId  String
+  skill     Skill    @relation(fields: [skillId], references: [id])
+  report    Report   @relation(fields: [reportId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@id([skillId, reportId])
+  @@map("skill_report")
+}
+
+model Testimonial {
+  id          String              @id @default(cuid())
+  name        String
+  comment     String              @db.Text
+  rating      Int                 @default(5)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  reports     TestimonialReport[]
+
+  @@map("testimonial")
+}
+
+model TestimonialReport {
+  testimonialId String
+  reportId      String
+  testimonial   Testimonial @relation(fields: [testimonialId], references: [id])
+  report        Report      @relation(fields: [reportId], references: [id])
+  createdAt     DateTime    @default(now())
+
+  @@id([testimonialId, reportId])
+  @@map("testimonial_report")
+}
+
+model Message {
+  id         String    @id @default(cuid())
+  content    String    @db.Text
+  sentAt     DateTime  @default(now())
+  isRead     Boolean   @default(false)
+  readAt     DateTime? 
+  isDeleted  Boolean   @default(false)
+  deletedAt  DateTime?
+  
+  // Sender relationship
+  fromUserId String    
+  fromUser   User      @relation("SentMessages", fields: [fromUserId], references: [id])
+  
+  // Recipient relationship
+  toUserId   String
+  toUser     User      @relation("ReceivedMessages", fields: [toUserId], references: [id])
+
+  @@index([fromUserId])
+  @@index([toUserId])
+  @@index([isRead])
+  @@map("message")
 }

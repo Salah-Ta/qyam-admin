@@ -1,12 +1,19 @@
 import glossary from "~/lib/glossary";
 import { client } from "../db-client.server";
-import { StatusResponse, Region } from "~/types/types";
+import { StatusResponse, School } from "~/types/types";
 
-const getAllRegions = (dbUrl: string): Promise<StatusResponse<Region[]>> => {
+const getAllSchools = (dbUrl: string): Promise<StatusResponse<School[]>> => {
   const db = client(dbUrl);
   return new Promise((resolve, reject) => {
-    db.region
+    db.school
       .findMany({
+        include: {
+          eduAdmin: {
+            include: {
+              region: true
+            }
+          }
+        },
         orderBy: {
           name: 'asc'
         }
@@ -15,7 +22,7 @@ const getAllRegions = (dbUrl: string): Promise<StatusResponse<Region[]>> => {
         resolve({ status: "success", data: res });
       })
       .catch((error: any) => {
-        console.log("ERROR [getAllRegions]: ", error);
+        console.log("ERROR [getAllSchools]: ", error);
         reject({
           status: "error",
           message: glossary.status_response.error.general,
@@ -24,22 +31,26 @@ const getAllRegions = (dbUrl: string): Promise<StatusResponse<Region[]>> => {
   });
 };
 
-const getRegion = (id: string, dbUrl: string): Promise<StatusResponse<Region>> => {
+const getSchool = (id: string, dbUrl: string): Promise<StatusResponse<School>> => {
   const db = client(dbUrl);
   return new Promise((resolve, reject) => {
-    db.region
+    db.school
       .findFirstOrThrow({
         where: { id },
         include: {
-          users: true,
-          eduAdmins: true
+          eduAdmin: {
+            include: {
+              region: true
+            }
+          },
+          users: true
         }
       })
       .then((res) => {
         resolve({ status: "success", data: res });
       })
       .catch((error: any) => {
-        console.log("ERROR [getRegion]: ", error);
+        console.log("ERROR [getSchool]: ", error);
         reject({
           status: "error",
           message: glossary.status_response.error.general,
@@ -48,80 +59,88 @@ const getRegion = (id: string, dbUrl: string): Promise<StatusResponse<Region>> =
   });
 };
 
-const createRegion = (name: string, dbUrl: string): Promise<StatusResponse<null>> => {
+const createSchool = (name: string, address: string, eduAdminId: string, dbUrl: string): Promise<StatusResponse<null>> => {
   const db = client(dbUrl);
   return new Promise((resolve, reject) => {
-    db.region
+    db.school
       .create({
-        data: { name }
+        data: { 
+          name,
+          address,
+          eduAdminId
+        }
       })
       .then(() => {
         resolve({
           status: "success",
-          message: "تم إضافة المنطقة بنجاح",
+          message: "تم إضافة المدرسة بنجاح",
         });
       })
       .catch((error: any) => {
-        console.log("ERROR [createRegion]: ", error);
+        console.log("ERROR [createSchool]: ", error);
         reject({
           status: "error",
-          message: "فشل إضافة المنطقة",
+          message: "فشل إضافة المدرسة",
         });
       });
   });
 };
 
-const updateRegion = (id: string, name: string, dbUrl: string): Promise<StatusResponse<null>> => {
+const updateSchool = (id: string, name: string, address: string, eduAdminId: string, dbUrl: string): Promise<StatusResponse<null>> => {
   const db = client(dbUrl);
   return new Promise((resolve, reject) => {
-    db.region
+    db.school
       .update({
         where: { id },
-        data: { name }
+        data: { 
+          name,
+          address,
+          eduAdminId
+        }
       })
       .then(() => {
         resolve({
           status: "success",
-          message: "تم تحديث المنطقة بنجاح",
+          message: "تم تحديث المدرسة بنجاح",
         });
       })
       .catch((error: any) => {
-        console.log("ERROR [updateRegion]: ", error);
+        console.log("ERROR [updateSchool]: ", error);
         reject({
           status: "error",
-          message: "فشل تحديث المنطقة",
+          message: "فشل تحديث المدرسة",
         });
       });
   });
 };
 
-const deleteRegion = (id: string, dbUrl: string): Promise<StatusResponse<null>> => {
+const deleteSchool = (id: string, dbUrl: string): Promise<StatusResponse<null>> => {
   const db = client(dbUrl);
   return new Promise((resolve, reject) => {
-    db.region
+    db.school
       .delete({
         where: { id }
       })
       .then(() => {
         resolve({
           status: "success",
-          message: "تم حذف المنطقة بنجاح",
+          message: "تم حذف المدرسة بنجاح",
         });
       })
       .catch((error: any) => {
-        console.log("ERROR [deleteRegion]: ", error);
+        console.log("ERROR [deleteSchool]: ", error);
         reject({
           status: "error",
-          message: "فشل حذف المنطقة",
+          message: "فشل حذف المدرسة",
         });
       });
   });
 };
 
 export default {
-  getAllRegions,
-  getRegion,
-  createRegion,
-  updateRegion,
-  deleteRegion
+  getAllSchools,
+  getSchool,
+  createSchool,
+  updateSchool,
+  deleteSchool
 };

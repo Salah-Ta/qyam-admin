@@ -1,10 +1,6 @@
 import glossary from "~/lib/glossary";
 import { client } from "../db-client.server";
-import { AcceptenceState, UserCertificate } from "~/types/types";
-import { LEVELS } from "~/lib/constants";
-
-
-
+import { StatusResponse, QUser, AcceptenceState } from "~/types/types";
 
 const editUserRegisteration = (userId:string,status:AcceptenceState,dbUrl:string)=>{
     const db = client(dbUrl)
@@ -39,176 +35,242 @@ const bulkEditUserRegisteration = (userIds:string[],status:"accepted"|"denied",d
       });
 }
 
-
-const getAllUsers = (dbUrl:string)=>{
-    const db = client(dbUrl)
-
-    return new Promise((resolve, reject) => {
-        db.user.findMany({where:{role:"user"}}).then((res)=>{
-            resolve({status:"success", data:res})
-        }).catch((error:any)=>{
-            // console.log("ERROR [getAllUsers]: ", error);
-            reject({status:"error", message:glossary.status_response.error.general})
-        })
+const getAllUsers = (dbUrl: string): Promise<StatusResponse<QUser[]>> => {
+  const db = client(dbUrl);
+  return new Promise((resolve, reject) => {
+    db.user
+      .findMany({
+        include: {
+          userRegion: true,
+          userEduAdmin: true,
+          userSchool: true
+        },
+        orderBy: {
+          name: 'asc'
+        }
+      })
+      .then((res) => {
+        resolve({ status: "success", data: res });
+      })
+      .catch((error: any) => {
+        console.log("ERROR [getAllUsers]: ", error);
+        reject({
+          status: "error",
+          message: glossary.status_response.error.general,
+        });
       });
+  });
+};
 
-}
-
-
-
-const getUser = (userID:string,dbUrl:string)=>{
-    const db = client(dbUrl)
-    return new Promise((resolve, reject) => {
-        db.user.findFirstOrThrow({where:{id:userID}}).then((res)=>{
-            resolve({status:"success", data:res})
-        }).catch((error:any)=>{
-            console.log("ERROR [getUser]: ", error);
-            reject({status:"error", message:glossary.status_response.error.general})
-        })
+const getUser = (id: string, dbUrl: string): Promise<StatusResponse<QUser>> => {
+  const db = client(dbUrl);
+  return new Promise((resolve, reject) => {
+    db.user
+      .findFirstOrThrow({
+        where: { id },
+        include: {
+          userRegion: true,
+          userEduAdmin: true,
+          userSchool: true
+        }
+      })
+      .then((res) => {
+        resolve({ status: "success", data: res });
+      })
+      .catch((error: any) => {
+        console.log("ERROR [getUser]: ", error);
+        reject({
+          status: "error",
+          message: glossary.status_response.error.general,
+        });
       });
-}
+  });
+};
 
-
-
-
-
-const registerUserIntoProgram = (userID:string,dbUrl:string)=>{
-    const db = client(dbUrl)
-    return new Promise((resolve, reject) => {
-        db.user.update({
-            
-            data: {acceptenceState:"pending"},
-            where:{id:userID}}).then((res)=>{
-            resolve({status:"success", data:res})
-        }).catch((error:any)=>{
-            // console.log("ERROR [registerUserIntoProgram]: ", error);
-            reject({status:"error", message:glossary.status_response.error.general})
-        })
+const createUser = (userData: {
+  name: string,
+  email: string,
+  password: string,
+  phone?: string,
+  role: string,
+  regionId?: string,
+  eduAdminId?: string,
+  schoolId?: string
+}, dbUrl: string): Promise<StatusResponse<null>> => {
+  const db = client(dbUrl);
+  return new Promise((resolve, reject) => {
+    db.user
+      .create({
+        data: userData
+      })
+      .then(() => {
+        resolve({
+          status: "success",
+          message: "تم إنشاء المستخدم بنجاح",
+        });
+      })
+      .catch((error: any) => {
+        console.log("ERROR [createUser]: ", error);
+        reject({
+          status: "error",
+          message: "فشل إنشاء المستخدم",
+        });
       });
-}
+  });
+};
 
-
-const addCertificateToUser =(data:UserCertificate, dbUrl:string)=>{
-    const db = client(dbUrl)
-    return new Promise((resolve, reject) => {
-        db.userCertificate.create({
-            data,
-     }).then((res)=>{
-            resolve({status:"success", data:res})
-        }).catch((error:any)=>{
-            // console.log("ERROR [addCertificateToUser]: ", error);
-            reject({status:"error", message:glossary.status_response.error.general})
-        })
+const updateUser = (id: string, userData: {
+  name?: string,
+  email?: string,
+  password?: string,
+  phone?: string,
+  role?: string,
+  regionId?: string | null,
+  eduAdminId?: string | null,
+  schoolId?: string | null
+}, dbUrl: string): Promise<StatusResponse<null>> => {
+  const db = client(dbUrl);
+  return new Promise((resolve, reject) => {
+    db.user
+      .update({
+        where: { id },
+        data: userData
+      })
+      .then(() => {
+        resolve({
+          status: "success",
+          message: "تم تحديث المستخدم بنجاح",
+        });
+      })
+      .catch((error: any) => {
+        console.log("ERROR [updateUser]: ", error);
+        reject({
+          status: "error",
+          message: "فشل تحديث المستخدم",
+        });
       });
+  });
+};
 
-}
-
-
-const getUserCertificates =(userId:string, dbUrl:string)=>{
-    const db = client(dbUrl)
-    return new Promise((resolve, reject) => {
-        db.userCertificate.findMany({
-            where: {userId},
-     }).then((res)=>{
-            resolve({status:"success", data:res})
-        }).catch((error:any)=>{
-            // console.log("ERROR [getUserCertificates]: ", error);
-            reject({status:"error", message:glossary.status_response.error.general})
-        })
+const deleteUser = (id: string, dbUrl: string): Promise<StatusResponse<null>> => {
+  const db = client(dbUrl);
+  return new Promise((resolve, reject) => {
+    db.user
+      .delete({
+        where: { id }
+      })
+      .then(() => {
+        resolve({
+          status: "success",
+          message: "تم حذف المستخدم بنجاح",
+        });
+      })
+      .catch((error: any) => {
+        console.log("ERROR [deleteUser]: ", error);
+        reject({
+          status: "error",
+          message: "فشل حذف المستخدم",
+        });
       });
+  });
+};
 
-}
-
-
-
-const getUserWithCertificates = (userId:string, dbUrl:string)=>{
-    const db = client(dbUrl)
-    return new Promise((resolve, reject) => {
-        db.user.findFirst({
-            where: {id:userId},
-            include:{
-                UserCertificate:{
-                    
-                }
-            }
-     }).then((res)=>{
-            resolve({status:"success", data:res})
-        }).catch((error:any)=>{
-            // console.log("ERROR [getUserCertificates]: ", error);
-            reject({status:"error", message:glossary.status_response.error.general})
-        })
+// Function to get users by region
+const getUsersByRegion = (regionId: string, dbUrl: string): Promise<StatusResponse<QUser[]>> => {
+  const db = client(dbUrl);
+  return new Promise((resolve, reject) => {
+    db.user
+      .findMany({
+        where: { regionId },
+        include: {
+          userRegion: true,
+          userEduAdmin: true,
+          userSchool: true
+        },
+        orderBy: {
+          name: 'asc'
+        }
+      })
+      .then((res) => {
+        resolve({ status: "success", data: res });
+      })
+      .catch((error: any) => {
+        console.log("ERROR [getUsersByRegion]: ", error);
+        reject({
+          status: "error",
+          message: glossary.status_response.error.general,
+        });
       });
+  });
+};
 
-
-
-}
-
-const updateTrainingInfo = (info:any,dbUrl:string)=>{
-    const db = client(dbUrl)
-    return new Promise((resolve, reject) => {
-        db.user.update({
-            where: {id:info.id},
-            data:{
-                noStudents:info.noStudents,
-                trainingHours:info.trainingHours,
-    
-            }
-            
-            }
-     ).then((res)=>{
-            resolve({status:"success", data:res})
-        }).catch((error:any)=>{
-            // console.log("ERROR [getUserCertificates]: ", error);
-            reject({status:"error", message:glossary.status_response.error.general})
-        })
+// Function to get users by eduAdmin
+const getUsersByEduAdmin = (eduAdminId: string, dbUrl: string): Promise<StatusResponse<QUser[]>> => {
+  const db = client(dbUrl);
+  return new Promise((resolve, reject) => {
+    db.user
+      .findMany({
+        where: { eduAdminId },
+        include: {
+          userRegion: true,
+          userEduAdmin: true,
+          userSchool: true
+        },
+        orderBy: {
+          name: 'asc'
+        }
+      })
+      .then((res) => {
+        resolve({ status: "success", data: res });
+      })
+      .catch((error: any) => {
+        console.log("ERROR [getUsersByEduAdmin]: ", error);
+        reject({
+          status: "error",
+          message: glossary.status_response.error.general,
+        });
       });
+  });
+};
 
-}
-
-
-
-const updateUserLevel = (id:string,level:keyof typeof LEVELS,dbUrl:string)=>{
-    const db = client(dbUrl)
-    return new Promise((resolve, reject) => {
-        db.user.update({
-            where: {id},
-            data:{
-          
-                level
-            }
-            
-            }
-     ).then((res)=>{
-            resolve({status:"success", data:res})
-        }).catch((error:any)=>{
-            // console.log("ERROR [getUserCertificates]: ", error);
-            reject({status:"error", message:glossary.status_response.error.general})
-        })
+// Function to get users by school
+const getUsersBySchool = (schoolId: string, dbUrl: string): Promise<StatusResponse<QUser[]>> => {
+  const db = client(dbUrl);
+  return new Promise((resolve, reject) => {
+    db.user
+      .findMany({
+        where: { schoolId },
+        include: {
+          userRegion: true,
+          userEduAdmin: true,
+          userSchool: true
+        },
+        orderBy: {
+          name: 'asc'
+        }
+      })
+      .then((res) => {
+        resolve({ status: "success", data: res });
+      })
+      .catch((error: any) => {
+        console.log("ERROR [getUsersBySchool]: ", error);
+        reject({
+          status: "error",
+          message: glossary.status_response.error.general,
+        });
       });
+  });
+};
 
-}
-
-
-const deleteUser = async (id: string, databaseUrl: string) => {
-    const db = client(databaseUrl);
-    return db.user.delete({
-      where: {
-        id,
-      },
-    });
-  };
-
-
-export default ({
-    registerUserIntoProgram,
-    getAllUsers,
-    getUser,
+export default {
     editUserRegisteration,
-    addCertificateToUser,
-    getUserWithCertificates,
-    getUserCertificates,
     bulkEditUserRegisteration,
-    updateTrainingInfo,
-    updateUserLevel,
-    deleteUser
-})
+  getAllUsers,
+  getUser,
+  createUser,
+  updateUser,
+  deleteUser,
+  getUsersByRegion,
+  getUsersByEduAdmin,
+  getUsersBySchool
+};
