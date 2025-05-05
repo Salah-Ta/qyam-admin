@@ -2,7 +2,7 @@
 name = "qyam"
 compatibility_date = "2024-05-13"
 pages_build_output_dir = "./build/client"
-compatibility_flags = [ "nodejs_compat_v2" ]
+compatibility_flags = [ "nodejs_compat" ]
 
 # Automatically place your workloads in an optimal location to minimize latency.
 # If you are running back-end logic in a Pages Function, running it closer to your back-end infrastructure
@@ -89,3 +89,5 @@ compatibility_flags = [ "nodejs_compat_v2" ]
 [[r2_buckets]]
 binding = "QYAM_BUCKET"
 bucket_name = "qyam-bucket"
+
+

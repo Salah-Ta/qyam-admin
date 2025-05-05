@@ -6,7 +6,7 @@ const statisticsDB = {
 
     try {
       // Get or create the single statistics entry
-      const stats = await prisma.statistics.upsert({
+      const stats = await prisma?.statistics.upsert({
         where: {
           id: "stats",
         },

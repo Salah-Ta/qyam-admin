@@ -21,7 +21,7 @@ const Statistics = () => {
           </div>
 
           <div className=" h-full w-full flex flex-col  items-center justify-between">
-            <h1 className="text-primary">{stats.registeredUsers}</h1>
+            <h1 className="text-primary">{stats?.registeredUsers}</h1>
             <h4 className="text-primary">المسجلين</h4>
             <svg
               width="69"
@@ -66,7 +66,7 @@ const Statistics = () => {
             />
           </div>
           <div className=" h-full w-full flex flex-col items-center justify-between">
-            <h1 className="text-white">{stats.curriculums}</h1>
+            <h1 className="text-white">{stats?.curriculums}</h1>
             <h4 className="text-white">المناهج</h4>
             <svg
               width="36.75"
@@ -101,7 +101,7 @@ const Statistics = () => {
             />
           </div>
           <div className=" h-full w-full flex flex-col items-center justify-between">
-            <h1 className="text-black">{stats.trainingHours}</h1>
+            <h1 className="text-black">{stats?.trainingHours}</h1>
             <h4 className="text-black">ساعة تدريبية</h4>
             <svg width="63" height="63" viewBox="0 0 63 63" fill="none" xmlns="http://www.w3.org/2000/svg">
 <path d="M31.5833 61.1667C47.9218 61.1667 61.1667 47.9218 61.1667 31.5833C61.1667 15.2449 47.9218 2 31.5833 2C15.2449 2 2 15.2449 2 31.5833C2 47.9218 15.2449 61.1667 31.5833 61.1667Z" stroke="black" strokeWidth="2.5"/>

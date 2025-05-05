@@ -5,8 +5,9 @@ import {
   useActionData,
   useNavigation,
   NavLink,
+  useLoaderData,
 } from "@remix-run/react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { authClient } from "../../lib/auth.client";
 import { getErrorMessage } from "../../lib/get-error-messege";
 import Logo from "~/assets/images/logo.svg";
@@ -23,12 +24,34 @@ import { Icon } from "~/components/icon";
 export async function loader({ request, context }: LoaderFunctionArgs) {
   //todo: uncomment when disabling login
   // return redirect("/");
+
+  // Test database connection here (on the server side)
+  let dbConnectionStatus = { success: false, error: null, dbUrl: '' };
+  try {
+    // It's safe to import server modules within loader functions
+    const { client } = await import("~/db/db-client.server");
+    const dbUrl = context.cloudflare.env.DATABASE_URL;
+    
+    const prisma = await client(dbUrl, context);
+    if (prisma) {
+      const result = await prisma.$queryRaw`SELECT 1 as connected`;
+      await prisma.$disconnect();
+      dbConnectionStatus.success = true;
+      dbConnectionStatus.dbUrl = dbUrl;
+    }
+  } catch (error) {
+    console.error("Database connection failed:", error);
+   // dbConnectionStatus.error = error instanceof Error ? error.message : "Unknown error";
+  }
+
+  // Continue with your existing code
   const user = await requireSpecialCase(
     request,
     context,
     (user) => user === null
   );
-  return { user };
+
+  return { user, dbConnectionStatus };
 }
 
 type ActionData = {
@@ -41,6 +64,8 @@ type ActionData = {
 
 export default function Login() {
   const navigate = useNavigate();
+  // Add this line to get loader data
+  const { dbConnectionStatus } = useLoaderData<typeof loader>();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -49,6 +74,17 @@ export default function Login() {
   const navigation = useNavigation();
   const [loading, setLoading] = useState(false);
   const isSubmitting = navigation.state === "submitting";
+
+  useEffect(() => {
+    // Log database connection status from loader
+    if (dbConnectionStatus) {
+      if (dbConnectionStatus.success) {
+        console.log("Database connection successful" + dbConnectionStatus.dbUrl);
+      } else {
+        console.error("Database connection failed:" + dbConnectionStatus.dbUrl , dbConnectionStatus.error);
+      }
+    }
+  }, [dbConnectionStatus]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,31 +114,24 @@ export default function Login() {
             navigate("/");
           },
           onError: (ctx) => {
-            // console.log("error in sign in:  ", ctx);
-            
+            console.log("Full error object:", ctx.error);
+
             setLoading(false);
 
-            // console.log(ctx);
             if (
               ctx.error.code ===
               "EMAIL_IS_NOT_VERIFIED_CHECK_YOUR_EMAIL_FOR_A_VERIFICATION_LINK"
             ) {
               showToast.error(glossary.login.errors.unverified);
-            } 
-            
-            else if(ctx.error.code === "FAILED_TO_CREATE_SESSION"){
+            } else if (ctx.error.code === "FAILED_TO_CREATE_SESSION") {
               showToast.error(glossary.signup.toasts.signupError.title, {
                 description: glossary.signup.toasts.signupError.sessionFailure,
               });
-
-            }
-            else {
+            } else {
               showToast.error(glossary.login.errors.invalid);
             }
-            
 
             const errorMessage = getErrorMessage(ctx);
-            // Handle error appropriately - you might want to set this in state
             console.error("Login error:", errorMessage);
           },
         }
@@ -117,7 +146,7 @@ export default function Login() {
 
   return (
     <div className="lg:flex lg:flex-row  justify-between items-center w-full h-screen overflow-hidden ">
-      { (loading || isSubmitting )&& <LoadingOverlay />}
+      {(loading || isSubmitting) && <LoadingOverlay />}
       <div className="blur-[180px] inset-0 absolute">
         <div className="relative h-full w-full overflow-hidden">
           <GradientEllipse
@@ -136,20 +165,20 @@ export default function Login() {
         </div>
       </div>
       <div className="h-full w-full flex flex-col  justify-center items-center z-10 overflow-y-hidden">
-      <div className="relative ">
+        <div className="relative ">
+          <img
+            className="lg:my-16 my-8 z-10 lg:w-[186px] lg:h-[155px]  w-[144px] h-[120px] brd"
+            src={Logo}
+            alt=""
+          />
+          <NavLink
+            to={"/"}
+            className="absolute rounded-lg px-1 border-2  hover:opacity-80 transition-opacity  border-[#4D5761] top-12 -left-[120%] "
+          >
+            <Icon name="back-arrow" size="sm" />
+          </NavLink>
+        </div>
 
-      <img
-          className="lg:my-16 my-8 z-10 lg:w-[186px] lg:h-[155px]  w-[144px] h-[120px] brd"
-          src={Logo}
-          alt=""
-        />
-      <NavLink 
-      to={"/"}
-      className="absolute rounded-lg px-1 border-2  hover:opacity-80 transition-opacity  border-[#4D5761] top-12 -left-[120%] ">
-          <Icon name="back-arrow" size="sm"/>
-        </NavLink>
-      </div>
-  
         <h2 className="my-5 z-10">{glossary.login.title}</h2>
 
         <Form

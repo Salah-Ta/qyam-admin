@@ -37,6 +37,22 @@ const ControlPanel = () => {
       name: glossary.cp.programs,
       link: "programs",
     },
+    {
+      name: "المناطق",
+      link: "regions",
+    },
+    {
+      name: "الإدارات التعليمية",
+      link: "edu-admins",
+    },
+    {
+      name: "المدارس",
+      link: "schools",
+    },
+    {
+      name: "التقارير",
+      link: "reports",
+    },
   ];
 
   const selectedTabName = tabs.filter((tab) => {
