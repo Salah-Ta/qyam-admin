@@ -2,37 +2,37 @@ import glossary from "~/lib/glossary";
 import { client } from "../db-client.server";
 import { StatusResponse, QUser, AcceptenceState } from "~/types/types";
 
-const editUserRegisteration = (userId:string,status:AcceptenceState,dbUrl:string)=>{
-    const db = client(dbUrl)
+const editUserRegisteration = (userId: string, status: AcceptenceState, dbUrl: string) => {
+  const db = client(dbUrl)
 
-    return new Promise((resolve, reject) => {
-        db.user.update({
-            data: {acceptenceState:status},
-            where: {id:userId}
-        }).then(()=>{
-            resolve({status:"success", message:glossary.status_response.success[status==="accepted"?"user_accepted":"user_denied"]})
-        }).catch((error:any)=>{
-            // console.log("ERROR [toggleUserRegisterationAcceptence]: ", error);
-            reject({status:"error", message:glossary.status_response.error[status==="accepted"?"user_accepted":"user_denied"]})
-        })
-      });
+  return new Promise((resolve, reject) => {
+    db.user.update({
+      data: { acceptenceState: status },
+      where: { id: userId }
+    }).then(() => {
+      resolve({ status: "success", message: glossary.status_response.success[status === "accepted" ? "user_accepted" : "user_denied"] })
+    }).catch((error: any) => {
+      // console.log("ERROR [toggleUserRegisterationAcceptence]: ", error);
+      reject({ status: "error", message: glossary.status_response.error[status === "accepted" ? "user_accepted" : "user_denied"] })
+    })
+  });
 }
 
 
-const bulkEditUserRegisteration = (userIds:string[],status:"accepted"|"denied",dbUrl:string )=>{
-    const db = client(dbUrl)
+const bulkEditUserRegisteration = (userIds: string[], status: "accepted" | "denied", dbUrl: string) => {
+  const db = client(dbUrl)
 
-    return new Promise((resolve, reject) => {
-        db.user.updateMany({
-            data: {acceptenceState:status},
-            where: {id:{in:userIds}}
-        }).then(()=>{
-            resolve({status:"success", message:glossary.status_response.success[status==="accepted"?"user_accepted":"user_denied"]})
-        }).catch((error:any)=>{
-            // console.log("ERROR [toggleUserRegisterationAcceptence]: ", error);
-            reject({status:"error", message:glossary.status_response.error[status==="accepted"?"user_accepted":"user_denied"]})
-        })
-      });
+  return new Promise((resolve, reject) => {
+    db.user.updateMany({
+      data: { acceptenceState: status },
+      where: { id: { in: userIds } }
+    }).then(() => {
+      resolve({ status: "success", message: glossary.status_response.success[status === "accepted" ? "user_accepted" : "user_denied"] })
+    }).catch((error: any) => {
+      // console.log("ERROR [toggleUserRegisterationAcceptence]: ", error);
+      reject({ status: "error", message: glossary.status_response.error[status === "accepted" ? "user_accepted" : "user_denied"] })
+    })
+  });
 }
 
 const getAllUsers = (dbUrl: string): Promise<StatusResponse<QUser[]>> => {
@@ -263,8 +263,8 @@ const getUsersBySchool = (schoolId: string, dbUrl: string): Promise<StatusRespon
 };
 
 export default {
-    editUserRegisteration,
-    bulkEditUserRegisteration,
+  editUserRegisteration,
+  bulkEditUserRegisteration,
   getAllUsers,
   getUser,
   createUser,

@@ -42,6 +42,8 @@ export type Article = {
   updatedAt?: Date;
 };
 export type AcceptenceState = "accepted" | "denied" | "pending" | "idle";
+export type UserRole = "ADMIN" | "SUPERVISOR" | "USER";
+
 export type QUser = {
   id?: string;
   email: string;
@@ -151,7 +153,7 @@ export type CreateReportData = {
   skillsEconomicValue: number;
   skillsTrainedCount: number;
   attachedFiles: string[];
-  
+
   // Just the skill IDs to connect to the report
   skillIds: string[];
   testimonials?: CreateTestimonialData[];

@@ -20,14 +20,14 @@ import { QUser } from "~/types/types";
 
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-  const user= await getAuthenticated({request, context});
-  if(!user) return null
-    else if((user as QUser).acceptenceState==="accepted")
-      return redirect("/")
-    else 
+  const user = await getAuthenticated({ request, context });
+  if (!user) return null
+  else if ((user as QUser).acceptenceState === "accepted")
+    return redirect("/")
+  else
     return redirect(`/404?status=${(user as QUser).acceptenceState}`)
 
-  
+
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
@@ -35,21 +35,21 @@ export async function action({ request, context }: ActionFunctionArgs) {
   try {
     const file = formData.get("file");
 
-    if (!file || !(file instanceof File)) {      
+    if (!file || !(file instanceof File)) {
       return { error: "Please select a valid file", status: 400 };
     }
     console.log("file", file);
-    
+
     const key = `${Date.now()}-${createId()}.${file.name.split(".")[1]}`;
     const buffer = await file.arrayBuffer();
-    
+
     const uploadResult = await context.cloudflare.env.QYAM_BUCKET.put(
       key,
       buffer,
       {
-          httpMetadata: {
+        httpMetadata: {
           contentType: file.type,
-          },
+        },
       }
     );
     const checkUpload = await context.cloudflare.env.QYAM_BUCKET.head(key);
@@ -61,7 +61,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         verification: checkUpload,
       },
     };
-      } catch (error) {
+  } catch (error) {
     console.error(error);
 
     return {
@@ -139,14 +139,14 @@ export default function Signup() {
     if (touchedFields.phone) {
       if (!phone || phone == "") {
         newErrors.phone = g.phone.required;
-      } 
+      }
       // else if (phone.length === 12 && !phone.startsWith("966")) {
       //   newErrors.phone = g.phone.saudi;
       // } else if (phone.length === 10 && !phone.startsWith("05")) {
       //   newErrors.phone = g.phone.notValid;
       // } 
-      
-      else if (!(phone.length === 10 )) {
+
+      else if (!(phone.length === 10)) {
         newErrors.phone = g.phone.length_10;
       }
     }
@@ -217,14 +217,14 @@ export default function Signup() {
               },
               onError: (ctx) => {
                 setLoading(false);
-                
 
-                if (ctx.error.code === "USER_WITH_THIS_EMAIL_ALREADY_EXISTS" || ctx.error.code==="USER_ALREADY_EXISTS") {
+
+                if (ctx.error.code === "USER_WITH_THIS_EMAIL_ALREADY_EXISTS" || ctx.error.code === "USER_ALREADY_EXISTS") {
                   showToast.error(glossary.signup.toasts.signupError.title, {
                     description: glossary.signup.toasts.signupError.emailExist,
                   });
                 }
-       
+
                 else {
                   showToast.error(glossary.signup.toasts.signupError.title, {
                     description:
@@ -275,7 +275,7 @@ export default function Signup() {
 
   const signUp = async (e: React.MouseEvent) => {
     e.preventDefault(); // Prevent default form submission
-    
+
     // Mark all fields as touched before submission
     const allTouched = {
       email: true,
@@ -285,9 +285,9 @@ export default function Signup() {
       bio: true,
     };
     setTouched(allTouched);
-  
+
     if (!validateForm(allTouched) || !areAllFieldsFilled()) return;
-  
+
     if (cv instanceof File) {
       try {
         const formData = new FormData();
@@ -296,9 +296,9 @@ export default function Signup() {
           type: cv.type,
           lastModified: cv.lastModified,
         });
-        
+
         formData.append("file", newFile);
-  
+
         submit(formData, {
           method: "post",
           encType: "multipart/form-data",
@@ -332,9 +332,8 @@ export default function Signup() {
                 {glossary.signup.newSignup.fullName}
               </p>
               <input
-                className={`text-xs lg:text-base md:text-sm p-1 ${
-                  errors.name && touched.name ? "border-red-600" : ""
-                } bg-white text-black border rounded w-full`}
+                className={`text-xs lg:text-base md:text-sm p-1 ${errors.name && touched.name ? "border-red-600" : ""
+                  } bg-white text-black border rounded w-full`}
                 type="text"
                 value={name}
                 onChange={(e) => {
@@ -356,9 +355,8 @@ export default function Signup() {
                 {glossary.signup.newSignup.phoneNumber}
               </p>
               <input
-                className={`text-xs ${
-                  errors.phone && touched.phone ? "border-red-600" : ""
-                } lg:text-base md:text-sm p-1 bg-white text-black border rounded w-full`}
+                className={`text-xs ${errors.phone && touched.phone ? "border-red-600" : ""
+                  } lg:text-base md:text-sm p-1 bg-white text-black border rounded w-full`}
                 type="number"
                 value={phone}
                 onChange={(e) => {
@@ -378,9 +376,8 @@ export default function Signup() {
                 {glossary.signup.newSignup.email}
               </p>
               <input
-                className={`text-xs lg:text-base ${
-                  errors.email && touched.email ? "border-red-600" : ""
-                } md:text-sm p-1 bg-white text-black border rounded w-full`}
+                className={`text-xs lg:text-base ${errors.email && touched.email ? "border-red-600" : ""
+                  } md:text-sm p-1 bg-white text-black border rounded w-full`}
                 type="email"
                 value={email}
                 onChange={(e) => {
@@ -453,13 +450,13 @@ export default function Signup() {
 
               <DropdownMenu >
                 <DropdownMenuTrigger className="w-full bg-white justify-between">
-               <span>
-               {region}
+                  <span>
+                    {region}
 
-               </span>
-                    {/* <Icon name={"below-arrow"} size="md"/> */}
-                    
-            
+                  </span>
+                  {/* <Icon name={"below-arrow"} size="md"/> */}
+
+
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56 max-h-64 overflow-scroll border-6">
                   <DropdownMenuRadioGroup
@@ -467,7 +464,7 @@ export default function Signup() {
                     onValueChange={setRegion}
                   >
                     {REGIONS.map((reg) => (
-                      <DropdownMenuRadioItem className={`${region===reg?"bg-gray-50":""}`} value={reg}>
+                      <DropdownMenuRadioItem className={`${region === reg ? "bg-gray-50" : ""}`} value={reg}>
                         {reg}
                       </DropdownMenuRadioItem>
                     ))}
@@ -481,31 +478,30 @@ export default function Signup() {
                 {glossary.signup.newSignup.cv}
               </p>
               <input
-  className={`text-xs ${
-    errors.cv && touched.cv ? "border-red-600" : ""
-  } lg:text-base md:text-sm p-1 bg-white text-black border rounded w-full`}
-  type="file"
-  name="file"
-  onChange={async (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      try {
-        const fileBuffer = await file.arrayBuffer();
-        const newFile = new File([fileBuffer], `uploaded-file.${file.name.split(".")[1]}`, {
-          type: file.type,
-          lastModified: Date.now(),
-        });
+                className={`text-xs ${errors.cv && touched.cv ? "border-red-600" : ""
+                  } lg:text-base md:text-sm p-1 bg-white text-black border rounded w-full`}
+                type="file"
+                name="file"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    try {
+                      const fileBuffer = await file.arrayBuffer();
+                      const newFile = new File([fileBuffer], `uploaded-file.${file.name.split(".")[1]}`, {
+                        type: file.type,
+                        lastModified: Date.now(),
+                      });
 
-  
 
-        setCv(newFile);
-      } catch (error) {
-        console.error("File processing error:", error);
-      }
-    }
-  }}
-  onBlur={() => handleBlur("cv")}
-/>
+
+                      setCv(newFile);
+                    } catch (error) {
+                      console.error("File processing error:", error);
+                    }
+                  }
+                }}
+                onBlur={() => handleBlur("cv")}
+              />
               {errors.cv && (
                 <span className="text-red-600 text-xs">{errors.cv}</span>
               )}
@@ -516,9 +512,8 @@ export default function Signup() {
                 {glossary.signup.newSignup.selfIntroduction}
               </p>
               <textarea
-                className={`text-xs ${
-                  errors.bio && touched.bio ? "border-red-600" : ""
-                } lg:text-base md:text-sm p-1 bg-white text-black border rounded w-full`}
+                className={`text-xs ${errors.bio && touched.bio ? "border-red-600" : ""
+                  } lg:text-base md:text-sm p-1 bg-white text-black border rounded w-full`}
                 value={bio}
                 placeholder={
                   glossary.signup.newSignup.selfIntrodutionPlaceholder
@@ -537,11 +532,10 @@ export default function Signup() {
             </div>
 
             <button
-              className={`button min-w-24 text-xs lg:text-base md:text-sm text-center  hover:opacity-90 ${
-                isFormValid
+              className={`button min-w-24 text-xs lg:text-base md:text-sm text-center  hover:opacity-90 ${isFormValid
                   ? "bg-primary hover:opacity-90"
                   : "bg-gray-400 cursor-not-allowed"
-              } transition-opacity text-white rounded-lg mt-6  w-2/3 p-3 z-10`}
+                } transition-opacity text-white rounded-lg mt-6  w-2/3 p-3 z-10`}
               type="submit"
               disabled={!isFormValid}
               onClick={signUp}

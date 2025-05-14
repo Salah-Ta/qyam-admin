@@ -52,6 +52,7 @@ export const getAuth = (context: AppLoadContext) => {
         noStudents: { type: "number" },
         region: { type: "string" },
         level: { type: "string" },
+        role: { type: "string" }, // Add this line
       },
     },
     database: prismaAdapter(

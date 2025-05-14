@@ -6,4 +6,5 @@ type User = {
     createdAt: Date;
     updatedAt: Date;
     image?: string | undefined;
+    role: string; // Add the role field
 }
