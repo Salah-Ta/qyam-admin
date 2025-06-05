@@ -4,8 +4,27 @@ import { StatusResponse, QUser } from "~/types/types";
 
 /**
  * Get all trainers (users with role "USER" who are not admins or supervisors)
+ * @param dbUrl - Database URL
+ * @param currentUser - The currently logged in user
  */
-const getAllTrainers = (dbUrl: string): Promise<StatusResponse<QUser[]>> => {
+const getAllTrainers = (dbUrl: string, currentUser: QUser | null): Promise<StatusResponse<QUser[]>> => {
+  // Check if user is authenticated and is an admin
+  if (!currentUser) {
+    return Promise.resolve({ 
+      status: "error", 
+      message: "Unauthorized access", 
+      code: 401 
+    });
+  }
+  
+  if (currentUser.role !== "ADMIN") {
+    return Promise.resolve({ 
+      status: "error", 
+      message: "Only admins can access trainer list", 
+      code: 403 
+    });
+  }
+
   const db = client(dbUrl);
   return new Promise((resolve, reject) => {
     db.user
