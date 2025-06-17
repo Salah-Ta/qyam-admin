@@ -1,57 +1,67 @@
 import {
-  Form,
-  Link,
   useNavigate,
   useActionData,
   useNavigation,
-  NavLink,
   useLoaderData,
 } from "@remix-run/react";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { authClient } from "../../lib/auth.client";
 import { getErrorMessage } from "../../lib/get-error-messege";
-import Logo from "~/assets/images/logo.svg";
-import LoginImg from "~/assets/images/login.png";
-import GradientEllipse from "~/components/ui/gradient-ellipse";
 import LoadingOverlay from "~/components/loading-overlay";
 import { toast as showToast } from "sonner";
 import glossary from "./glossary";
-
 import { LoaderFunctionArgs, redirect } from "@remix-run/cloudflare";
 import { requireSpecialCase } from "~/lib/get-authenticated.server";
-import { Icon } from "~/components/icon";
+import { Button } from "../../components/ui/button";
+import { Card, CardContent } from "../../components/ui/card";
+import { Checkbox } from "../../components/UI-dashbord/checkbox";
+import { Input } from "../../components/ui/input";
+import group30525 from "../../assets/icons/square-arrow-login.svg";
+import group1 from "../../assets/images/new-design/logo-login.svg";
+import section from "../../assets/images/new-design/section.png";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-  //todo: uncomment when disabling login
-  // return redirect("/");
-
-  // Test database connection here (on the server side)
+  // Test database connection and fetch sample users
   let dbConnectionStatus = { success: false, error: null, dbUrl: '' };
+  let sampleUsers: Array<{ id: string; email: string; createdAt: Date; updatedAt: Date }> = [];
+  
   try {
-    // It's safe to import server modules within loader functions
     const { client } = await import("~/db/db-client.server");
     const dbUrl = context.cloudflare.env.DATABASE_URL;
+    dbConnectionStatus.dbUrl = dbUrl;
     
     const prisma = await client(dbUrl, context);
     if (prisma) {
-      const result = await prisma.$queryRaw`SELECT 1 as connected`;
+      // Test connection
+      await prisma.$queryRaw`SELECT 1 as connected`;
+      
+      // Fetch first 5 users (for debugging purposes)
+      sampleUsers = await prisma.user.findMany({
+        take: 5,
+        select: {
+          id: true,
+          email: true,
+          createdAt: true,
+          updatedAt: true
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+      
       await prisma.$disconnect();
       dbConnectionStatus.success = true;
-      dbConnectionStatus.dbUrl = dbUrl;
     }
   } catch (error) {
     console.error("Database connection failed:", error);
-   // dbConnectionStatus.error = error instanceof Error ? error.message : "Unknown error";
+    dbConnectionStatus.error = error instanceof Error ? error.message : "Unknown error";
   }
 
-  // Continue with your existing code
   const user = await requireSpecialCase(
     request,
     context,
     (user) => user === null
   );
 
-  return { user, dbConnectionStatus };
+  return { user, dbConnectionStatus, sampleUsers };
 }
 
 type ActionData = {
@@ -64,27 +74,33 @@ type ActionData = {
 
 export default function Login() {
   const navigate = useNavigate();
-  // Add this line to get loader data
-  const { dbConnectionStatus } = useLoaderData<typeof loader>();
-
+  const { dbConnectionStatus, sampleUsers } = useLoaderData<typeof loader>();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState<string | null>(null);
-  const actionData = useActionData<ActionData>();
-  const navigation = useNavigation();
   const [loading, setLoading] = useState(false);
+  const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
 
   useEffect(() => {
-    // Log database connection status from loader
-    if (dbConnectionStatus) {
-      if (dbConnectionStatus.success) {
-        console.log("Database connection successful" + dbConnectionStatus.dbUrl);
-      } else {
-        console.error("Database connection failed:" + dbConnectionStatus.dbUrl , dbConnectionStatus.error);
-      }
+    // Log database connection status
+    console.group("Database Connection Status");
+    console.log("DB URL:", dbConnectionStatus.dbUrl);
+    console.log("Connection successful:", dbConnectionStatus.success);
+    if (!dbConnectionStatus.success) {
+      console.error("Connection error:", dbConnectionStatus.error);
     }
-  }, [dbConnectionStatus]);
+    // console.groupEnd();
+
+    // Log sample users from database
+    if (sampleUsers && sampleUsers.length > 0) {
+      // console.group("Sample Users from Database");
+      console.table(sampleUsers);
+      // console.groupEnd();
+    } else {
+      console.warn("No sample users found in database");
+    }
+  }, [dbConnectionStatus, sampleUsers]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,7 +109,6 @@ export default function Login() {
     // Basic validation
     if (!email) {
       setLoginError(glossary.login.errors.email.required);
-
       return;
     }
     if (!password) {
@@ -101,27 +116,39 @@ export default function Login() {
       return;
     }
 
+    // console.group("Login Attempt");
+    // console.log("Email:", email);
+    // console.log("Password length:", password);
+    // console.groupEnd();
+
     try {
-      await authClient.signIn.email(
+      setLoading(true);
+      
+      const authResponse = await authClient.signIn.email(
         { email, password },
         {
           onRequest: () => {
-            setLoading(true);
+            console.log("Authentication request started");
           },
-          onSuccess: () => {
+          onSuccess: (ctx) => {
+            console.group("Authentication Success");
+            console.log("User ID:", ctx.user?.id);
+            console.log("Session created:", !!ctx.session);
+            console.groupEnd();
+            
             setLoading(false);
-
             navigate("/");
           },
           onError: (ctx) => {
-            console.log("Full error object:", ctx.error);
+            console.group("Authentication Error");
+            console.error("Error code:", ctx.error.code);
+            console.error("Error message:", ctx.error.message);
+            console.error("Full error object:", ctx.error);
+            console.groupEnd();
 
             setLoading(false);
 
-            if (
-              ctx.error.code ===
-              "EMAIL_IS_NOT_VERIFIED_CHECK_YOUR_EMAIL_FOR_A_VERIFICATION_LINK"
-            ) {
+            if (ctx.error.code === "EMAIL_IS_NOT_VERIFIED_CHECK_YOUR_EMAIL_FOR_A_VERIFICATION_LINK") {
               showToast.error(glossary.login.errors.unverified);
             } else if (ctx.error.code === "FAILED_TO_CREATE_SESSION") {
               showToast.error(glossary.signup.toasts.signupError.title, {
@@ -131,126 +158,142 @@ export default function Login() {
               showToast.error(glossary.login.errors.invalid);
             }
 
-            const errorMessage = getErrorMessage(ctx);
-            console.error("Login error:", errorMessage);
+            setLoginError(getErrorMessage(ctx.error));
           },
         }
       );
     } catch (error) {
+      console.group("Unexpected Login Error");
+      console.error("Error:", error);
+      console.groupEnd();
+
       setLoading(false);
       setLoginError("An unexpected error occurred. Please try again.");
-
-      console.error("Login failed:", error);
+      showToast.error("Login failed", {
+        description: getErrorMessage(error),
+      });
     }
   };
 
   return (
-    <div className="lg:flex lg:flex-row  justify-between items-center w-full h-screen overflow-hidden ">
-      {(loading || isSubmitting) && <LoadingOverlay />}
-      <div className="blur-[180px] inset-0 absolute">
-        <div className="relative h-full w-full overflow-hidden">
-          <GradientEllipse
-            bgColor={"bg-[rgb(139,197,63)]/50"}
-            className={" -top-24 lg:right-16 right-0"}
-          />
-
-          <GradientEllipse
-            bgColor={"bg-[#B8ECFF]"}
-            className={"lg:left-96 -left-16 top-44"}
-          />
-          <GradientEllipse
-            bgColor={"bg-[rgb(3,102,157)]/50"}
-            className={"lg:top-96 lg:right-0"}
-          />
-        </div>
+    <div className="bg-white flex h-screen w-full">
+      {/* Left side background image - hidden on mobile */}
+      <div className="flex w-5/12 relative max-md:hidden">
+        <div
+          className="h-full w-full bg-cover bg-center"
+          style={{
+            backgroundImage: `url(${section})`,
+          }}
+        />
       </div>
-      <div className="h-full w-full flex flex-col  justify-center items-center z-10 overflow-y-hidden">
-        <div className="relative ">
-          <img
-            className="lg:my-16 my-8 z-10 lg:w-[186px] lg:h-[155px]  w-[144px] h-[120px] brd"
-            src={Logo}
-            alt=""
-          />
-          <NavLink
-            to={"/"}
-            className="absolute rounded-lg px-1 border-2  hover:opacity-80 transition-opacity  border-[#4D5761] top-12 -left-[120%] "
-          >
-            <Icon name="back-arrow" size="sm" />
-          </NavLink>
-        </div>
 
-        <h2 className="my-5 z-10">{glossary.login.title}</h2>
-
-        <Form
-          onSubmit={handleSubmit}
-          className="my-5 flex flex-col gap-2 w-full items-center justify-center z-10"
-        >
-          <div className="md:w-1/3  w-3/5">
-            <p className="text-xs lg:text-base md:text-sm my-1 text-primary z-10">
-              {glossary.login.email}
-            </p>
-            <input
-              className="text-xs lg:text-base md:text-sm p-1 bg-white text-black border rounded w-full z-10"
-              type="email"
-              value={email}
-              placeholder="example@gmail.com"
-              onChange={(e) => setEmail(e.target.value)}
-            />
-            {actionData?.errors?.email && (
-              <p className="text-red-500 text-xs mt-1">
-                {actionData.errors.email}
-              </p>
-            )}
-          </div>
-          <div className="md:w-1/3 w-3/5">
-            <p className="text-xs lg:text-base md:text-sm my-1 text-primary z-10">
-              {glossary.login.password}
-            </p>
-            <input
-              className="text-xs lg:text-base md:text-sm p-1 bg-white text-black border rounded w-full z-10"
-              type="password"
-              value={password}
-              placeholder="1127651158"
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            {actionData?.errors?.password && (
-              <p className="text-red-500 text-xs mt-1">
-                {actionData.errors.password}
-              </p>
-            )}
-          </div>
-          <div className="flex flex-col md:w-1/3 w-3/5 z-10">
+      {/* Right side content - full width on mobile */}
+      <div className="flex flex-col w-full md:w-7/12 h-full items-center justify-center px-4">
+        <div className="flex flex-col max-w-[360px] w-full">
+          {/* Back button with top margin */}
+          <div className="w-full mb-8">
+            {loading && <LoadingOverlay message="جاري التحميل" />}
             <button
-              type="submit"
-              disabled={isSubmitting}
-              className="button text-xs lg:text-lg md:text-sm text-center bg-primary hover:opacity-90 transition-opacity text-white rounded-lg mt-6  w-full p-3 z-10"
+              onClick={() => navigate("/")}
+              className="button font-bold text-center text-xs md:text-sm md:p-3 rounded-lg text-gray-700 hover:bg-black/5 transition-all"
             >
-              {isSubmitting ? "جاري تسجيل الدخول..." : glossary.login.login}
+              <img className="w-[25px] h-[25px]" alt="Group" src={group30525} />
             </button>
-
-            <Link
-              className="text-black text-xs lg:text-lg md:text-sm underline my-1 z-10"
-              to={"/forgot-password"}
-            >
-              {glossary.login.forgot_password}
-            </Link>
-            {actionData?.errors?.generic && (
-              <p className="text-red-500 text-xs mt-1">
-                {actionData.errors.generic}
-              </p>
-            )}
-            {loginError && (
-              <p className="text-red-500 text-sm text-center mt-2">
-                {loginError}
-              </p>
-            )}
           </div>
-        </Form>
-      </div>
 
-      <div className="hidden lg:flex justify-center items-end h-full bg-primary w-2/3 z-10">
-        <div className=" mx-2">
-          <img src={LoginImg} alt="" />
+          {/* Header section */}
+          <header className="flex flex-col items-center gap-6 w-full mb-10">
+            <div className="relative w-[94px] h-[60px] mb-4">
+              <img
+                className="absolute w-[94px] h-[60px] left-7"
+                alt="Logo part 2"
+                src={group1}
+              />
+            </div>
+
+            <div className="flex flex-col items-center gap-3 w-full">
+              <h1 className="w-full font-bold text-[#181d27] text-3xl text-center leading-6 [direction:rtl] tracking-[0]">
+                تسجيل الدخول إلى حسابك
+              </h1>
+              <p className="w-full font-medium text-[#535861] text-base text-center tracking-[0] leading-6 [direction:rtl]">
+                مرحبا بعودتك! يرجى إدخال البيانات
+              </p>
+            </div>
+          </header>
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="w-full space-y-6">
+            <Card className="w-full border-none shadow-none">
+              <CardContent className="p-0 space-y-6">
+                {/* Email field */}
+                <div className="w-full space-y-2">
+                  <div className="flex items-center justify-end gap-0.5">
+                    <label className="font-medium text-[#414651] text-sm text-right tracking-[0] leading-6 [direction:rtl]">
+                      البريد الإلكتروني
+                    </label>
+                    <span className="text-[#286456] text-sm">*</span>
+                  </div>
+                  <Input
+                    className="w-full px-3.5 py-2.5 bg-white rounded-lg border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs text-right [direction:rtl]"
+                    placeholder="أدخل بريدك الإلكتروني"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                </div>
+
+                {/* Password field */}
+                <div className="w-full space-y-2">
+                  <div className="flex items-center justify-end gap-0.5">
+                    <label className="font-medium text-[#414651] text-sm text-right tracking-[0] leading-6 [direction:rtl]">
+                      كلمة المرور
+                    </label>
+                    <span className="text-[#286456] text-sm">*</span>
+                  </div>
+                  <Input
+                    type="password"
+                    className="w-full px-3.5 py-2.5 bg-white rounded-lg border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs text-right [direction:rtl]"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                </div>
+
+                {/* Error message */}
+                {loginError && (
+                  <p className="w-full font-normal text-[#d92c20] text-sm tracking-[0] leading-5 [direction:rtl] text-right">
+                    {loginError}
+                  </p>
+                )}
+
+                {/* Remember me and forgot password */}
+                <div className="flex items-center justify-between w-full pt-2">
+                  <button
+                    type="button"
+                    className="font-medium text-[#414651] text-sm leading-5 [direction:rtl]"
+                  >
+                    نسيت كلمة المرور
+                  </button>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-[#414651] text-sm leading-5 [direction:rtl]">
+                      تذكر لمدة 30 يوما
+                    </span>
+                    <Checkbox className="w-4 h-4 rounded border border-solid border-[#d5d6d9]" />
+                  </div>
+                </div>
+
+                {/* Login button */}
+                <div className="w-full pt-4">
+                  <Button
+                    type="submit"
+                    className="w-full bg-[#006A61] hover:bg-[#005A51] text-white rounded-lg py-2.5 font-medium text-base [direction:rtl]"
+                    disabled={loading || isSubmitting}
+                  >
+                    {loading || isSubmitting ? "جاري تسجيل الدخول..." : "تسجيل الدخول"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </form>
         </div>
       </div>
     </div>

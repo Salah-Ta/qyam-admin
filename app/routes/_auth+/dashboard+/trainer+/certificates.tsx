@@ -4,9 +4,9 @@ import { PlusIcon } from "lucide-react";
 import React, { useState } from "react";
 import { twMerge } from "tailwind-merge";
 import CertificatesPreview from "./certificatesPreview";
-import certificate01 from "../../../../assets/images/new-design/certificate-01.png";
-import filetypeicon from "../../../../assets/images/new-design/Filetypeicon.png";
-import downloadcloud from "../../../../assets/images/new-design/download-cloud-02.png";
+import certificate01 from "../../../../assets/icons/certificate.svg";
+import filetypeicon from "../../../../assets/icons/file-type-blue.svg";
+import downloadcloud from "../../../../assets/icons/download-cloud.svg";
 // Utils function
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -138,7 +138,7 @@ const Certificates = () => {
     {/* New Certificate Button - Visible on all screens */}
     <Button
       variant="outline"
-      className="flex items-center justify-center gap-1 px-3 py-2 w-[154px] bg-white rounded-lg border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs-skeuomorphic"
+      className="flex items-center justify-center gap-1 px-3 py-2 w-[154px] bg-white rounded-md border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs-skeuomorphic"
     >
       <PlusIcon className="w-5 h-5" />
       <span className="font-bold text-[#414651] text-sm tracking-[0] leading-5 whitespace-nowrap">
@@ -171,7 +171,7 @@ const Certificates = () => {
                   {field.label}
                 </Label>
               </div>
-              <div className="flex items-center justify-end gap-2 px-3.5 py-2.5 w-full bg-white rounded-lg border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs">
+              <div className="flex items-center justify-end gap-2 px-3.5 py-2.5 w-full bg-white rounded-md border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs">
                 <div className="flex items-center justify-end gap-2 flex-1">
                   <Input
                     id={field.id}
@@ -189,7 +189,7 @@ const Certificates = () => {
 
   {/* Export Certificates Button - Visible on all screens */}
   <Button
-    className="w-full bg-[#006173] text-white hover:bg-[#1c81ac]/90"
+    className="w-full bg-[#006173] text-white hover:bg-[#1c81ac]/90 rounded-md"
     onClick={handleSetSubmitted}
   >
     <span className="flex items-center justify-center gap-2">

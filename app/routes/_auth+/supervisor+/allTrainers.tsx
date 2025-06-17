@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 import { useNavigate, useNavigation } from "@remix-run/react";
-import squareArrow from "../../../assets/images/new-design/square-arrow-right-01.png";
+import squareArrow from "../../../assets/icons/square-arrow-right.svg";
 // Utility function
 const cn = (...inputs: ClassValue[]) => {
   return twMerge(clsx(inputs));
@@ -163,7 +163,7 @@ const PaginationContent = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <ul
     ref={ref}
-    className={cn("flex flex-row items-center gap-1", className)}
+    className={cn("flex flex-row items-center ", className)}
     {...props}
   />
 ));
@@ -266,7 +266,7 @@ const TableHead = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <th
     ref={ref}
-    className={cn("h-10 px-2 text-left align-middle font-medium ", className)}
+    className={cn("h-10   text-left   font-medium ", className)}
     {...props}
   />
 ));
@@ -276,7 +276,7 @@ const TableCell = React.forwardRef<
   HTMLTableCellElement,
   React.TdHTMLAttributes<HTMLTableCellElement>
 >(({ className, ...props }, ref) => (
-  <td ref={ref} className={cn("p-2 align-middle ", className)} {...props} />
+  <td ref={ref} className={cn("py-2   ", className)} {...props} />
 ));
 TableCell.displayName = "TableCell";
 
@@ -337,15 +337,11 @@ export const AllTrainers = (): JSX.Element => {
   const searchTags = Array(3).fill({ label: "label" });
 
   return (
-<div className="bg-[#f8f9fa]">
-
-
-
-    <div className="w-full  max-w-full max-xl:px-[22px]  xl:px-[112px] mx-auto py-6 mb-[76px]">
-    
+    <div className="bg-[#f8f9fa]">
+      <div className="w-full  max-w-full max-xl:px-[22px]  xl:px-[112px] mx-auto py-6 mb-[76px]">
         <div className="flex   justify-between items-baseline w-full   mx-auto py-6  rounded-xl  [direction:rtl] ">
           {/* Header Section */}
-          <div  className="flex flex-col items-start mb-6  pb-4 max-md:m-5">
+          <div className="flex flex-col items-start mb-6  pb-4 max-md:m-5">
             <h1 className="text-2xl font-bold text-gray-800 mb-2">
               إحصاءات المدربين
             </h1>
@@ -357,236 +353,232 @@ export const AllTrainers = (): JSX.Element => {
             <img className="" alt="Group" src={squareArrow} />
           </button>
         </div>
-   
 
-      <Card className="w-full rounded-2xl border border-gray-300 overflow-hidden mb-[140px]">
-        <div className="flex flex-col w-full p-6">
-          {/* Metrics Overview Section */}
-          <section className="flex flex-wrap gap-5 w-full">
-            {metricsData.map((metric) => (
-              <Card
-                key={metric.id}
-                className="flex-1 min-w-[232px] border border-[#e9e9eb] shadow-shadows-shadow-xs"
-              >
-                <CardContent className="flex items-start justify-between p-5 gap-3 [direction:rtl]">
-                  <div className="flex-shrink-0 w-10 h-10 bg-white rounded-lg overflow-hidden border border-[#e9e9eb] shadow-shadows-shadow-xs-skeuomorphic flex items-center justify-center">
-                    {metric.icon}
-                  </div>
+        <Card className="w-full rounded-2xl border border-gray-300 overflow-hidden mb-[140px]">
+          <div className="flex flex-col w-full p-12">
+            {/* Metrics Overview Section */}
+            <section className="flex flex-wrap gap-5 w-full">
+              {metricsData.map((metric) => (
+                <Card
+                  key={metric.id}
+                  className="flex-1 min-w-[232px] border border-[#e9e9eb] shadow-shadows-shadow-xs"
+                >
+                  <CardContent className="flex items-start justify-between p-5 gap-3 [direction:rtl]">
+                    <div className="flex-shrink-0 w-10 h-10 bg-white rounded-lg overflow-hidden border border-[#e9e9eb] shadow-shadows-shadow-xs-skeuomorphic flex items-center justify-center">
+                      {metric.icon}
+                    </div>
 
-                  <div className="flex flex-col gap-2 w-full">
-                    <h3 className="self-stretch  font-medium text-[#535861] text-sm tracking-[0] leading-5  w-full">
-                      {metric.title}
-                    </h3>
-                    <p className=" font-bold text-[#181d27] text-3xl  tracking-[0] leading-[38px]">
-                      {metric.value}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </section>
+                    <div className="flex flex-col gap-2 w-full">
+                      <h3 className="self-stretch  font-medium text-[#535861] text-sm tracking-[0] leading-5  w-full">
+                        {metric.title}
+                      </h3>
+                      <p className=" font-bold text-[#181d27] text-3xl  tracking-[0] leading-[38px]">
+                        {metric.value}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </section>
 
-          {/* Main Content Section */}
-          <section className="flex flex-col w-full mt-20 ">
-            <div className="relative w-full  ">
-              {/* Top controls */}
-              <div className="flex justify-end items-end mb-6 [direction:rtl]  ">
-                <div className="w-full max-w-[544px]">
-                  <div className="flex flex-col w-full gap-1.5">
-                    <div className="flex items-center gap-2 px-3.5 py-2.5 bg-white rounded-lg border border-solid border-[#cfd4dc] shadow-shadow-xs">
-                      <div className="flex items-center  gap-2 flex-1">
-                        <SearchIcon className="w-5 h-5 text-[#475467] " />
-                        <span className="text-gray-500 text-base  ">بحث</span>
+            {/* Main Content Section */}
+            <section className="flex flex-col w-full mt-20 ">
+              <div className="relative w-full  ">
+                {/* Top controls */}
+                <div className="flex justify-end items-end mb-6 [direction:rtl]  ">
+                  <div className="w-full max-w-[544px]">
+                    <div className="flex flex-col w-full gap-1.5">
+                      <div className="flex items-center gap-2 px-3.5 py-2.5 bg-white rounded-lg border border-solid border-[#cfd4dc] shadow-shadow-xs">
+                        <div className="flex items-center  gap-2 flex-1">
+                          <SearchIcon className="w-5 h-5 text-[#475467] " />
+                          <span className="text-gray-500 text-base  ">بحث</span>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
-              <img
-                className="w-full h-px object-cover mt-6 mb-3"
-                alt="Divider"
-                src="https://c.animaapp.com/m9qfyf0iFAAeZK/img/vector-9.svg"
-              />
-              {/* Table */}
-              <div className="w-full">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="mb-4 border-[#e4e7ec]  ">
-                      {/* <TableHead className="text-right pr-2">
+
+                {/* Table */}
+                <div className="w-full">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="mb-4 border-b border-[#E4E7EC]  ">
+                        {/* <TableHead className="text-right pr-2">
                         <span className="sr-only">Select</span>
                       </TableHead> */}
 
-                      <TableHead className="text-center   font-medium text-gray-700 text-[15px] ">
-                        الإجراء
-                      </TableHead>
-         
-                      <TableHead className="text-right [direction:rtl] font-medium text-gray-700 text-[15px]">
-                        المدرسة
-                      </TableHead>
-                      <TableHead className="text-right [direction:rtl] font-medium text-gray-700 text-[15px]">
-                        الإدارة
-                      </TableHead>
-                      <TableHead className="text-right [direction:rtl] font-medium text-gray-700 text-[15px]">
-                        المنطقة
-                      </TableHead>
-                      <TableHead className="text-right [direction:rtl] font-medium text-gray-700 text-[15px]">
-                        الحساب
-                      </TableHead>
-                      <TableHead className="text-right [direction:rtl] font-medium text-gray-700 text-[15px]">
-                        البريد الإلكتروني
-                      </TableHead>
-                      <TableHead className="text-right [direction:rtl] font-medium text-gray-700 text-[15px]">
-                        الجوال
-                      </TableHead>
-                      <TableHead className="text-right [direction:rtl] font-medium text-gray-700 text-[15px]">
-                        الاسم
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {getCurrentPageData().map((row, index) => (
-                      <TableRow
-                        key={index}
-                        className="border-b border-[#e4e7ec] "
-                      >
-                        <TableCell className="  text-right">
-                          <button
-                            className="  h-[40px] w-[117px] rounded-md border border-solid border-gray-300 bg-transparent"
-                            onClick={() => navigate("/supervisor/skills")}
-                          >
-                            <span className=" text-center font-bold text-[#1a7f37] text-xs [direction:rtl]">
-                              {row.status}
-                            </span>
-                          </button>
-                        </TableCell>
-                        <TableCell className="py-1 px-2 text-right">
-                          <span className="  font-medium text-[#027163] text-base [direction:rtl]">
-                            {row.school}
-                          </span>
-                        </TableCell>
-                        <TableCell className="py-1 px-2 text-right">
-                          <span className=" font-medium text-[#027163] text-base [direction:rtl]">
-                            {row.department}
-                          </span>
-                        </TableCell>
-                        <TableCell className="py-1 px-2 text-right">
-                          <span className=" font-medium text-[#027163] text-base [direction:rtl]">
-                            {row.region}
-                          </span>
-                        </TableCell>
-                        <TableCell className="py-1 px-2 text-right">
-                          <span className=" font-medium text-[#027163] text-base [direction:rtl]">
-                            {row.account}
-                          </span>
-                        </TableCell>
-                        <TableCell className="py-1 px-2 text-right">
-                          <span className="font-medium text-[#027163] text-base">
-                            {row.email}
-                          </span>
-                        </TableCell>
-                        <TableCell className="py-1 px-2 text-right">
-                          <span className="font-medium text-[#027163] text-base">
-                            {row.mobile}
-                          </span>
-                        </TableCell>
-                        <TableCell className="py-1 px-2 text-right">
-                          <span className=" font-medium text-[#027163] text-base [direction:rtl]">
-                            {row.name}
-                          </span>
-                        </TableCell>
-                        <TableCell className="py-1 px-2">
-                          <Checkbox
-                            checked={row.isChecked}
-                            className={
-                              row.isChecked
-                                ? "w-4 h-4 bg-[#0969da] rounded-[3px]"
-                                : "w-4 h-4 bg-[#ffffff] rounded-[3px] border border-solid border-[#868f99]"
-                            }
-                          />
-                        </TableCell>
+                        <TableHead className="text-center   font-medium text-gray-700 text-[15px] ">
+                          الإجراء
+                        </TableHead>
+
+                        <TableHead className="text-right [direction:rtl] font-medium text-gray-700 text-[15px]">
+                          المدرسة
+                        </TableHead>
+                        <TableHead className="text-right [direction:rtl] font-medium text-gray-700 text-[15px]">
+                          الإدارة
+                        </TableHead>
+                        <TableHead className="text-right [direction:rtl] font-medium text-gray-700 text-[15px]">
+                          المنطقة
+                        </TableHead>
+                        <TableHead className="text-right [direction:rtl] font-medium text-gray-700 text-[15px]">
+                          الحساب
+                        </TableHead>
+                        <TableHead className="text-right [direction:rtl] font-medium text-gray-700 text-[15px]">
+                          البريد الإلكتروني
+                        </TableHead>
+                        <TableHead className="text-right [direction:rtl] font-medium text-gray-700 text-[15px]">
+                          الجوال
+                        </TableHead>
+                        <TableHead className="text-right [direction:rtl] font-medium text-gray-700 text-[15px]">
+                          الاسم
+                        </TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+                    </TableHeader>
 
-              {/* Pagination */}
-              <div className="flex justify-center items-center pt-3 pb-4 px-6 border-t border-[#e4e7ec] mt-4">
-                <Pagination>
-                  <PaginationContent className="shadow-shadow-xs">
-                    <Button
-                      variant="outline"
-                      className="flex items-center gap-2 px-4 py-2.5 rounded-[8px_0px_0px_8px] border border-solid border-[#cfd4dc]"
-                      onClick={() =>
-                        setCurrentPage(Math.max(1, currentPage - 1))
-                      }
-                      disabled={currentPage === 1}
-                    >
-                      <ArrowLeftIcon className="w-5 h-5" />
-                      <span className=" font-bold text-sm [direction:rtl]">
-                        السابق
-                      </span>
-                    </Button>
-
-                    {[...Array(totalPages)].map((_, index) => {
-                      const pageNumber = index + 1;
-                      if (
-                        pageNumber === 1 ||
-                        pageNumber === totalPages ||
-                        (pageNumber >= currentPage - 1 &&
-                          pageNumber <= currentPage + 1)
-                      ) {
-                        return (
-                          <PaginationItem
-                            key={pageNumber}
-                            className={
-                              pageNumber === currentPage ? "bg-gray-50" : ""
-                            }
-                          >
-                            <PaginationLink
-                              className="w-10 h-10 flex items-center justify-center border-t border-b border-[#cfd4dc] font-medium"
-                              onClick={() => setCurrentPage(pageNumber)}
+                    <TableBody>
+                      {getCurrentPageData().map((row, index) => (
+                        <TableRow
+                          key={index}
+                          className="border-b-[2px] border-[#e4e7ec] "
+                        >
+                          <TableCell className="  ">
+                            <button
+                              className="  h-[40px] w-[117px] rounded-md border border-solid border-gray-300 bg-transparent"
+                              onClick={() => navigate("/supervisor/skills")}
                             >
-                              {pageNumber}
-                            </PaginationLink>
-                          </PaginationItem>
-                        );
-                      } else if (
-                        (pageNumber === currentPage - 2 && currentPage > 3) ||
-                        (pageNumber === currentPage + 2 &&
-                          currentPage < totalPages - 2)
-                      ) {
-                        return (
-                          <PaginationEllipsis
-                            key={pageNumber}
-                            className="w-10 h-10 flex items-center justify-center border-t border-b border-[#cfd4dc]"
-                          />
-                        );
-                      }
-                      return null;
-                    })}
+                              <span className=" text-center font-bold text-[#1a7f37] text-xs [direction:rtl]">
+                                {row.status}
+                              </span>
+                            </button>
+                          </TableCell>
+                          <TableCell className="py-1 px-2 text-right">
+                            <span className="  font-medium text-[#027163] text-base [direction:rtl]">
+                              {row.school}
+                            </span>
+                          </TableCell>
+                          <TableCell className="py-1 px-2 text-right">
+                            <span className=" font-medium text-[#027163] text-base [direction:rtl]">
+                              {row.department}
+                            </span>
+                          </TableCell>
+                          <TableCell className="py-1 px-2 text-right">
+                            <span className=" font-medium text-[#027163] text-base [direction:rtl]">
+                              {row.region}
+                            </span>
+                          </TableCell>
+                          <TableCell className="py-1 px-2 text-right">
+                            <span className=" font-medium text-[#027163] text-base [direction:rtl]">
+                              {row.account}
+                            </span>
+                          </TableCell>
+                          <TableCell className="py-1 px-2 text-right">
+                            <span className="font-medium text-[#027163] text-base">
+                              {row.email}
+                            </span>
+                          </TableCell>
+                          <TableCell className="py-1 px-2 text-right">
+                            <span className="font-medium text-[#027163] text-base">
+                              {row.mobile}
+                            </span>
+                          </TableCell>
+                          <TableCell className="py-1 px-2 text-right">
+                            <span className=" font-medium text-[#027163] text-base [direction:rtl]">
+                              {row.name}
+                            </span>
+                          </TableCell>
+                          <TableCell className="py-1   text-right ">
+                            <Checkbox
+                              checked={row.isChecked}
+                              className={
+                                row.isChecked
+                                  ? "w-4 h-4 bg-[#0969da] rounded-[3px]"
+                                  : "w-4 h-4 bg-[#ffffff] rounded-[3px] border border-solid border-[#868f99]"
+                              }
+                            />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
 
-                    <Button
-                      variant="outline"
-                      className="flex items-center gap-2 px-4 py-2.5 rounded-[0px_8px_8px_0px] border border-solid border-[#cfd4dc]"
-                      onClick={() =>
-                        setCurrentPage(Math.min(totalPages, currentPage + 1))
-                      }
-                      disabled={currentPage === totalPages}
-                    >
-                      <span className=" font-bold  text-sm [direction:rtl]">
-                        التالي
-                      </span>
-                      <ArrowRightIcon className="w-5 h-5" />
-                    </Button>
-                  </PaginationContent>
-                </Pagination>
+                {/* Pagination */}
+                <div className="flex justify-center items-center pt-3 pb-4 px-6     mt-4">
+                  <Pagination>
+                    <PaginationContent className="shadow-shadow-xs">
+                      <Button
+                        variant="outline"
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-[8px_0px_0px_8px] border border-solid border-[#cfd4dc]"
+                        onClick={() =>
+                          setCurrentPage(Math.max(1, currentPage - 1))
+                        }
+                        disabled={currentPage === 1}
+                      >
+                        <ArrowLeftIcon className="w-5 h-5" />
+                        <span className=" font-bold text-sm [direction:rtl]">
+                          السابق
+                        </span>
+                      </Button>
+
+                      {[...Array(totalPages)].map((_, index) => {
+                        const pageNumber = index + 1;
+                        if (
+                          pageNumber === 1 ||
+                          pageNumber === totalPages ||
+                          (pageNumber >= currentPage - 1 &&
+                            pageNumber <= currentPage + 1)
+                        ) {
+                          return (
+                            <PaginationItem
+                              key={pageNumber}
+                              className={
+                                pageNumber === currentPage ? "bg-gray-50" : ""
+                              }
+                            >
+                              <PaginationLink
+                                className="w-10 h-9 flex items-center justify-center border rounded-none border-[#cfd4dc] font-medium"
+                                onClick={() => setCurrentPage(pageNumber)}
+                              >
+                                {pageNumber}
+                              </PaginationLink>
+                            </PaginationItem>
+                          );
+                        } else if (
+                          (pageNumber === currentPage - 2 && currentPage > 3) ||
+                          (pageNumber === currentPage + 2 &&
+                            currentPage < totalPages - 2)
+                        ) {
+                          return (
+                            <PaginationEllipsis
+                              key={pageNumber}
+                              className="w-10 h-9 flex items-center justify-center border rounded-none border-[#cfd4dc]"
+                            />
+                          );
+                        }
+                        return null;
+                      })}
+
+                      <Button
+                        variant="outline"
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-[0px_8px_8px_0px] border border-solid border-[#cfd4dc]"
+                        onClick={() =>
+                          setCurrentPage(Math.min(totalPages, currentPage + 1))
+                        }
+                        disabled={currentPage === totalPages}
+                      >
+                        <span className=" font-bold  text-sm [direction:rtl]">
+                          التالي
+                        </span>
+                        <ArrowRightIcon className="w-5 h-5" />
+                      </Button>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
               </div>
-            </div>
-          </section>
-        </div>
-      </Card>
-    </div>
+            </section>
+          </div>
+        </Card>
+      </div>
     </div>
   );
 };

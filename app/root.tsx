@@ -63,7 +63,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
       { 
         toast: toastResponse.toast, 
         user,
-        phoneNumber:context.cloudflare.env.CONTACT_NUMBER,
+        phoneNumber:context.cloudflare.env ,
       }, 
       { 
         headers: toastResponse.headers || undefined 
@@ -85,7 +85,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
  
 
   return (
-    <html lang="ar">
+    <html  lang="ar" >
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -126,7 +126,7 @@ export default function App() {
   // console.log("qrcode:::",generatedQRCode);
 
 
-  const noNavbarRoutes = ["/login"];
+ const noNavbarRoutes = ["/login", "/join"];
 
   const showNavbar = !noNavbarRoutes.includes(location.pathname);
 

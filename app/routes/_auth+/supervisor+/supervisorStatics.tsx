@@ -1,6 +1,8 @@
 import React from "react";
-import content from "../supervisor+/assets/content.png";
-import verified from "../supervisor+/assets/verified-tick.svg";
+import content from "../../../assets/images/new-design/supervisor-profile.png";
+import verified from "../../../assets/icons/Verified-tick.svg";
+import students from "../../../assets/icons/students.svg";
+
 import {
   Chart as ChartJS,
   ArcElement,
@@ -10,11 +12,11 @@ import {
   Title,
   Tooltip,
   Legend,
-  TooltipItem,
+ 
 } from "chart.js";
 import { Doughnut, Bar } from "react-chartjs-2";
 import { cn } from "~/lib/utils";
-import students from "./assets/students.svg";
+ 
 import { useNavigate } from "@remix-run/react";
 import { PlusIcon } from "lucide-react";
 
@@ -505,7 +507,7 @@ export const SupervisorStatistics = (): JSX.Element => {
               <Avatar className="w-10 h-10 rotate-180" fallback="OR" />
               <Button
                 variant="outline"
-                className="inline-flex items-center justify-center gap-1 px-3 py-2 bg-white rounded-lg rotate-180 shadow-shadows-shadow-xs-skeuomorphic"
+                className="inline-flex items-center justify-center gap-1 px-3 py-2 bg-white rounded-md rotate-180 shadow-shadows-shadow-xs-skeuomorphic"
               >
                 <PlusIcon className="w-5 h-5 -rotate-180" />
                 <span className="font-bold text-[#414651] text-sm text-left tracking-[0] leading-5 whitespace-nowrap [direction:rtl]">
@@ -633,7 +635,7 @@ export const SupervisorStatistics = (): JSX.Element => {
                 <div className="flex items-center w-full">
                   {" "}
                   {/* Changed to items-center for vertical alignment */}
-                  <div className="flex rounded-lg border border-[#d5d6d9] overflow-hidden">
+                  <div className="flex rounded-md border border-[#d5d6d9] overflow-hidden">
                     {" "}
                     {/* Added overflow-hidden */}
                     <button className="px-4 py-2 border-r border-[#d5d6d9] bg-white hover:bg-neutral-50 transition-colors [direction:rtl]">

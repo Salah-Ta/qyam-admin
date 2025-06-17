@@ -49,7 +49,7 @@ export const Trainer = () => {
                 <Button
                   key={item.id}
                   variant="outline"
-                  className={`w-full justify-center items-center gap-2 px-[22px] py-4 rounded-[10px] border border-[#d5d6d9] shadow-shadows-shadow-xs-skeuomorphic ${
+                  className={`w-full justify-center items-center gap-2 px-[22px] py-4 rounded-lg border border-[#d5d6d9] shadow-shadows-shadow-xs-skeuomorphic ${
                     isActive
                       ? "bg-[#68C35C] text-white hover:bg-[#4E9E48] hover:text-white" // Active styles with hover
                       : "bg-white text-[#414651] hover:bg-[#f0f0f0]" // Default styles with hover
@@ -72,7 +72,7 @@ export const Trainer = () => {
           <div className="mb-4 flex justify-start">
             <Button
               variant="outline"
-              className="flex items-center gap-1.5 px-[18px] py-3 rounded-lg border border-[#d5d6d9] shadow-shadows-shadow-xs-skeuomorphic "
+              className="flex items-center gap-1.5 px-[18px] py-3 rounded-md border border-[#D5D7DA]  "
             >
               <PlusCircleIcon className="w-5 h-5" />
               <span className="  font-bold text-[#414651] text-base text-left  whitespace-nowrap [direction:rtl]">

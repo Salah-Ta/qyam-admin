@@ -1,4 +1,3 @@
-import { AlertCircleIcon } from "lucide-react";
 import React, { useState } from "react";
 import { Button } from "./components/ui/button";
 import { Card, CardContent } from "./components/ui/card";
@@ -9,10 +8,9 @@ import LoadingOverlay from "~/components/loading-overlay";
 import { authClient } from "../../../lib/auth.client";
 import { toast as showToast } from "sonner";
 import glossary from "../glossary";
-import group30525 from "../../../assets/images/new-design/login/group-30525.png";
-import group from "../../../assets/images/new-design/login/group.png";
-import group1 from "../../../assets/images/new-design/login/group-1.png";
-import section from "../../../assets/images/new-design/login/section.png";
+import group30525 from "../../../assets/icons/square-arrow-login.svg";
+import group1 from "../../../assets/images/new-design/logo-login.svg";
+import section from "../../../assets/images/new-design/section.png";
 
 export const NewLogin = (): JSX.Element => {
   const navigate = useNavigate();
@@ -105,13 +103,13 @@ export const NewLogin = (): JSX.Element => {
       {/* Header section with consistent margins */}
       <header className="flex flex-col items-center gap-6 w-full mb-10">
         <div className="relative w-[94px] h-[60px] mb-4">
-          <img
+          {/* <img
             className="absolute w-[33px] h-8 top-0 left-0"
             alt="Logo part 1"
             src={group}
-          />
+          /> */}
           <img
-            className="absolute w-[66px] h-[31px] top-[29px] left-7"
+            className="absolute w-[94px] h-[60px] left-7"
             alt="Logo part 2"
             src={group1}
           />

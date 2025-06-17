@@ -1,5 +1,5 @@
 import { CheckIcon, ChevronDownIcon, MailIcon } from "lucide-react";
-import React from "react";
+import React, { useState } from "react";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import {
@@ -9,22 +9,75 @@ import {
   SelectTrigger,
 } from "./components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "./components/ui/toggle-group";
-import { useNavigate, useNavigation } from "@remix-run/react";
+import { useLoaderData, useNavigate, useNavigation } from "@remix-run/react";
 import LoadingOverlay from "~/components/loading-overlay";
-import registerLogo from "../../../assets/images/new-design/login/registerLogo.png";
-import arrowLeft from "../../../assets/images/new-design/login/Icon.png";
+import registerLogo from "../../../assets/images/new-design/logo-login.svg";
+import arrowLeft from "../../../assets/icons/square-arrow-login.svg";
+import arrowregister from "../../../assets/icons/arrow-White.svg";
+import { SelectGroup } from "~/components/ui/select";
+ 
+import { loader } from "../api.auth.$";
+import { Region, School, EduAdmin } from "@prisma/client"; // Import your types
+
 
 export const NewRegister = (): JSX.Element => {
   const navigate = useNavigate();
   const navigation = useNavigation();
+  const [school, setSchool] = useState("");
+  const [schools, setSchools] = useState<School[]>([]);
+  
+  // Get data from loader
+  const loaderData = useLoaderData<typeof loader>();
+  const regions = loaderData.regions || [];
+  const eduAdmins = loaderData.eduAdmins || [];
+  const allSchools = loaderData.schools || [];
 
-  const schoolOptions = [
-    { id: 1, name: "مدرسة" },
-    { id: 2, name: "مدرسة" },
-    { id: 3, name: "مدرسة" },
-    { id: 4, name: "مدرسة" },
-  ];
+    useEffect(() => {
+    if (region) {
+      // Find education admin for the selected region
+      const regionAdmin = eduAdmins.find(admin => 
+        admin.region?.name === region
+      );
+      
+      // Find schools for this education admin
+      const filteredSchools = allSchools.filter(school => 
+        school.eduAdmin?.id === regionAdmin?.id
+      );
+      
+      setSchools(filteredSchools);
+    } else {
+      setSchools([]);
+    }
+    setSchool(""); // Reset school selection
+  }, [region]);
 
+  useEffect(() => {
+    // ... existing validation logic ...
+    if (touched.school && !school) {
+      newErrors.school = "يرجى اختيار المدرسة";
+    }
+    // ... rest of validation ...
+  }, [touched, school]);
+  // Add school to signup payload
+  const signUp = async (e: React.MouseEvent) => {
+    // ... existing code ...
+    await authClient.signUp.email(
+      {
+        // ... existing fields ...
+        school, // Add this line
+      },
+      // ... existing options ...
+    );
+  };
+
+  
+  // Update form completeness check
+  const areAllFieldsFilled = () => {
+    return (
+      // ... existing checks ...
+      school.trim() !== ""
+    );
+  };
   return (
     <div className="bg-white flex h-screen w-full overflow-hidden [direction:rtl]">
       {/* Logo section */}
@@ -50,7 +103,7 @@ export const NewRegister = (): JSX.Element => {
               <img
                 className=""
                 alt="Group"
-                src="app/assets/images/new-design/login/group-30525.png"
+                src={arrowLeft}
               />
             </button>
           </div>
@@ -160,11 +213,20 @@ export const NewRegister = (): JSX.Element => {
                 <Select>
                   <SelectTrigger className="justify-end gap-2 px-3.5  bg-white rounded-lg border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs [direction:rtl]">
                     <div className="flex-1 text-start font-normal text-[#717680] text-base">
-                      الرياض
+                      {region || "اختر المنطقة"}
                     </div>
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="riyadh">الرياض</SelectItem>
+                    <SelectGroup
+                      value={region}
+                    onValueChange={setRegion}>
+                      
+                    </SelectGroup>
+                       {regions.map((reg) => (
+                    <SelectItem   key={reg.id}
+                        className={`${region === reg.name ? "bg-gray-50" : ""}`} 
+                        value={reg.name}>  {reg.name}</SelectItem>
+                        ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -184,6 +246,9 @@ export const NewRegister = (): JSX.Element => {
                     </div>
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectGroup>
+
+                    </SelectGroup>
                     <SelectItem value="education">إدارة تعليم</SelectItem>
                   </SelectContent>
                 </Select>
@@ -200,25 +265,39 @@ export const NewRegister = (): JSX.Element => {
                 <Select>
                   <SelectTrigger className="justify-end gap-2 px-3.5  bg-white rounded-lg border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs [direction:rtl]">
                     <div className="flex-1 text-start font-normal text-[#717680] text-base">
-                      مدرسة خالد بن الوليد
+                     {school || (schools.length ? "اختر المدرسة" : "لا توجد مدارس متاحة")}
                     </div>
                   </SelectTrigger>
+                  
                   <SelectContent className="max-h-64 [direction:rtl]">
-                    {schoolOptions.map((school, index) => (
+
+                    <SelectGroup
+                        value={school}
+                    onValueChange={(value) => {
+                      setSchool(value);
+                      setTouched(prev => ({ ...prev, school: true }));
+                    }}
+                    >
+
+                    </SelectGroup>
+                    {schools.map((s) => (
                       <SelectItem
-                        key={school.id}
-                        value={`school-${school.id}`}
-                        className={index === 1 ? "bg-neutral-50" : ""}
+                       key={s.id}
+                        className={`${school === s.name ? "bg-gray-50" : ""}`} 
+                        value={s.name}
                       >
                         <div className="flex items-center gap-2">
                           <span className="font-medium text-[#181d27] text-base">
-                            {school.name}
+                             {s.name}
                           </span>
                         </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                   {errors.school && touched.school && (
+                <span className="text-red-600 text-xs">{errors.school}</span>
+              )}
               </div>
             </div>
           </div>
@@ -226,7 +305,7 @@ export const NewRegister = (): JSX.Element => {
           {/* Submit Button */}
           <Button className="max-md:mt-[20px] mb-3 md:mt-[90px] bg-[#006E7F] hover:bg-[#005a68] text-white rounded-lg [direction:rtl] font-bold text-base py-3">
             تسجيل
-            <img src={arrowLeft} alt="arrow-left" />
+            <img src={arrowregister} alt="arrow-left" />
           </Button>
         </div>
 
@@ -237,7 +316,7 @@ export const NewRegister = (): JSX.Element => {
         className=" lg:block w-5/12  max-lg:hidden h-full bg-no-repeat bg-cover"
         style={{
           backgroundImage:
-            "url(app/assets/images/new-design/login/section.png)",
+            "url(app/assets/images/new-design/section.png)",
         }}
       />
     </div>

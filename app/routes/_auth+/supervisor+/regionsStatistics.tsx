@@ -11,11 +11,11 @@ import {
   Title,
 } from "chart.js";
 import { Doughnut, Bar } from "react-chartjs-2";
-import arrowDown from "../../../assets/images/new-design/chevron-down.png";
-import School from "../supervisor+/assets/school.svg";
-import students from "../supervisor+/assets/students.svg";
+import arrowDown from "../../../assets//icons/arrow-down-gray.svg";
+import School from "../../../assets/icons/schools.svg";
+import students from "../../../assets/icons/students.svg";
 
-import teacher from "../supervisor+/assets/teacher.svg";
+import teacher from "../../../assets/icons/teachers.svg";
 import { useNavigate } from "react-router-dom"; // Import useNavigate
 
 ChartJS.register(
@@ -32,45 +32,45 @@ ChartJS.register(
 const statsData = [
   {
     id: 1,
-    icon: { School },
+    icon: School,
     iconAlt: "School",
     title: "عدد المدارس",
     value: "52",
     max: "100",
     color: "#539c4a",
-    percentage: 52,
+    percentage: 37,
   },
   {
     id: 2,
-    icon: { teacher },
+    icon: teacher,
     iconAlt: "Teacher",
     title: "عدد المعلمات",
     value: "128",
     max: "200",
-    color: "#30B0C7",
-    percentage: 64,
+    color: "#199491",
+    percentage: 87,
   },
   {
     id: 3,
-    icon: { students },
+    icon: students,
     iconAlt: "Students",
     title: "عدد الطالبات",
     value: "4321",
     max: "5000",
     color: "#004E5C",
-    percentage: 86,
+    percentage: 27,
   },
 ];
 
 // Education departments data
 const educationDepartments = [
-  { name: "قرطبة", color: "#006173", value: 25 },
-  { name: "العليا", color: "#004E5C", value: 20 },
-  { name: "طويق", color: "#199491", value: 15 },
-  { name: "الملز", color: "#539C4A", value: 12 },
-  { name: "النسيم", color: "#004E5C", value: 10 },
+  { name: "قرطبة", color: "#539C4A", value: 25 },
+  { name: "العليا", color: "#30B0C7", value: 20 },
+  { name: "طويق", color: "#FFCC00", value: 15 },
+  { name: "الملز", color: "#AF52DE", value: 12 },
+  { name: "النسيم", color: "#FF2D55", value: 10 },
   { name: "الروضة", color: "#68C35C", value: 8 },
-  { name: "المعذر", color: "#199491", value: 6 },
+  { name: "المعذر", color: "#E9EAEB", value: 6 },
   { name: "الملقا", color: "#006173", value: 4 },
 ];
 
@@ -80,35 +80,35 @@ const reportMetrics = [
     value: "87",
     unit: "مهارة",
     title: "المهارات المدرب عليها",
-    color: "#006173",
+    color: "#68C35C",
     percentage: 47,
   },
   {
     value: "240",
     unit: "ساعة",
     title: "الساعات التطوعية",
-    color: "#004E5C",
+    color: "#68C35C",
     percentage: 40,
   },
   {
     value: "76",
     unit: "نشاط",
     title: "الأنشطة المنفذة",
-    color: "#199491",
+    color: "#68C35C",
     percentage: 36,
   },
   {
     value: "240",
     unit: "مهارة",
     title: "القيمة الاقتصادية للمهارات",
-    color: "#539C4A",
+    color: "#68C35C",
     percentage: 20,
   },
   {
     value: "9832",
     unit: "ساعة تطوعية",
     title: "الساعات التطوعية المحققة",
-    color: "#004E5C",
+    color: "#68C35C",
     percentage: 18,
   },
   {
@@ -122,7 +122,7 @@ const reportMetrics = [
     value: "42",
     unit: "Active users",
     title: "القيمة الاقتصادية للمهارات",
-    color: "#006173",
+    color: "#68C35C",
     percentage: 42,
   },
 ];
@@ -153,18 +153,28 @@ const barColors = [
 export const RegionsStatistics = (): JSX.Element => {
   const navigate = useNavigate(); // Initialize navigate
 
-  const getRadialChartData = (percentage: number, color: string) => ({
+  const getRadialChartDataTotal = (percentage: number, color: string) => ({
     datasets: [
       {
         data: [percentage, 100 - percentage],
-        backgroundColor: [color, "#199491"],
+        backgroundColor: [color, "#E9EAEB"],
         borderWidth: 0,
-        circumference: 270,
-        rotation: 225,
+        circumference: 360,
+        rotation: 0,
       },
     ],
   });
-
+  const getRadialChartDataReports = (percentage: number, color: string) => ({
+    datasets: [
+      {
+        data: [percentage, 100 - percentage],
+        backgroundColor: [color, "#E9EAEB"],
+        borderWidth: 0,
+        circumference: 240,
+        rotation: 240,
+      },
+    ],
+  });
   const radialChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -198,7 +208,7 @@ export const RegionsStatistics = (): JSX.Element => {
         display: false,
       },
     },
-    cutout: "70%",
+    cutout: "60%",
   };
 
   const barChartData = {
@@ -310,6 +320,7 @@ export const RegionsStatistics = (): JSX.Element => {
       label: "الإحصاءات",
       path: "/supervisor/programStatics",
       active: false,
+     
     },
     {
       id: "trainer-statistics",
@@ -319,13 +330,13 @@ export const RegionsStatistics = (): JSX.Element => {
     },
   ];
   return (
-    <div className="bg-[#f9f9f9]">
-      <div className="py-6  [direction:rtl] max-lg:px-[10px] lg:mr-[53px] ">
+    <div className="bg-[#f9f9f9]  ">
+      <div className="py-6  [direction:rtl] max-lg:px-[10px]  lg:mr-[50px] ">
         <div className="w-full   py-6 rounded-xl  ">
           {/* Header Section */}
           <div className="flex flex-col items-start mb-6 pb-4 max-lg:items-center">
             <h1 className="text-2xl font-bold text-gray-800 mb-2">
-              إحصاءات المناطق
+              {"إحصاءات المناطق"}
             </h1>
             <p className="text-lg font-normal text-[#535862]">
               بيانات المناطق والمدراس والإدرات
@@ -345,10 +356,10 @@ export const RegionsStatistics = (): JSX.Element => {
                   className={`min-h-10 px-4 py-2   border border-[#D5D7DA] w-full md:w-auto ${
                     tab.active ? "bg-[#FAFAFA]" : "bg-white"
                   } [direction:rtl] ${!tab.active ? "z-[1]" : "z-[-5]"}
-          ${index === 0 ? "md:rounded-r-lg rounded-t-lg md:rounded-l-none" : ""}
+          ${index === 0 ? "md:rounded-r-md rounded-t-md md:rounded-l-none" : ""}
           ${
             index === tabItems.length - 1
-              ? "md:rounded-l-lg rounded-b-lg md:rounded-r-none"
+              ? "md:rounded-l-md rounded-b-md md:rounded-r-none"
               : ""
           }
           ${
@@ -373,13 +384,13 @@ export const RegionsStatistics = (): JSX.Element => {
           </div>
         </div>
       </div>
-      <main className="flex flex-col  mx-auto gap-9 max-lg:px-[10px] lg:px-[112px] ">
+      <main className="flex flex-col  mx-auto gap-9 max-lg:px-[10px] lg:px-[112px]">
         <div className="flex flex-col items-baseline gap-6 [direction:rtl] md:flex-row   lg:mt-[76px]">
           {/* المنطقة (Area) */}
           <div className="flex flex-col w-1/3  max-lg:w-full ">
             <div className="mb-2 text-start text-sm text-gray-500">المنطقة</div>
             <div className="relative">
-              <select className="appearance-none bg-white border border-gray-200 text-[#717680] text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 pl-10">
+              <select className="appearance-none bg-white border border-gray-200 text-[#717680] text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 pl-10">
                 <option className=" ">الكل</option>
               </select>
               <img
@@ -396,7 +407,7 @@ export const RegionsStatistics = (): JSX.Element => {
               إدارة التعليم
             </div>
             <div className="relative">
-              <select className="appearance-none bg-white border border-gray-200 text-[#717680] text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 pl-10">
+              <select className="appearance-none bg-white border border-gray-200 text-[#717680] text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 pl-10">
                 <option className="">الكل</option>
               </select>
               <img
@@ -411,7 +422,7 @@ export const RegionsStatistics = (): JSX.Element => {
           <div className="flex flex-col w-1/3  max-lg:w-full">
             <div className="mb-2 text-start text-sm text-gray-500">المدرسة</div>
             <div className="relative">
-              <select className="appearance-none bg-white border border-gray-200 text-[#717680] text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 pl-10">
+              <select className="appearance-none bg-white border border-gray-200 text-[#717680] text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 pl-10">
                 <option className="">الكل</option>
               </select>
               <img
@@ -423,20 +434,27 @@ export const RegionsStatistics = (): JSX.Element => {
           </div>
         </div>
         {/* Stats Section */}
-        <div className="flex flex-col lg:flex-row items-center gap-[27px] relative self-stretch w-full flex-[0_0_auto]">
+
+        <div className="flex flex-col lg:flex-row items-center gap-[27px] relative self-stretch w-full flex-[0_0_auto] [direction:rtl] mt-[108px]">
           {statsData.map((stat) => (
             <div
               key={stat.id}
-              className="flex h-[142px] max-lg:w-full lg:w-auto items-center justify-center gap-6 p-6 relative flex-1 grow bg-white rounded-xl border border-solid border-[#e9e9eb] shadow-shadows-shadow-xs mb-4 lg:mb-0"
+              className="flex h-[142px] max-lg:w-full lg:w-auto items-center justify-center gap-6 p-6 relative flex-1 grow bg-white rounded-xl border border-solid border-[#e9e9eb] shadow-shadows-shadow-xs mb-4 lg:mb-0 "
             >
-              <div className="flex flex-col lg:flex-row  items-center justify-center gap-6 p-0 w-full">
-                <img
-                  className="relative w-[54px] h-[54px]"
-                  alt={stat.iconAlt}
-                  src={stat.color}
-                />
+              <div className="flex flex-col lg:flex-row  items-center justify-center gap-6 p-0 w-full ">
+                <div className="relative w-[120px] h-[120px]">
+                  <Doughnut
+                    data={getRadialChartDataTotal(stat.percentage, stat.color)}
+                    options={radialChartOptions}
+                  />
+                  {/* <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center">
+                    <div className="text-[#181d27] text-2xl font-bold">
+                      {stat.percentage}%
+                    </div>
+                  </div> */}
+                </div>
 
-                <div className="flex flex-col items-end md:items-end gap-6 relative flex-1 grow">
+                <div className="flex flex-col items-end md:items-end gap-6 relative flex-1 grow ">
                   <div className="self-stretch mt-[-1.00px] font-bold text-base leading-6 relative text-[#181d27] tracking-[0] [direction:rtl] text-center md:text-right">
                     {stat.title}
                   </div>
@@ -449,18 +467,11 @@ export const RegionsStatistics = (): JSX.Element => {
                     </div>
                   </div>
                 </div>
-
-                <div className="relative w-[120px] h-[120px]">
-                  <Doughnut
-                    data={getRadialChartData(stat.percentage, stat.color)}
-                    options={radialChartOptions}
-                  />
-                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center">
-                    <div className="text-[#181d27] text-2xl font-bold">
-                      {stat.percentage}%
-                    </div>
-                  </div>
-                </div>
+                <img
+                  className="relative w-[54px] h-[54px] "
+                  alt={stat.iconAlt}
+                  src={stat.icon}
+                />
               </div>
             </div>
           ))}
@@ -554,7 +565,7 @@ export const RegionsStatistics = (): JSX.Element => {
                     >
                       <div className="relative w-32 lg:w-40 h-[70px] lg:h-[88px]">
                         <Doughnut
-                          data={getRadialChartData(
+                          data={getRadialChartDataReports(
                             metric.percentage,
                             metric.color
                           )}
@@ -588,7 +599,7 @@ export const RegionsStatistics = (): JSX.Element => {
                 <div className="flex items-center w-full">
                   {" "}
                   {/* Changed to items-center for vertical alignment */}
-                  <div className="flex rounded-lg border border-[#d5d6d9] overflow-hidden">
+                  <div className="flex rounded-md border border-[#d5d6d9] overflow-hidden">
                     {" "}
                     {/* Added overflow-hidden */}
                     <button className="px-4 py-2 border-r border-[#d5d6d9] bg-white hover:bg-neutral-50 transition-colors [direction:rtl]">

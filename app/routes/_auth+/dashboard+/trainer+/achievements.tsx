@@ -24,8 +24,13 @@ import React from "react";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { Badge } from "~/routes/dashbord/dashboard-components/ui/badge";
+import mail from "../../../../assets/icons/mail.svg";
+import phone from "../../../../assets/icons/phone.svg"
 
-import Group30476 from "../../../../assets/images/new-design/Group 30476.png";
+import region from "../../../../assets/icons/region.svg";
+
+import profile from "../../../../assets/icons/profile.svg";
+import Group30476 from "../../../../assets/images/new-design/aboutLogo.svg";
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
   return materialDB
     .getAllMaterials(context.cloudflare.env.DATABASE_URL)
@@ -100,22 +105,23 @@ const achievements = () => {
     {
       id: 1,
       label: "الاسم : نورة علي",
-      icon: <UserIcon className="w-5 h-5 " />,
+      icon: profile,
+      
     },
     {
       id: 2,
       label: "الجوال : 123456789",
-      icon: <PhoneIcon className="w-5 h-5" />,
+      icon: phone,
     },
     {
       id: 3,
       label: "الايميل : kmsalms@gmail.com",
-      icon: <MailIcon className="w-5 h-5" />,
+      icon: mail,
     },
     {
       id: 4,
       label: "المنطقة : الرياض",
-      icon: <MapPinIcon className="w-5 h-5" />,
+      icon: region,
     },
     { id: 5, label: "الإدارة : تعليم الزلفي", icon: null },
   ];
@@ -124,15 +130,16 @@ const achievements = () => {
     <section>
       {/* Feedback Section */}
       <div className="w-full max-w-full mb-4 [direction:rtl]">
-        <Card className="w-full flex flex-col gap-[18px] p-[18px] bg-white border border-[#d5d6d9] shadow-[0px_1px_2px_#0a0d120d] rounded-xl">
-          <div className="flex flex-col items-start justify-center px-2 py-1 w-full bg-[#f7f7f7] rounded-lg">
+        <Card className="w-full flex flex-col gap-[18px] p-[18px] bg-white border border-[#d5d6d9] shadow-[0px_1px_2px_#0a0d120d] rounded-[12px]">
+          <div className="flex flex-col items-start justify-center px-2 py-1 w-full bg-[#f7f7f7] rounded-[8px]">
             <div className="flex w-full items-center justify-start gap-2">
-              <img
+       
+              <h2 className="font-bold text-2xl text-labelsprimary">بياناتي</h2>
+                     <img
                 className="w-[21.5px] h-[19.5px]"
                 alt="Location icon"
-                src={Group30476}
+                src={region}
               />
-              <h2 className="font-bold text-2xl text-labelsprimary">بياناتي</h2>
             </div>
           </div>
 
@@ -140,9 +147,12 @@ const achievements = () => {
             {userData.map((item) => (
               <div
                 key={item.id}
-                className="inline-flex items-center justify-start gap-3 p-2.5 bg-white rounded-lg border border-solid border-[#d0d5dd] max-md:w-full"
+                className="inline-flex items-center justify-start gap-3 p-2.5 bg-white rounded-[8px] border border-solid border-[#d0d5dd] max-md:w-full"
               >
-                {item.icon}
+               
+                {typeof item.icon === "string" && (
+                  <img src={item.icon} alt="icon" className="w-5 h-5" />
+                )}
                 <div className="font-medium text-[#1f2a37] text-base tracking-[0] leading-[normal] [direction:rtl]">
                   {item.label}
                 </div>
@@ -150,7 +160,7 @@ const achievements = () => {
             ))}
 
             <div className="inline-flex flex-col items-start gap-1.5 max-md:w-full ">
-              <div className="inline-flex items-center md:justify-end  max-md:items-start gap-2 px-3.5 py-2.5 bg-white rounded-lg overflow-hidden border border-solid border-[#d0d5dd] shadow-[0px_1px_2px_#1018280d] max-md:w-full">
+              <div className="inline-flex items-center md:justify-end  max-md:items-start gap-2 px-3.5 py-2.5 bg-white rounded-[8px] overflow-hidden border border-solid border-[#d0d5dd] shadow-[0px_1px_2px_#1018280d] max-md:w-full">
                 <div className="inline-flex gap-2 items-center md:justify-endjustify-end max-md:w-full ">
                   <Badge className="w-2.5 h-2.5 p-0 flex items-center justify-center bg-transparent">
                     <div className="w-2 h-2 bg-[#199491] rounded-full"></div>
@@ -165,7 +175,7 @@ const achievements = () => {
         </Card>
       </div>
       <Card className="flex flex-col w-full h-auto items-start gap-[19px] p-3 bg-white rounded-xl border border-solid border-[#d5d7da] [direction:rtl]">
-        <div className="flex w-full flex-row-reverse items-center justify-between px-2 py-1 bg-[#199491] rounded-lg">
+        <div className="flex w-full flex-row-reverse items-center justify-between px-2 py-1 bg-[#199491] rounded-[8px]">
           <ChevronLeftIcon className="w-5 h-5 text-white -rotate-90" />
           <div className="flex items-end justify-around relative">
             <h1 className="w-fit mt-[-1.00px]  font-bold text-white text-2xl tracking-[0] leading-[normal] ">

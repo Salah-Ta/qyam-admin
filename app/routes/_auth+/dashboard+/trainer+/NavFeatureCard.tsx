@@ -4,7 +4,7 @@ import { Card, CardContent } from "../../../../components/ui/card";
 import { Progress } from "./assets/progress";
 import { LoaderFunctionArgs } from "@remix-run/cloudflare";
 import materialDB from "~/db/material/material.server";
-import checkIconCercle from "../../../../assets/images/new-design/check-circle.png";
+import checkIconCercle from "../../../../assets/icons/check-green.svg";
 
 
 

@@ -26,7 +26,7 @@ const DropdownMenuTrigger = React.forwardRef<
   }
 >(({ className, inset, children, ...props }, ref) => (
   <DropdownMenuPrimitive.Trigger
-  dir="rtl"
+  // dir="rtl"
     ref={ref}
     className={cn(
       "flex cursor-default justify-between items-center rounded-sm px-2 py-1.5 text-sm outline-none  [&>svg]:data-[state=open]:rotate-180 [&>svg]:data-[state=close]:rotate-180 ",
@@ -49,7 +49,7 @@ const DropdownMenuSubTrigger = React.forwardRef<
   }
 >(({ className, inset, children, ...props }, ref) => (
   <DropdownMenuPrimitive.SubTrigger
-  dir="rtl"
+  // dir="rtl"
     ref={ref}
     className={cn(
       "flex cursor-default gap-2 select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none focus:bg-accent data-[state=open]:bg-accent [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
@@ -147,7 +147,7 @@ const DropdownMenuRadioItem = React.forwardRef<
 >(({ className, children, ...props }, ref) => (
   <DropdownMenuPrimitive.RadioItem
     ref={ref}
-    dir="rtl"
+    // dir="rtl"
     className={cn(
       "relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       className

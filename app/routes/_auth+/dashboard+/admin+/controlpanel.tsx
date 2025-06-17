@@ -1,15 +1,16 @@
-import { CheckIcon, UploadCloudIcon } from "lucide-react";
+import { CheckIcon,   } from "lucide-react";
 import React, { useState } from "react";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import imageDashed from "../admin+/assets/Image.png";
-import plusImg from "../admin+/assets/plus-sign.png";
+import imageDashed from "../../../../assets/images/new-design/image-2.png";
+import plusImg from "../../../../assets/images/new-design/plus-sign.svg";
 
-import pdf01 from "../admin+/assets/pdf-01.svg";
-import pageSvg from "../admin+/assets/page.svg";
-import featuredIcon from "../admin+/assets/Featured icon.png";
-import deleteIcon from "../admin+/assets/group-30519.png";
-import HorizontalTabs from "./horizontalTabs";
+import pdf01 from "../../../../assets/icons/pdf.svg";
+import pageSvg from "../../../../assets/icons/doc.svg";
+import featuredIcon from "../../../../assets/icons/feature-2.svg";
+import deleteIcon from "../../../../assets/icons/delete.svg";
+import UploadCloudIcon from "../../../../assets/icons/upload-cloud.svg";
+ 
 
 // Utility function
 function cn(...inputs: ClassValue[]) {
@@ -186,9 +187,9 @@ export const ControlPanel = (): JSX.Element => {
         <Card className="w-full h-full rounded-2xl border border-[#d0d5dd]  ">
           <CardContent className="p-8 flex flex-col gap-4">
             {/* Upload Area */}
-            <div className="flex flex-col items-center gap-3 p-4 bg-[#fdfdfd] rounded-lg border border-[#e4e7ec] [direction:rtl]">
+            <div className="flex flex-col items-center gap-3 p-4 bg-[#fdfdfd] rounded-[8px] border border-[#e4e7ec] [direction:rtl]">
               <div className="relative w-[46px] h-[46px] bg-gray-100 rounded-[28px] border-[6px] border-[#f8f9fb] flex items-center justify-center">
-                <UploadCloudIcon className="w-5 h-5" />
+              <img src={UploadCloudIcon} alt="" />
               </div>
 
               <div className="flex flex-col items-center gap-1 w-full">
@@ -216,12 +217,12 @@ export const ControlPanel = (): JSX.Element => {
                 <div className="flex items-start gap-3 ">
                   <Button
                     variant="outline"
-                    className="rounded-lg   font-bold text-gray-700 text-sm  px-4 py-[10px] "
+                    className="rounded-[8px]   font-bold text-gray-700 text-sm  px-4 py-[10px] "
                   >
                     إلغاء
                   </Button>
 
-                  <Button className="bg-[#006173] rounded-lg border border-[#0d3151]  px-4 py-[10px] font-bold text-white text-sm ">
+                  <Button className="bg-[#006173] rounded-[8px] border border-[#0d3151]  px-4 py-[10px] font-bold text-white text-sm ">
                     حفظ الملفات
                   </Button>
                 </div>
@@ -247,7 +248,7 @@ export const ControlPanel = (): JSX.Element => {
               {fileCards.map((file) => (
                 <Card
                   key={file.id}
-                  className="w-full md:flex-1 flex items-center justify-center gap-[13.75px] px-[13.75px] py-[11px] bg-white rounded-[11px] border-[2.38px] border-dashed border-[#cfd4dc] shadow-[0px_1.38px_2.75px_#1018280d]"
+                  className="w-full md:flex-1 flex items-center justify-center gap-[13.75px] px-[13.75px] py-[11px] bg-white rounded-[11px] border-[2.38px]  border-dashed border-[#cfd4dc] shadow-[0px_1.38px_2.75px_#1018280d]"
                 >
                   <img
                     className="w-[16.5px] h-[16.5px]"
@@ -359,9 +360,9 @@ export const ControlPanel = (): JSX.Element => {
                 </Card>
               ))}
             </div>
-            <div className=" w-full mx-auto rounded-xl   shadow-lg bg-white overflow-hidden p-2">
+            <div className=" w-full mx-auto rounded-[11.78px]   shadow-lg bg-white overflow-hidden p-2">
               <div
-                className="w-full h-36 rounded-t-xl"
+                className="w-full h-[184px] rounded-[5.89px]"
                 style={{
                   backgroundImage: `url(${imageDashed})`,
                   backgroundSize: "cover",
@@ -372,12 +373,12 @@ export const ControlPanel = (): JSX.Element => {
 
               <div className="flex flex-col items-end p-4">
                 <div className="text-right w-full">
-                  <div className="font-bold text-gray-800 mb-1"> نص جديد </div>
-                  <div className="text-gray-600 text-sm">
+                  <div className="font-bold text-[#1F2A37] mb-1"> نص جديد </div>
+                  <div className="font-normal text-[#1F2A37] text-[17.67px]">
                     هنا نص بداية المقال وهو نص حسب المحتوى{" "}
                   </div>
                 </div>
-                <button className=" flex items-center justify-center mt-4 px-6 py-1 bg-[#006173] text-white rounded shadow hover:bg-teal-800 transition">
+                <button className=" flex items-center justify-center mt-4 px-6 py-1 bg-[#006173] text-white rounded-[5.89px] shadow hover:bg-teal-800 transition">
                   <img src={plusImg} alt="" />
                   <span className="ml-2">جديد</span>
                 </button>

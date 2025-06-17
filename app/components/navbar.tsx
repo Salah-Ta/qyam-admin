@@ -1,12 +1,19 @@
 import { Icon } from "./icon";
-import { NavLink, useNavigate, useNavigation, useRouteLoaderData } from "@remix-run/react";
+import {
+  NavLink,
+  useNavigate,
+  useNavigation,
+  useRouteLoaderData,
+} from "@remix-run/react";
 import Logo from "~/assets/images/logo.svg";
 import { useReducer } from "react";
 import { cn } from "~/lib/tw-merge";
 import { NavbarElements } from "~/lib/contstants";
 import { Link } from "@remix-run/react";
 import { canViewElement } from "~/lib/check-permission";
-import LoadingOverlay from "./loading-overlay";
+
+
+import DashboardNav from "./dashboardNav";
 
 const Navbar = () => {
   const navigate = useNavigate();
@@ -24,14 +31,22 @@ const Navbar = () => {
       <div className="h-full flex flex-auto  justify-end   ">
         <button
           onClick={handleLogout}
-          className="button  font-bold text-center text-xs md:text-sm  md:p-3 rounded-lg text-gray-700 hover:bg-black/5 transition-all">
+          className="button  font-bold text-center text-xs md:text-sm  md:p-3 rounded-lg text-gray-700 hover:bg-black/5 transition-all"
+        >
           تسجيل الخروج
         </button>
       </div>
     ) : (
       <div className="visitors flex flex-auto  justify-end  gap-x-4">
         <button
-          onClick={() => navigate("/join")}
+          onClick={() => navigate("/dashboard")}
+          className="button font-bold text-xs  md:text-sm text-center p-3 rounded-lg bg-primary text-white hover:opacity-90 transition-opacity"
+        >
+          {" "}
+          انضمام
+        </button>
+        <button
+          onClick={() => navigate("/dashboard/infocenter")}
           className="button font-bold text-xs  md:text-sm text-center p-3 rounded-lg bg-primary text-white hover:opacity-90 transition-opacity"
         >
           {" "}
@@ -54,10 +69,7 @@ const Navbar = () => {
           key={element.id}
           className="flex cursor-pointer font-bold text-gray-700"
         >
-          <NavLink
-            prefetch="intent"
-            to={element.link}
-          >
+          <NavLink prefetch="intent" to={element.link}>
             <span>{element.arabicLabel}</span>
             {element.children && element.children.length && (
               <Icon name="below-arrow" size="sm" />
@@ -69,36 +81,45 @@ const Navbar = () => {
   );
 
   return (
-    <nav className="z-50   fixed w-full h-12 md:h-16  bg-white/95 mx-auto md:justify-center justify-normal flex items-center py-2 lg:px-32  px-3 gap-x-8">
-      {navigation.state === "loading" &&<LoadingOverlay message="جاري التحميل"/>}   
-      <Link to="/">
-        <img
-          className={"h-8 w-8 md:h-auto md:w-auto  ml-auto md:ml-0"}
-          src={Logo}
-          alt="logo"
-        />
-      </Link>
-      <div
-        className={cn(
-          " md:bg-transparent bg-white/95 md:h-auto h-[60vh] md:w-fit md:max-w-full max-w-[300px] w-2/3 md:rounded-none md:p-0 p-5 rounded-r-lg text-right md:static absolute top-12 left-0",
-          "transform transition-transform duration-300 ease-in-out",
-          isMenuOpen ? "translate-x-0" : "-translate-x-full",
-          "md:transform-none md:translate-x-0"
-        )}
-      >
-        <DisplayedNavList />
-      </div>
-      <AuthActions />
+    <>
+      <DashboardNav />
 
-      <div className="md:hidden  mr-auto">
-        <Icon
-          onClick={toggleMenu}
-          name={`${isMenuOpen ? "close" : "menu"}`}
-          size="xl3"
-          className=" p-2 hover:bg-black/5 transition-all  "
-        />
-      </div>
-    </nav>
+      {/* <nav className="z-50   fixed w-full h-12 md:h-16  bg-white/95 mx-auto md:justify-center justify-normal flex items-center py-2 lg:px-32  px-3 gap-x-8">
+        {navigation.state === "loading" && (
+          <LoadingOverlay message="جاري التحميل" />
+        )}
+        <Link to="/">
+          <img
+            className={"h-8 w-8 md:h-auto md:w-auto  ml-auto md:ml-0"}
+            src={Logo}
+            alt="logo"
+          />
+        </Link>
+
+        <Link to="/dashboard" className="nav-link">
+          Dashboard
+        </Link>
+        <div
+          className={cn(
+            " md:bg-transparent bg-white/95 md:h-auto h-[60vh] md:w-fit md:max-w-full max-w-[300px] w-2/3 md:rounded-none md:p-0 p-5 rounded-r-lg text-right md:static absolute top-12 left-0",
+            "transform transition-transform duration-300 ease-in-out",
+            isMenuOpen ? "translate-x-0" : "-translate-x-full",
+            "md:transform-none md:translate-x-0"
+          )}
+        >
+          <DisplayedNavList />
+        </div>
+
+        <div className="md:hidden  mr-auto">
+          <Icon
+            onClick={toggleMenu}
+            name={`${isMenuOpen ? "close" : "menu"}`}
+            size="xl3"
+            className=" p-2 hover:bg-black/5 transition-all  "
+          />
+        </div>
+      </nav> */}
+    </>
   );
 };
 

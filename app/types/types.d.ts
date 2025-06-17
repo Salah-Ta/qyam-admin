@@ -45,6 +45,7 @@ export type AcceptenceState = "accepted" | "denied" | "pending" | "idle";
 export type UserRole = "ADMIN" | "SUPERVISOR" | "USER";
 
 export type QUser = {
+  acceptenceState: string;
   id?: string;
   email: string;
   name: string;

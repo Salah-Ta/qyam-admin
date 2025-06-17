@@ -6,6 +6,10 @@ const editUserRegisteration = (userId: string, status: AcceptenceState, dbUrl: s
   const db = client(dbUrl)
 
   return new Promise((resolve, reject) => {
+    if (!db) {
+      reject({ status: "error", message: "Database connection failed." });
+      return;
+    }
     db.user.update({
       data: { acceptenceState: status },
       where: { id: userId }
@@ -23,6 +27,10 @@ const bulkEditUserRegisteration = (userIds: string[], status: "accepted" | "deni
   const db = client(dbUrl)
 
   return new Promise((resolve, reject) => {
+    if (!db) {
+      reject({ status: "error", message: "Database connection failed." });
+      return;
+    }
     db.user.updateMany({
       data: { acceptenceState: status },
       where: { id: { in: userIds } }
@@ -38,6 +46,13 @@ const bulkEditUserRegisteration = (userIds: string[], status: "accepted" | "deni
 const getAllUsers = (dbUrl: string): Promise<StatusResponse<QUser[]>> => {
   const db = client(dbUrl);
   return new Promise((resolve, reject) => {
+    if (!db) {
+      reject({
+        status: "error",
+        message: "Database connection failed.",
+      });
+      return;
+    }
     db.user
       .findMany({
         include: {
@@ -65,6 +80,13 @@ const getAllUsers = (dbUrl: string): Promise<StatusResponse<QUser[]>> => {
 const getUser = (id: string, dbUrl: string): Promise<StatusResponse<QUser>> => {
   const db = client(dbUrl);
   return new Promise((resolve, reject) => {
+    if (!db) {
+      reject({
+        status: "error",
+        message: "Database connection failed.",
+      });
+      return;
+    }
     db.user
       .findFirstOrThrow({
         where: { id },
@@ -99,6 +121,13 @@ const createUser = (userData: {
 }, dbUrl: string): Promise<StatusResponse<null>> => {
   const db = client(dbUrl);
   return new Promise((resolve, reject) => {
+    if (!db) {
+      reject({
+        status: "error",
+        message: "Database connection failed.",
+      });
+      return;
+    }
     db.user
       .create({
         data: userData

@@ -6,8 +6,9 @@ import {
   CardContent,
 } from "~/routes/_auth+/new-design/components/ui/card";
 import { Input } from "~/routes/_auth+/new-design/components/ui/input";
-import plusImg from "./assets/plus.svg";
-import HorizontalTabs from "./horizontalTabs";
+import plusImg from "../../../../assets/icons/plus.svg";
+ import UserIcon from "../../../../assets/icons/user-modified.svg"
+
 
 const ManageData = () => {
   // State for sections and inputs
@@ -16,7 +17,7 @@ const ManageData = () => {
       id: 1,
       title: "إضافة منطقة",
       buttonText: "حفظ",
-      icon: <UserPlusIcon className="h-4 w-4" />,
+      icon: UserIcon,
       inputs: [""], // Initial input field
       disabled: false,
     },
@@ -24,7 +25,7 @@ const ManageData = () => {
       id: 2,
       title: "إضافة إدارة",
       buttonText: "حفظ",
-      icon: <UserPlusIcon className="h-4 w-4" />,
+      icon: UserIcon,
       inputs: [""],
       disabled: false,
     },
@@ -32,7 +33,7 @@ const ManageData = () => {
       id: 3,
       title: "إضافة مدرسة",
       buttonText: "حفظ",
-      icon: <UserPlusIcon className="h-4 w-4" />,
+      icon: UserIcon,
       inputs: [""],
       disabled: false,
     },
@@ -99,7 +100,7 @@ const ManageData = () => {
                 <div className="flex flex-1 md:flex-initial gap-2 w-full md:w-auto">
                   <Button
                     variant="outline"
-                    className="flex flex-1 md:w-[120px] items-center justify-center gap-1 px-3 py-2 mt-[-10px] mb-[-10px] bg-white rounded-lg border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs-skeuomorphic"
+                    className="flex flex-1 md:w-[120px]  items-center justify-center gap-1 px-3 py-2 mt-[-10px] mb-[-10px] bg-white rounded-md border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs-skeuomorphic"
                     onClick={() =>
                       section.buttonText === "حفظ"
                         ? handleSave(section.id)
@@ -114,7 +115,7 @@ const ManageData = () => {
                   </Button>
                   <Button
                     variant="outline"
-                    className="flex flex-1 md:w-[120px] items-center justify-center gap-1 px-3 py-2 mt-[-10px] mb-[-10px] bg-white rounded-lg border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs-skeuomorphic"
+                    className="flex flex-1 md:w-[120px] items-center justify-center gap-1 px-3 py-2 mt-[-10px] mb-[-10px] bg-white rounded-md border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs-skeuomorphic"
                     onClick={() => handleAddInput(section.id)}
                   >
                     <div className="inline-flex items-center justify-center px-0.5 py-0 relative">
@@ -136,7 +137,9 @@ const ManageData = () => {
                 {/* Icon Container */}
                 <div className="relative w-8 h-8 mt-[-8px] mb-[-8px] bg-white rounded-md overflow-hidden border border-solid border-[#e9e9eb] shadow-shadows-shadow-xs-skeuomorphic max-md:hidden">
                   <div className="absolute w-4 h-4 top-2 left-2">
-                    {section.icon}
+                  
+
+                    <img src={section.icon} alt="" />
                   </div>
                 </div>
               </div>
@@ -145,7 +148,7 @@ const ManageData = () => {
                 <div className="flex flex-col gap-3 w-full">
                   {section.inputs.map((input, index) => (
                     <div key={index} className="w-full [direction:rtl]">
-                      <div className="flex items-center gap-2 px-3 py-2 w-full bg-white rounded-lg border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs">
+                      <div className="flex items-center gap-2 px-3 py-2 w-full bg-white rounded-md border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs">
                         <Input
                           className="flex-1 border-none shadow-none   font-normal text-[#717680] text-base tracking-[0] leading-6 [direction:rtl]"
                           placeholder="اكتب المنطقة المراد اضافتها"

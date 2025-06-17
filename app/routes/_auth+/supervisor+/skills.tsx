@@ -2,12 +2,9 @@ import React from "react";
 import { PlusIcon } from "lucide-react";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import content from "../supervisor+/assets/content.png";
-import verified from "../supervisor+/assets/verified-tick.svg";
-import column1 from "../supervisor+/assets/column-1.svg";
-import Skillscloudbackground from "../supervisor+/assets/layer-1.svg";
-import Skillscloudvisualization from "../supervisor+/assets/isolation-mode.svg";
-import rectangle22099 from "../supervisor+/assets/rectangle-22099.svg";
+import column1 from "../../../assets/images/new-design/column-1.svg";
+import Skillscloudbackground from "../../../assets/images/new-design/skills-cloud.svg";
+import Skillscloudvisualization from "../../../assets/images/new-design/isolation-mode.svg";
 import { useNavigate } from "@remix-run/react";
 
 // Utility function
@@ -151,8 +148,7 @@ export const Skills = (): JSX.Element => {
   return (
     <div>
       <div className="w-11/12 m-auto">
-        {/* Full-width rectangle with 40px height */}
-        {/* <img alt="Rectangle" src={rectangle22099} /> */}
+ 
 
         {/* Container Section */}
         <div className="flex flex-col w-full items-end   -mt-[10px]">
@@ -290,7 +286,7 @@ export const Skills = (): JSX.Element => {
               src={Skillscloudvisualization}
             />
             <img
-              className="absolute w-[830px] h-[774px] "
+              className="absolute  w-[979px] h-[932px] "
               alt="Skills cloud visualization"
               // src="/layer-1.svg"
               src={Skillscloudbackground}

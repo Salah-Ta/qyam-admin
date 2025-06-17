@@ -319,7 +319,7 @@ const NCFiles = () => {
                                 </div>
                                 <Button
                                   variant="outline"
-                                  className="flex items-center gap-1 px-3 py-2 bg-white border-[#d5d6d9] rounded-lg shadow-shadows-shadow-xs-skeuomorphic"
+                                  className="flex items-center gap-1 px-3 py-2 bg-white border-[2px] border-[#d5d6d9] rounded-md shadow-shadows-shadow-xs-skeuomorphic"
                                 >
                                   <DownloadCloudIcon className="w-5 h-5" />
                                   <span className="font-bold text-[#414651] text-sm [direction:rtl]">

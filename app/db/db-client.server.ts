@@ -48,3 +48,12 @@ export const client = (db: string, context?: AppLoadContext) => {
     return null;
   }
 };
+
+
+ 
+
+export async function getPrismaClient(dbUrl: string, context: any) {
+  return new PrismaClient({
+    datasources: { db: { url: dbUrl } },
+  });
+}

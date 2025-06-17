@@ -7,7 +7,7 @@ export const authClient = createAuthClient({
     inferAdditionalFields({
       user: {
         cvKey: { type: "string" },
-        bio: { type: "string" },
+        // bio: { type: "string" },
         phone: { type: "number" },
         acceptenceState: { type: "string" },
         region: { type: "string" },

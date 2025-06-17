@@ -4,6 +4,12 @@ import { admin } from "better-auth/plugins";
 import { sendEmail } from "./send-email.server";
 import { AppLoadContext } from "@remix-run/cloudflare";
 import { client } from "~/db/db-client.server";
+import { getSession } from "../utils/session.server";
+import { redirect } from "@remix-run/cloudflare";
+
+import bcrypt from 'bcryptjs';
+
+
 
 export type Environment = {
   Variables: {
@@ -12,11 +18,12 @@ export type Environment = {
   };
 };
 
+
 export const getAuth = (context: AppLoadContext) => {
   // Create a new auth instance for each request
-  // const dbClient = client(context.cloudflare.env.DATABASE_URL);
-  // console.log("db client is null?:   ", !!dbClient);
-  // console.log("db connection::::",context.cloudflare.env.DATABASE_URL);
+  const dbClient = client(context.cloudflare.env.DATABASE_URL);
+  console.log("db client is null?:   ", !!dbClient);
+  console.log("db connection::::",context.cloudflare.env.DATABASE_URL);
   
   
 
@@ -90,3 +97,29 @@ export const getAuth = (context: AppLoadContext) => {
     plugins: [admin()],
   });
 };
+ 
+
+
+export async function getAuthenticatedUser(request: Request) {
+  const session = await getSession(request.headers.get("Cookie"));
+  const userId = session.get("userId");
+  
+  if (!userId) return null;
+  
+  const dbClient = client(process.env.DATABASE_URL || "");
+  if (!dbClient) {
+    return null;
+  }
+  return dbClient.user.findUnique({ 
+    where: { id: userId },
+    select: { id: true, email: true, name: true, role: true }
+  });
+}
+
+export async function redirectIfAuthenticated(
+  request: Request,
+  context: any
+) {
+  const user = await getAuthenticatedUser(request);
+  if (user) throw redirect("/login");
+}

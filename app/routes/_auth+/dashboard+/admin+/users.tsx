@@ -277,7 +277,7 @@ const TableHead = React.forwardRef<
   <th
     ref={ref}
     className={cn(
-      "h-10 px-2 text-left align-middle font-medium ",
+      "h-10 px-2  font-medium ",
       className
     )}
     {...props}
@@ -406,23 +406,25 @@ export const Users = (): JSX.Element => {
                          variant="outline"
                          className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-solid border-[#cfd4dc] text-[#12b669] font-bold shadow-shadow-xs-focused-4px-gray-100 w-full sm:w-auto"
                        >
-                         <img
+                   
+                         قبول
+                               <img
                            className="w-[19.5px] h-[19.5px]"
                            alt="Accept icon"
                            src="https://c.animaapp.com/m9qfyf0iFAAeZK/img/group-30535.png"
                          />
-                         قبول
                        </Button>
                        <Button
                          variant="outline"
                          className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-solid border-[#cfd4dc] text-[#d1242f] font-bold w-full sm:w-auto"
                        >
-                         <img
+                  
+                         رفض
+                                <img
                            className="w-[19.5px] h-[19.5px]"
                            alt="Reject icon"
                            src="https://c.animaapp.com/m9qfyf0iFAAeZK/img/group-30535-1.png"
                          />
-                         رفض
                        </Button>
                      </div>
                    </div>
@@ -502,7 +504,7 @@ export const Users = (): JSX.Element => {
                       >
                 
                         <TableCell className="py-1 px-2 mt-4">
-                          <div className="flex items-center gap-3.5">
+                          <div className="flex      gap-3.5">
                             {actionBadges.map((badge, badgeIndex) => (
                               <Badge
                                 key={badgeIndex}
@@ -510,7 +512,7 @@ export const Users = (): JSX.Element => {
                                 style={{ borderColor: badge.borderColor }}
                               >
                                 <span
-                                  className=" font-bold text-xs [direction:rtl]"
+                                  className=" font-bold  text-xs [direction:rtl]"
                                   style={{ color: badge.color }}
                                 >
                                   {badge.label}

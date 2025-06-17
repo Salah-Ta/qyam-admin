@@ -11,10 +11,10 @@ import {
   ChevronRightIcon,
   MoreHorizontalIcon,
   SearchIcon,
-  UserIcon,
+ 
 } from "lucide-react";
 import { twMerge } from "tailwind-merge";
-import HorizontalTabs from "./horizontalTabs";
+ import UserIcon from "../../../../assets/icons/user.svg"
 
 // Utility function
 const cn = (...inputs: ClassValue[]) => {
@@ -166,7 +166,7 @@ const PaginationContent = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <ul
     ref={ref}
-    className={cn("flex flex-row items-center gap-1", className)}
+    className={cn("flex flex-row items-center", className)}
     {...props}
   />
 ));
@@ -289,19 +289,19 @@ const metricsData = [
     id: 1,
     title: "عدد الإداريين",
     value: "50",
-    icon: <UserIcon className="h-5 w-5" />,
+    icon: UserIcon,
   },
   {
     id: 2,
     title: "عدد المشرفين",
     value: "10",
-    icon: <UserIcon className="h-5 w-5" />,
+    icon: UserIcon,
   },
   {
     id: 3,
     title: "عدد الإدارات",
     value: "15",
-    icon: <UserIcon className="h-5 w-5" />,
+    icon: UserIcon,
   },
 ];
 
@@ -345,7 +345,6 @@ export const Users = (): JSX.Element => {
 
   return (
     <div className="w-full   mx-auto ">
-     
       <Card className="w-full rounded-2xl border border-gray-300 overflow-hidden max-w-full lg:px-[42px]">
         <div className="flex flex-col w-full max-lg:p-6 pt-6">
           {/* Metrics Overview Section */}
@@ -356,8 +355,9 @@ export const Users = (): JSX.Element => {
                 className="flex-1 min-w-[232px] border border-[#e9e9eb] shadow-shadows-shadow-xs"
               >
                 <CardContent className="flex items-start justify-between p-5 gap-3 [direction:rtl]">
-                  <div className="flex-shrink-0 w-10 h-10 bg-white rounded-lg overflow-hidden border border-[#e9e9eb] shadow-shadows-shadow-xs-skeuomorphic flex items-center justify-center">
-                    {metric.icon}
+                  <div className="flex-shrink-0 w-10 h-10 bg-white rounded-xl overflow-hidden border border-[#e9e9eb] shadow-shadows-shadow-xs-skeuomorphic flex items-center justify-center">
+                    
+                    <img src={metric.icon} alt="" />
                   </div>
 
                   <div className="flex flex-col gap-2 w-full">
@@ -373,69 +373,69 @@ export const Users = (): JSX.Element => {
             ))}
           </section>
 
-      {/* Main Content Section */}
-      <section className="flex flex-col w-full mt-20">
-        <div className="relative w-full">
-          {/* Top controls - Responsive */}
-          <div className="flex flex-col md:flex-row justify-between items-center mb-6 [direction:rtl] gap-4">
-            <div className="flex flex-col sm:flex-row items-center gap-4 ml-4 [direction:rtl] w-full md:w-auto">
-              <div className="text-gray-700 text-sm font-bold whitespace-nowrap">
-                تم تحديد : 43
-              </div>
-              <div className="flex gap-2 w-full sm:w-auto">
-                <Button
-                  variant="outline"
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-solid border-[#cfd4dc] text-[#12b669] font-bold shadow-shadow-xs-focused-4px-gray-100 w-full sm:w-auto"
-                >
-                  <img
-                    className="w-[19.5px] h-[19.5px]"
-                    alt="Accept icon"
-                    src="https://c.animaapp.com/m9qfyf0iFAAeZK/img/group-30535.png"
-                  />
-                  قبول
-                </Button>
-                <Button
-                  variant="outline"
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-solid border-[#cfd4dc] text-[#d1242f] font-bold w-full sm:w-auto"
-                >
-                  <img
-                    className="w-[19.5px] h-[19.5px]"
-                    alt="Reject icon"
-                    src="https://c.animaapp.com/m9qfyf0iFAAeZK/img/group-30535-1.png"
-                  />
-                  رفض
-                </Button>
-              </div>
-            </div>
-
-            <div className="w-full md:max-w-[544px]">
-              <div className="flex flex-col w-full gap-1.5">
-                <div className="flex items-center gap-2 px-3.5 py-2.5 bg-white rounded-lg border border-solid border-[#cfd4dc] shadow-shadow-xs">
-                  <div className="flex items-center gap-2 flex-1">
-                    <SearchIcon className="w-5 h-5 text-[#475467]" />
-                    <span className="text-gray-500 text-base">بحث</span>
+          {/* Main Content Section */}
+          <section className="flex flex-col w-full mt-20">
+            <div className="relative w-full">
+              {/* Top controls - Responsive */}
+              <div className="flex flex-col md:flex-row justify-between items-center mb-6 [direction:rtl] gap-4">
+                <div className="flex flex-col sm:flex-row items-center gap-4 ml-4 [direction:rtl] w-full md:w-auto">
+                  <div className="text-gray-700 text-sm font-bold whitespace-nowrap">
+                    تم تحديد : 43
                   </div>
-                  <div className="hidden sm:flex gap-2">
-                    {actionBadges.map((tag, index) => (
-                      <Badge
-                        key={index}
-                        variant="outline"
-                        className="px-2.5 py-[3px] rounded-lg border border-solid border-[#e5e7ea] font-body-small-bold text-[#475467]"
-                      >
-                        {tag.label}
-                      </Badge>
-                    ))}
+                  <div className="flex gap-2 w-full sm:w-auto">
+                    <Button
+                      variant="outline"
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-[8px] border border-solid border-[#cfd4dc] text-[#12b669] font-bold shadow-shadow-xs-focused-4px-gray-100 w-full sm:w-auto"
+                    >
+                      قبول
+                      <img
+                        className="w-[19.5px] h-[19.5px]"
+                        alt="Accept icon"
+                        src="https://c.animaapp.com/m9qfyf0iFAAeZK/img/group-30535.png"
+                      />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-[8px] border border-solid border-[#cfd4dc] text-[#d1242f] font-bold w-full sm:w-auto"
+                    >
+                      رفض
+                      <img
+                        className="w-[19.5px] h-[19.5px]"
+                        alt="Reject icon"
+                        src="https://c.animaapp.com/m9qfyf0iFAAeZK/img/group-30535-1.png"
+                      />
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="w-full md:max-w-[544px]">
+                  <div className="flex flex-col w-full gap-1.5">
+                    <div className="flex items-center gap-2 px-3.5 py-2.5 bg-white rounded-[8px] border border-solid border-[#cfd4dc] shadow-shadow-xs">
+                      <div className="flex items-center gap-2 flex-1">
+                        <SearchIcon className="w-5 h-5 text-[#475467]" />
+                        <span className="text-gray-500 text-base">بحث</span>
+                      </div>
+                      <div className="hidden sm:flex gap-2">
+                        {actionBadges.map((tag, index) => (
+                          <Badge
+                            key={index}
+                            variant="outline"
+                            className="px-2.5 py-[3px] rounded-[8px] border border-solid border-[#e5e7ea] font-body-small-bold text-[#475467]"
+                          >
+                            {tag.label}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
-          
-          <img
-            className="w-full h-px object-cover mt-6 mb-3"
-            alt="Divider"
-            src="https://c.animaapp.com/m9qfyf0iFAAeZK/img/vector-9.svg"
-          />
+
+              <img
+                className="w-full h-[2px] object-cover mt-6 mb-3 bg-[#D0D5DD]"
+                alt="Divider"
+                src="https://c.animaapp.com/m9qfyf0iFAAeZK/img/vector-9.svg"
+              />
               {/* Table */}
               <div className="w-full">
                 <Table>
@@ -557,77 +557,77 @@ export const Users = (): JSX.Element => {
               </div>
 
               {/* Pagination */}
-                <div className="flex justify-center items-center pt-3 pb-4 px-6 border-t border-[#e4e7ec] mt-4">
-                  <Pagination>
-                    <PaginationContent className="shadow-shadow-xs">
-                      <Button
-                        variant="outline"
-                        className="flex items-center gap-2 px-4 py-2.5 rounded-[8px_0px_0px_8px] border border-solid border-[#cfd4dc]"
-                        onClick={() =>
-                          setCurrentPage(Math.max(1, currentPage - 1))
-                        }
-                        disabled={currentPage === 1}
-                      >
-                        <ArrowLeftIcon className="w-5 h-5" />
-                        <span className=" font-bold text-sm [direction:rtl]">
-                          السابق
-                        </span>
-                      </Button>
+              <div className="flex justify-center items-center pt-3 pb-4 px-6 border-t border-[#e4e7ec] mt-4">
+                <Pagination>
+                  <PaginationContent className="shadow-shadow-xs">
+                    <Button
+                      variant="outline"
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-[8px_0px_0px_8px] border border-solid border-[#cfd4dc]"
+                      onClick={() =>
+                        setCurrentPage(Math.max(1, currentPage - 1))
+                      }
+                      disabled={currentPage === 1}
+                    >
+                      <ArrowLeftIcon className="w-5 h-5" />
+                      <span className=" font-bold text-sm [direction:rtl]">
+                        السابق
+                      </span>
+                    </Button>
 
-                      {[...Array(totalPages)].map((_, index) => {
-                        const pageNumber = index + 1;
-                        if (
-                          pageNumber === 1 ||
-                          pageNumber === totalPages ||
-                          (pageNumber >= currentPage - 1 &&
-                            pageNumber <= currentPage + 1)
-                        ) {
-                          return (
-                            <PaginationItem
-                              key={pageNumber}
-                              className={
-                                pageNumber === currentPage ? "bg-gray-50" : ""
-                              }
+                    {[...Array(totalPages)].map((_, index) => {
+                      const pageNumber = index + 1;
+                      if (
+                        pageNumber === 1 ||
+                        pageNumber === totalPages ||
+                        (pageNumber >= currentPage - 1 &&
+                          pageNumber <= currentPage + 1)
+                      ) {
+                        return (
+                          <PaginationItem
+                            key={pageNumber}
+                            className={
+                              pageNumber === currentPage ? "bg-gray-50" : ""
+                            }
+                          >
+                            <PaginationLink
+                              className="w-10 h-9 flex items-center justify-center border rounded-none border-[#cfd4dc] font-medium"
+                              onClick={() => setCurrentPage(pageNumber)}
                             >
-                              <PaginationLink
-                                className="w-10 h-10 flex items-center justify-center border-t border-b border-[#cfd4dc] font-medium"
-                                onClick={() => setCurrentPage(pageNumber)}
-                              >
-                                {pageNumber}
-                              </PaginationLink>
-                            </PaginationItem>
-                          );
-                        } else if (
-                          (pageNumber === currentPage - 2 && currentPage > 3) ||
-                          (pageNumber === currentPage + 2 &&
-                            currentPage < totalPages - 2)
-                        ) {
-                          return (
-                            <PaginationEllipsis
-                              key={pageNumber}
-                              className="w-10 h-10 flex items-center justify-center border-t border-b border-[#cfd4dc]"
-                            />
-                          );
-                        }
-                        return null;
-                      })}
+                              {pageNumber}
+                            </PaginationLink>
+                          </PaginationItem>
+                        );
+                      } else if (
+                        (pageNumber === currentPage - 2 && currentPage > 3) ||
+                        (pageNumber === currentPage + 2 &&
+                          currentPage < totalPages - 2)
+                      ) {
+                        return (
+                          <PaginationEllipsis
+                            key={pageNumber}
+                            className="w-10 h-9 flex items-center justify-center border rounded-none border-[#cfd4dc]"
+                          />
+                        );
+                      }
+                      return null;
+                    })}
 
-                      <Button
-                        variant="outline"
-                        className="flex items-center gap-2 px-4 py-2.5 rounded-[0px_8px_8px_0px] border border-solid border-[#cfd4dc]"
-                        onClick={() =>
-                          setCurrentPage(Math.min(totalPages, currentPage + 1))
-                        }
-                        disabled={currentPage === totalPages}
-                      >
-                        <span className=" font-bold  text-sm [direction:rtl]">
-                          التالي
-                        </span>
-                        <ArrowRightIcon className="w-5 h-5" />
-                      </Button>
-                    </PaginationContent>
-                  </Pagination>
-                </div>
+                    <Button
+                      variant="outline"
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-[0px_8px_8px_0px] border border-solid border-[#cfd4dc]"
+                      onClick={() =>
+                        setCurrentPage(Math.min(totalPages, currentPage + 1))
+                      }
+                      disabled={currentPage === totalPages}
+                    >
+                      <span className=" font-bold  text-sm [direction:rtl]">
+                        التالي
+                      </span>
+                      <ArrowRightIcon className="w-5 h-5" />
+                    </Button>
+                  </PaginationContent>
+                </Pagination>
+              </div>
             </div>
           </section>
         </div>

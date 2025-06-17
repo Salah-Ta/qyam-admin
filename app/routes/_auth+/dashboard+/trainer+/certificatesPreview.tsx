@@ -3,7 +3,7 @@ import { DownloadCloudIcon } from "lucide-react";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
-import pagesvg from "../../../../assets/images/new-design/Filetypeicon.png"
+import pagesvg from "../../../../assets/icons/file-type-blue.svg"
 // Utility function
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -135,7 +135,7 @@ const certificatesPreview = () => {
         <div className="self-start">
           <Button
             variant="default"
-            className="bg-green-500 hover:bg-green-600 text-white"
+            className="bg-green-500 hover:bg-green-600 text-white rounded-md"
           >
             تحميل الكل
           </Button>
@@ -167,7 +167,7 @@ const certificatesPreview = () => {
                   id={field.id}
                   readOnly
                   defaultValue={field.value}
-                  className="flex items-center justify-start gap-2 px-3.5 py-2.5 w-full bg-white rounded-lg border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs   font-normal text-[#717680] text-base tracking-[0] leading-6 [direction:rtl]"
+                  className="flex items-center justify-start gap-2 px-3.5 py-2.5 w-full bg-white  rounded-md border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs   font-normal text-[#717680] text-base tracking-[0] leading-6 [direction:rtl]"
                 />
               </div>
             </div>
@@ -184,7 +184,7 @@ const certificatesPreview = () => {
               <div className="relative left-1 h-10 w-8">
                 <img className="h-10 w-8" alt="PDF file" src={pagesvg} />
                 <div className="absolute left-0 top-[22px] w-8 font-sans text-[9px] font-bold text-white text-center">
-                  PDF
+                   
                 </div>
               </div>
             </div>
@@ -200,7 +200,7 @@ const certificatesPreview = () => {
             <Button
               variant="outline"
               size="sm"
-              className="flex items-center gap-1 rounded-lg border-[#d5d6d9] bg-white shadow-shadows-shadow-xs-skeuomorphic"
+              className="flex items-center gap-1 rounded-md border-[#d5d6d9] bg-white shadow-shadows-shadow-xs-skeuomorphic"
             >
              
               <span className="font-bold text-[#414651] text-sm">تحميل</span>
