@@ -7,5 +7,5 @@ node_modules
 .wrangler
 
 app/routes/**
-!app/routes/_test/
-!app/routes/_test/**
+!app/routes/_test+/
+!app/routes/_test+/**
