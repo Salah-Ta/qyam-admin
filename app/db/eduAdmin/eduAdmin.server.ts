@@ -2,8 +2,39 @@ import glossary from "~/lib/glossary";
 import { client } from "../db-client.server";
 import { EduAdmin, StatusResponse } from "~/types/types";
 
+/**
+ * Initialize database client with error handling
+ * @param dbUrl Database URL
+ * @returns Database client or null if initialization fails
+ */
+const initDb = (dbUrl: string) => {
+  if (!dbUrl) {
+    console.log("ERROR: Database URL is not provided");
+    return null;
+  }
+
+  try {
+    const db = client(dbUrl);
+    if (!db || !db.eduAdmin) {
+      console.log("ERROR: Failed to initialize database client");
+      return null;
+    }
+    return db;
+  } catch (error) {
+    console.log("ERROR [DB initialization]: ", error);
+    return null;
+  }
+};
+
 const createEduAdmin = (name: string, regionId: string, dbUrl: string): Promise<StatusResponse<null>> => {
-  const db = client(dbUrl);
+  const db = initDb(dbUrl);
+  if (!db) {
+    return Promise.resolve({
+      status: "error",
+      message: "Failed to initialize database"
+    });
+  }
+
   return new Promise((resolve, reject) => {
     db.eduAdmin
       .create({
@@ -29,7 +60,14 @@ const createEduAdmin = (name: string, regionId: string, dbUrl: string): Promise<
 };
 
 const getAllEduAdmins = (dbUrl: string): Promise<StatusResponse<EduAdmin[]>> => {
-  const db = client(dbUrl);
+  const db = initDb(dbUrl);
+  if (!db) {
+    return Promise.resolve({
+      status: "error",
+      message: "Failed to initialize database"
+    });
+  }
+
   return new Promise((resolve, reject) => {
     db.eduAdmin
       .findMany({
@@ -52,7 +90,14 @@ const getAllEduAdmins = (dbUrl: string): Promise<StatusResponse<EduAdmin[]>> => 
 };
 
 const getEduAdmin = (id: string, dbUrl: string): Promise<StatusResponse<EduAdmin>> => {
-  const db = client(dbUrl);
+  const db = initDb(dbUrl);
+  if (!db) {
+    return Promise.resolve({
+      status: "error",
+      message: "Failed to initialize database"
+    });
+  }
+
   return new Promise((resolve, reject) => {
     db.eduAdmin
       .findFirstOrThrow({
@@ -77,7 +122,14 @@ const getEduAdmin = (id: string, dbUrl: string): Promise<StatusResponse<EduAdmin
 };
 
 const updateEduAdmin = (id: string, data: { name: string, regionId: string }, dbUrl: string): Promise<StatusResponse<null>> => {
-  const db = client(dbUrl);
+  const db = initDb(dbUrl);
+  if (!db) {
+    return Promise.resolve({
+      status: "error",
+      message: "Failed to initialize database"
+    });
+  }
+
   return new Promise((resolve, reject) => {
     db.eduAdmin
       .update({
@@ -101,7 +153,14 @@ const updateEduAdmin = (id: string, data: { name: string, regionId: string }, db
 };
 
 const deleteEduAdmin = (id: string, dbUrl: string): Promise<StatusResponse<null>> => {
-  const db = client(dbUrl);
+  const db = initDb(dbUrl);
+  if (!db) {
+    return Promise.resolve({
+      status: "error",
+      message: "Failed to initialize database"
+    });
+  }
+
   return new Promise((resolve, reject) => {
     db.eduAdmin
       .delete({
