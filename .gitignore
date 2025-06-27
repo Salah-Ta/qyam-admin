@@ -3,8 +3,9 @@ node_modules
 
 /.cache
 /build
-.env
-.dev.vars
 
 .wrangler
-app/routes
+
+app/routes/**
+!app/routes/_test+/
+!app/routes/_test+/**
