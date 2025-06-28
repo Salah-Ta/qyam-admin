@@ -26,15 +26,11 @@ export default function dashboardNav() {
 
   const handleLogout = () => {
     toggleMenu();
-    // Perform logout logic here, e.g., clearing session or token and 
-
-
     navigate("/logout");
   };
 
   console.log("user in dashboardNav:", user);
-  
-  
+
   const AuthActions = () =>
     user ? (
       <div className="flex items-center gap-4 flex-row">
@@ -48,15 +44,23 @@ export default function dashboardNav() {
           <button className="flex w-10 items-center justify-center p-2 rounded-md overflow-hidden">
             <BellIcon className="w-5 h-5" />
           </button>
+          {/* Disconnect/Logout button */}
+          <button
+            onClick={handleLogout}
+            className="flex w-10 items-center justify-center p-2 rounded-md overflow-hidden hover:bg-red-100"
+            title="تسجيل الخروج"
+          >
+            <LogOut className="w-5 h-5" />
+          </button>
         </div>
-  
-        <div className="flex flex-col items-start">
+
+        {/* <div className="flex flex-col items-start">
           <Avatar className="w-10 h-10 bg-neutral-100 border-[0.75px] border-solid border-[#00000014]">
             <AvatarFallback className="text-[#717680] font-semibold">
               OR
             </AvatarFallback>
           </Avatar>
-        </div>
+        </div> */}
       </div>
     ) : (
       <div className="visitors flex flex-auto justify-end gap-x-4">
@@ -74,7 +78,7 @@ export default function dashboardNav() {
         </button>
       </div>
     );
-  
+
   // Navigation menu items data
   const menuItems = [
     {
@@ -88,22 +92,35 @@ export default function dashboardNav() {
       label: "مدير النظام",
       path: "/dashboard/admin/users",
       hasDropdown: false,
+      requiredRole: "admin",
     },
     {
       id: 3,
       label: "المشرف",
       path: "/supervisor/allTrainers",
       hasDropdown: false,
+      requiredRole: "SUPERVISOR",
     },
     {
       id: 2,
       label: "المدربة",
       path: "/dashboard/trainer/trainerProfile",
       hasDropdown: false,
+      requiredRole: "user",
     },
     { id: 1, label: "الرئيسة", path: "/", hasDropdown: false },
   ];
-  
+
+  // Filter menu items based on user role
+  const visibleMenuItems = menuItems.filter(
+    (item) =>
+      !item?.requiredRole ||
+      (user &&
+        user?.role &&
+        user?.role?.toLowerCase() === item?.requiredRole?.toLowerCase())
+  );
+  console.log("-----------------------", visibleMenuItems);
+
   return (
     <header
       className="w-full flex justify-center bg-white border-b border-[#e9e9eb] fixed top-0 left-0 right-0 z-50"
@@ -127,7 +144,7 @@ export default function dashboardNav() {
             />
           </svg>
         </button>
-  
+
         {/* Right side - Navigation and logo */}
         <div className="flex items-center gap-10">
           <div className="relative w-[108.22px] h-[32.65px]">
@@ -137,11 +154,11 @@ export default function dashboardNav() {
               src={yaniaLogo}
             />
           </div>
-  
+
           {/* Desktop navigation (hidden on mobile) */}
           <NavigationMenu className="max-w-none hidden md:block">
             <NavigationMenuList className="flex items-center gap-6">
-              {menuItems.map((item) => (
+              {visibleMenuItems.map((item) => (
                 <NavigationMenuItem key={item.id}>
                   {item.hasDropdown ? (
                     <NavigationMenuTrigger className="hover:none hover:bg-transparent [direction:rtl]">
@@ -154,12 +171,12 @@ export default function dashboardNav() {
                   ) : (
                     <div className="px-0 py-1">
                       <div className="flex items-center justify-center flex-row-reverse">
-                        <button
-                          onClick={() => item.path && navigate(`${item.path}`)}
+                        <NavLink
+                          to={item.path}
                           className="mt-[-1.00px] font-bold text-[#475467] text-base text-left tracking-[0] leading-6 whitespace-nowrap"
                         >
                           {item.label}
-                        </button>
+                        </NavLink>
                       </div>
                     </div>
                   )}
@@ -168,31 +185,27 @@ export default function dashboardNav() {
             </NavigationMenuList>
           </NavigationMenu>
         </div>
-  
+
         {/* Left side - User profile and utility icons (hidden on mobile) */}
         <div className=" md:block">
           <AuthActions />
         </div>
-  
+
         {/* Mobile menu (shown when isMenuOpen is true) */}
         {isMenuOpen && (
           <div className="md:hidden fixed inset-0 bg-white z-40 mt-[72px] overflow-y-auto">
             <div className="flex flex-col p-6 space-y-4">
-              {menuItems.map((item) => (
-                <button
+              {visibleMenuItems.map((item) => (
+                <NavLink
                   key={item.id}
-                  onClick={() => {
-                    item.path && navigate(`${item.path}`);
-                    toggleMenu();
-                  }}
+                  to={item.path}
+                  onClick={toggleMenu}
                   className="py-3 text-right font-bold text-[#475467] text-base"
                 >
                   {item.label}
-                </button>
+                </NavLink>
               ))}
-              <div className="pt-4">
-           
-              </div>
+              <div className="pt-4"></div>
             </div>
           </div>
         )}

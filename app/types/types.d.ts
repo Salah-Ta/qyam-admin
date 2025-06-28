@@ -53,6 +53,7 @@ export type QUser = {
   role: string;
   phone?: string;
   regionId?: string;
+  region?: string; // Match the field name from Prisma schema
   userRegion?: Region; // Match the field name from Prisma schema
   eduAdminId?: string;
   userEduAdmin?: EduAdmin; // Match the field name from Prisma schema
@@ -63,6 +64,9 @@ export type QUser = {
   updatedAt?: Date;
   sentMessages?: Message[];
   receivedMessages?: Message[];
+  noStudents?: number; // Indicates if the user has no students
+  isChecked?: boolean; // Indicates if the user has been checked
+  
 };
 
 export type StatusResponse<T> = {

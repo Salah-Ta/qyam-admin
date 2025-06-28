@@ -94,25 +94,25 @@ const formFields = [
   {
     id: "fullName",
     label: "الاسم الرباعي",
-    value: "خالد محمد المسلم",
+    value: "",
     required: true,
   },
   {
     id: "administration",
     label: "الإدارة",
-    value: "إدارة تعليم",
+    value: "",
     required: true,
   },
   {
     id: "school",
     label: "المدرسة",
-    value: "المدرسة",
+    value: "",
     required: true,
   },
   {
     id: "hours",
     label: "الساعات",
-    value: "الساعات",
+    value: "",
     required: true,
     width: "w-[106px]",
   },
@@ -133,71 +133,73 @@ const Certificates = () => {
     // Show CertificatesPreview when submitted is true
     <CertificatesPreview />
   ) : (
-<Card className="flex flex-col w-full items-start gap-[46px] p-[18px] bg-white rounded-xl border border-solid border-[#d5d6d9] [direction:rtl]">
-  <div className="flex flex-col gap-5 w-full">
-    {/* New Certificate Button - Visible on all screens */}
-    <Button
-      variant="outline"
-      className="flex items-center justify-center gap-1 px-3 py-2 w-[154px] bg-white rounded-md border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs-skeuomorphic"
-    >
-      <PlusIcon className="w-5 h-5" />
-      <span className="font-bold text-[#414651] text-sm tracking-[0] leading-5 whitespace-nowrap">
-        شهادة جديدة
-      </span>
-    </Button>
+    <Card className="flex flex-col w-full items-start gap-[46px] p-[18px] bg-white rounded-xl border border-solid border-[#d5d6d9] [direction:rtl]">
+      <div className="flex flex-col gap-5 w-full">
+        {/* New Certificate Button - Visible on all screens */}
+        <Button
+          variant="outline"
+          className="flex items-center justify-center gap-1 px-3 py-2 w-[154px] bg-white rounded-md border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs-skeuomorphic"
+        >
+          <PlusIcon className="w-5 h-5" />
+          <span className="font-bold text-[#414651] text-sm tracking-[0] leading-5 whitespace-nowrap">
+            شهادة جديدة
+          </span>
+        </Button>
 
-    {/* Form Fields - Hide middle two on mobile */}
-    {[...Array(6)].map((_, index) => (
-      <div 
-        key={index}
-        className={`${index >= 2 && index <= 3 ? 'hidden md:flex' : 'flex'} items-start justify-start gap-[18px] w-full flex-col md:flex-row`}
-      >
-        {formFields.map((field) => (
+        {/* Form Fields - Hide middle two on mobile */}
+        {[...Array(1)].map((_, index) => (
           <div
-            key={field.id}
-            className={`flex flex-col items-right gap-1.5 self-stretch ${
-              field.width || "flex-1"
-            }`}
+            key={index}
+            className={`${
+              index >= 2 && index <= 3 ? "hidden md:flex" : "flex"
+            } items-start justify-start gap-[18px] w-full flex-col md:flex-row`}
           >
-            <div className="flex flex-col gap-1.5 self-stretch w-full">
-              <div className="inline-flex items-start gap-0.5">
-                {field.required && (
-                  <span className="text-[#1C81AC]">*</span>
-                )}
-                <Label
-                  htmlFor={field.id}
-                  className="font-medium text-[#414651] text-sm"
-                >
-                  {field.label}
-                </Label>
-              </div>
-              <div className="flex items-center justify-end gap-2 px-3.5 py-2.5 w-full bg-white rounded-md border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs">
-                <div className="flex items-center justify-end gap-2 flex-1">
-                  <Input
-                    id={field.id}
-                    defaultValue={field.value}
-                    className="border-none shadow-none p-0 font-normal text-[#717680] text-base"
-                  />
+            {formFields.map((field) => (
+              <div
+                key={field.id}
+                className={`flex flex-col items-right gap-1.5 self-stretch ${
+                  field.width || "flex-1"
+                }`}
+              >
+                <div className="flex flex-col gap-1.5 self-stretch w-full">
+                  <div className="inline-flex items-start gap-0.5">
+                    {field.required && (
+                      <span className="text-[#1C81AC]">*</span>
+                    )}
+                    <Label
+                      htmlFor={field.id}
+                      className="font-medium text-[#414651] text-sm"
+                    >
+                      {field.label}
+                    </Label>
+                  </div>
+                  <div className="flex items-center justify-end gap-2 px-3.5 py-2.5 w-full bg-white rounded-md border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs">
+                    <div className="flex items-center justify-end gap-2 flex-1">
+                      <Input
+                        id={field.id}
+                        defaultValue={field.value}
+                        className="border-none shadow-none p-0 font-normal text-[#717680] text-base"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
+            ))}
           </div>
         ))}
       </div>
-    ))}
-  </div>
 
-  {/* Export Certificates Button - Visible on all screens */}
-  <Button
-    className="w-full bg-[#006173] text-white hover:bg-[#1c81ac]/90 rounded-md"
-    onClick={handleSetSubmitted}
-  >
-    <span className="flex items-center justify-center gap-2">
-      تصدير الشهادات
-      <img src={certificate01} alt="Export icon" className="w-5 h-5" />
-    </span>
-  </Button>
-</Card>
+      {/* Export Certificates Button - Visible on all screens */}
+      <Button
+        className="w-full bg-[#006173] text-white hover:bg-[#1c81ac]/90 rounded-md"
+        onClick={handleSetSubmitted}
+      >
+        <span className="flex items-center justify-center gap-2">
+          تصدير الشهادات
+          <img src={certificate01} alt="Export icon" className="w-5 h-5" />
+        </span>
+      </Button>
+    </Card>
   );
 };
 

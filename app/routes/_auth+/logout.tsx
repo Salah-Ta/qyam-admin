@@ -6,8 +6,20 @@ import { createToastHeaders } from "~/lib/toast.server";
 export async function loader({ request, context }: LoaderFunctionArgs) {
   return getAuth(context)
     .api.signOut({ headers: request.headers })
-    .then(() => {
-      return redirect("/");
+    .then(async () => {
+      // create a toaster position top left
+      
+      
+
+      return redirect("/", {
+        headers: await createToastHeaders({
+          description: "",
+          title: "تم تسجيل الخروج بنجاح",
+          type: "success",
+          position: "top-left"
+          
+        }),
+      });
     })
     .catch(async () => {
       return Response.json(

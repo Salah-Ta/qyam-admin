@@ -15,6 +15,11 @@ import {
 } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 import HorizontalTabs from "./horizontalTabs";
+import { LoaderFunctionArgs } from "@remix-run/cloudflare";
+import userDB from "~/db/user/user.server"; // Make sure this path matches your project structure
+import { useLoaderData } from "@remix-run/react";
+import materialDB from "~/db/material/material.server";
+import { StatusResponse, Material, Category, QUser } from "~/types/types";
 
 // Utility function
 const cn = (...inputs: ClassValue[]) => {
@@ -23,16 +28,16 @@ const cn = (...inputs: ClassValue[]) => {
 
 // Badge component
 const badgeVariants = cva(
-  "inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+  "inline-flex items-center cursor-pointer rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
   {
     variants: {
       variant: {
         default:
-          "border-transparent bg-primary text-primary-foreground shadow hover:bg-primary/80",
+          "border-transparent bg-primary text-primary-foreground shadow ",
         secondary:
-          "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
+          "border-transparent bg-secondary text-secondary-foreground ",
         destructive:
-          "border-transparent bg-destructive text-destructive-foreground shadow hover:bg-destructive/80",
+          "border-transparent bg-destructive text-destructive-foreground shadow ",
         outline: "text-foreground",
       },
     },
@@ -239,7 +244,7 @@ const TableHeader = React.forwardRef<
   HTMLTableSectionElement,
   React.HTMLAttributes<HTMLTableSectionElement>
 >(({ className, ...props }, ref) => (
-  <thead ref={ref} className={cn( className)} {...props} />
+  <thead ref={ref} className={cn(className)} {...props} />
 ));
 TableHeader.displayName = "TableHeader";
 
@@ -259,14 +264,7 @@ const TableRow = React.forwardRef<
   HTMLTableRowElement,
   React.HTMLAttributes<HTMLTableRowElement>
 >(({ className, ...props }, ref) => (
-  <tr
-    ref={ref}
-    className={cn(
-      " ",
-      className
-    )}
-    {...props}
-  />
+  <tr ref={ref} className={cn(" ", className)} {...props} />
 ));
 TableRow.displayName = "TableRow";
 
@@ -276,10 +274,7 @@ const TableHead = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <th
     ref={ref}
-    className={cn(
-      "h-10 px-2  font-medium ",
-      className
-    )}
+    className={cn("h-10 px-2  font-medium ", className)}
     {...props}
   />
 ));
@@ -289,65 +284,97 @@ const TableCell = React.forwardRef<
   HTMLTableCellElement,
   React.TdHTMLAttributes<HTMLTableCellElement>
 >(({ className, ...props }, ref) => (
-  <td
-    ref={ref}
-    className={cn(
-      "p-2 align-middle ",
-      className
-    )}
-    {...props}
-  />
+  <td ref={ref} className={cn("p-2 align-middle ", className)} {...props} />
 ));
 TableCell.displayName = "TableCell";
 
 // Data for the metrics cards
-const metricsData = [
-  {
+const metricsData = {
+  students: {
     id: 1,
     title: "عدد المتدربات",
-    value: "5000",
+    value: "",
     icon: <UserIcon className="h-5 w-5" />,
   },
-  {
+  supervisors: {
     id: 2,
     title: "عدد المشرفين",
-    value: "4",
+    value: "",
     icon: <UserIcon className="h-5 w-5" />,
   },
-  {
+  teachers: {
     id: 3,
     title: "عدد المدربين",
-    value: "200",
+    value: "",
     icon: <UserIcon className="h-5 w-5" />,
   },
-];
+};
+
+// This is correct usage in Remix:
+export async function loader({ request, context, params }: LoaderFunctionArgs) {
+  const DBurl = context.cloudflare.env.DATABASE_URL;
+  const materials = await materialDB
+    .getAllMaterials(context.cloudflare.env.DATABASE_URL)
+    .then((res: any) => {
+      return Response.json(res.data);
+    })
+    .catch(() => null);
+  console.log("Materials loaded:", materials);
+
+  // const { toast, headers } = await getToast(request);
+
+  // return Response.json({ materials, DBurl, toast, headers });
+  // Fetch data from your backend
+  console.log("Fetching users from loader");
+  return userDB
+    .getAllUsers(context.cloudflare.env.DATABASE_URL)
+    .then((res: any) => Response.json(res.data))
+    .catch(() => null);
+}
 
 export const Users = (): JSX.Element => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  const users = useLoaderData<QUser[]>() || []; // Fetch users from loader
+  console.log("users from API:", users); // This will log the data returned from loader
 
-  // Data for table rows
-  const allTableData = Array(100)
-    .fill(null)
-    .map((_, index) => ({
-      name: `محمد منصور ${index + 1}`,
-      mobile: "96655186620",
-      email: `Hasf${index + 1}@gmail.com`,
-      account: "مشرف",
-      region: "الرياض",
-      department: "الزلفي",
-      school: "خالد بن الوليد",
-      status: "مقبول",
-      isChecked: index === 0,
-    }));
+  metricsData.students.value = users
+    .reduce((acc, user) => acc + (user.noStudents || 0), 0)
+    .toString();
+  metricsData.teachers.value = users
+    .filter((user) => user.role === "user")
+    .length.toString();
+  metricsData.supervisors.value = users
+    .filter(
+      (user) =>
+        user.role === "مشرف" ||
+        user.role === "supervisor" ||
+        user.role === "SUPERVISOR"
+    )
+    .length.toString();
 
-  const totalPages = Math.ceil(allTableData.length / itemsPerPage);
+  console.log("Metrics Data:", metricsData);
+  // filter users based on role user
+  const filteredUsers = users.filter((user) => user.role === "user");
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+
+  const [checkedRows, setCheckedRows] = useState([]);
+
+  const handleCheckboxChange = (rowId: any) => {
+    setCheckedRows((prev: any) =>
+      prev.includes(rowId)
+        ? prev.filter((id: any) => id !== rowId)
+        : [...prev, rowId]
+    );
+  };
+
+  const selectedRows = checkedRows.length;
 
   // Get current page data
   const getCurrentPageData = () => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
-    return allTableData.slice(startIndex, endIndex);
+    return filteredUsers.slice(startIndex, endIndex);
   };
 
   // Action badges data
@@ -357,17 +384,30 @@ export const Users = (): JSX.Element => {
     { label: "غير نشط", color: "#9a6700", borderColor: "#bf8700" },
   ];
 
-  // SearchIcon tags data
-  const searchTags = Array(3).fill({ label: 'label' });
+  const statusTranslation = {
+    accepted: "مقبول",
+    denied: "مرفوض",
+    pending: "غير نشط",
+  };
+
+  // Add role translation mapping
+  const roleTranslation = {
+    user: "مدربة",
+    supervisor: "مشرف",
+    SUPERVISOR: "مشرف",
+    مشرف: "مشرف",
+    teacher: "مدربة",
+    admin: "مدير",
+    // Add more roles as needed
+  };
 
   return (
     <div className="w-full   mx-auto py-6">
- 
       <Card className="w-full rounded-2xl border border-gray-300 overflow-hidden">
         <div className="flex flex-col w-full p-6">
           {/* Metrics Overview Section */}
-          <section  className="flex flex-wrap gap-5 w-full">
-            {metricsData.map((metric) => (
+          <section className="flex flex-wrap gap-5 w-full">
+            {Object.values(metricsData).map((metric) => (
               <Card
                 key={metric.id}
                 className="flex-1 min-w-[232px] border border-[#e9e9eb] shadow-shadows-shadow-xs"
@@ -392,80 +432,75 @@ export const Users = (): JSX.Element => {
 
           {/* Main Content Section */}
           <section className="flex flex-col w-full mt-20 ">
-
-
             <div className="relative w-full  ">
               {/* Top controls */}
-            <div className="flex flex-col md:flex-row justify-between items-center mb-6 [direction:rtl] gap-4">
-                   <div className="flex flex-col sm:flex-row items-center gap-4 ml-4 [direction:rtl] w-full md:w-auto">
-                     <div className="text-gray-700 text-sm font-bold whitespace-nowrap">
-                       تم تحديد : 43
-                     </div>
-                     <div className="flex gap-2 w-full sm:w-auto">
-                       <Button
-                         variant="outline"
-                         className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-solid border-[#cfd4dc] text-[#12b669] font-bold shadow-shadow-xs-focused-4px-gray-100 w-full sm:w-auto"
-                       >
-                   
-                         قبول
-                               <img
-                           className="w-[19.5px] h-[19.5px]"
-                           alt="Accept icon"
-                           src="https://c.animaapp.com/m9qfyf0iFAAeZK/img/group-30535.png"
-                         />
-                       </Button>
-                       <Button
-                         variant="outline"
-                         className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-solid border-[#cfd4dc] text-[#d1242f] font-bold w-full sm:w-auto"
-                       >
-                  
-                         رفض
-                                <img
-                           className="w-[19.5px] h-[19.5px]"
-                           alt="Reject icon"
-                           src="https://c.animaapp.com/m9qfyf0iFAAeZK/img/group-30535-1.png"
-                         />
-                       </Button>
-                     </div>
-                   </div>
-       
-                   <div className="w-full md:max-w-[544px]">
-                     <div className="flex flex-col w-full gap-1.5">
-                       <div className="flex items-center gap-2 px-3.5 py-2.5 bg-white rounded-lg border border-solid border-[#cfd4dc] shadow-shadow-xs">
-                         <div className="flex items-center gap-2 flex-1">
-                           <SearchIcon className="w-5 h-5 text-[#475467]" />
-                           <span className="text-gray-500 text-base">بحث</span>
-                         </div>
-                         <div className="hidden sm:flex gap-2">
-                           {actionBadges.map((tag, index) => (
-                             <Badge
-                               key={index}
-                               variant="outline"
-                               className="px-2.5 py-[3px] rounded-lg border border-solid border-[#e5e7ea] font-body-small-bold text-[#475467]"
-                             >
-                               {tag.label}
-                             </Badge>
-                           ))}
-                         </div>
-                       </div>
-                     </div>
-                   </div>
-                 </div>
+              <div className="flex flex-col md:flex-row justify-between items-center mb-6 [direction:rtl] gap-4">
+                <div className="flex flex-col sm:flex-row items-center gap-4 ml-4 [direction:rtl] w-full md:w-auto">
+                  <div className="text-gray-700 text-sm font-bold whitespace-nowrap">
+                    تم تحديد : {selectedRows}
+                  </div>
+                  <div className="flex gap-2 w-full sm:w-auto">
+                    <Button
+                      variant="outline"
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-solid border-[#cfd4dc] text-[#12b669] font-bold shadow-shadow-xs-focused-4px-gray-100 w-full sm:w-auto"
+                    >
+                      قبول
+                      <img
+                        className="w-[19.5px] h-[19.5px]"
+                        alt="Accept icon"
+                        src="https://c.animaapp.com/m9qfyf0iFAAeZK/img/group-30535.png"
+                      />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-solid border-[#cfd4dc] text-[#d1242f] font-bold w-full sm:w-auto"
+                    >
+                      رفض
+                      <img
+                        className="w-[19.5px] h-[19.5px]"
+                        alt="Reject icon"
+                        src="https://c.animaapp.com/m9qfyf0iFAAeZK/img/group-30535-1.png"
+                      />
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="w-full md:max-w-[544px]">
+                  <div className="flex flex-col w-full gap-1.5">
+                    <div className="flex items-center gap-2 px-3.5 py-2.5 bg-white rounded-lg border border-solid border-[#cfd4dc] shadow-shadow-xs">
+                      <div className="flex items-center gap-2 flex-1">
+                        <SearchIcon className="w-5 h-5 text-[#475467]" />
+                        <span className="text-gray-500 text-base">بحث</span>
+                      </div>
+                      <div className="hidden sm:flex gap-2">
+                        {actionBadges.map((tag, index) => (
+                          <Badge
+                            key={index}
+                            variant="outline"
+                            className="px-2.5 py-[3px] rounded-lg border border-solid border-[#e5e7ea] font-body-small-bold text-[#475467]"
+                          >
+                            {tag.label}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
               <img
-              className="w-full h-px object-cover mt-6 mb-3"
-              alt="Divider"
-              src="https://c.animaapp.com/m9qfyf0iFAAeZK/img/vector-9.svg"
-            />
+                className="w-full h-px object-cover mt-6 mb-3"
+                alt="Divider"
+                src="https://c.animaapp.com/m9qfyf0iFAAeZK/img/vector-9.svg"
+              />
               {/* Table */}
               <div className="w-full">
                 <Table>
                   <TableHeader>
                     <TableRow className="mb-4 border-[#e4e7ec]  ">
-                      
                       {/* <TableHead className="text-right pr-2">
                         <span className="sr-only">Select</span>
                       </TableHead> */}
-                      
+
                       <TableHead className="text-center   font-medium text-gray-700 text-[15px] ">
                         الإجراء
                       </TableHead>
@@ -493,7 +528,6 @@ export const Users = (): JSX.Element => {
                       <TableHead className="text-right [direction:rtl] font-medium text-gray-700 text-[15px]">
                         الاسم
                       </TableHead>
-                      
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -502,7 +536,6 @@ export const Users = (): JSX.Element => {
                         key={index}
                         className="border-b border-[#e4e7ec] "
                       >
-                
                         <TableCell className="py-1 px-2 mt-4">
                           <div className="flex      gap-3.5">
                             {actionBadges.map((badge, badgeIndex) => (
@@ -524,18 +557,20 @@ export const Users = (): JSX.Element => {
                         <TableCell className="py-1 px-2 text-right max-md:hidden ">
                           <Badge className="px-2.5 py-[3px] rounded-[100px] border border-solid border-[#1a7f37] bg-transparent">
                             <span className=" font-bold text-[#1a7f37] text-xs [direction:rtl]">
-                              {row.status}
+                              {statusTranslation[
+                                row.acceptenceState as keyof typeof statusTranslation
+                              ] ?? row.acceptenceState}
                             </span>
                           </Badge>
                         </TableCell>
                         <TableCell className="py-1 px-2 text-right max-md:hidden ">
                           <span className=" font-medium text-[#027163] text-base [direction:rtl]">
-                            {row.school}
+                            {/* {row.school} */}
                           </span>
                         </TableCell>
                         <TableCell className="py-1 px-2 text-right max-md:hidden ">
                           <span className=" font-medium text-[#027163] text-base [direction:rtl]">
-                            {row.department}
+                            {/* {row.department} */}
                           </span>
                         </TableCell>
                         <TableCell className="py-1 px-2 text-right max-md:hidden ">
@@ -545,7 +580,9 @@ export const Users = (): JSX.Element => {
                         </TableCell>
                         <TableCell className="py-1 px-2 text-right max-md:hidden ">
                           <span className=" font-medium text-[#027163] text-base [direction:rtl]">
-                            {row.account}
+                            {roleTranslation[
+                              row.role as keyof typeof roleTranslation
+                            ] ?? row.role}
                           </span>
                         </TableCell>
                         <TableCell className="py-1 px-2 text-right max-md:hidden ">
@@ -555,7 +592,7 @@ export const Users = (): JSX.Element => {
                         </TableCell>
                         <TableCell className="py-1 px-2 text-right max-md:hidden ">
                           <span className="font-medium text-[#027163] text-base">
-                            {row.mobile}
+                            {row.phone}
                           </span>
                         </TableCell>
                         <TableCell className="py-1 px-2 text-right">
@@ -565,7 +602,8 @@ export const Users = (): JSX.Element => {
                         </TableCell>
                         <TableCell className="">
                           <Checkbox
-                            checked={row.isChecked}
+                            checked={checkedRows.includes(row.id)}
+                            onCheckedChange={() => handleCheckboxChange(row.id)}
                             className={
                               row.isChecked
                                 ? "w-4 h-4 bg-[#0969da] rounded-[3px]"
@@ -581,20 +619,18 @@ export const Users = (): JSX.Element => {
 
               {/* Pagination */}
               <div className="flex justify-center items-center pt-3 pb-4 px-6 border-t border-[#e4e7ec] mt-4">
-                <Pagination>
-                  <PaginationContent className="shadow-shadow-xs">
+                <Pagination className="w-full [direction:rtl]">
+                  <PaginationContent className="shadow-shadow-xs [direction:rtl]">
                     <Button
                       variant="outline"
-                      className="flex items-center gap-2 px-4 py-2.5 rounded-[8px_0px_0px_8px] border border-solid border-[#cfd4dc]"
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-[0px_8px_8px_0px] border border-solid border-[#cfd4dc]"
                       onClick={() =>
                         setCurrentPage(Math.max(1, currentPage - 1))
                       }
                       disabled={currentPage === 1}
                     >
-                      <ArrowLeftIcon className="w-5 h-5" />
-                      <span className=" font-bold text-sm [direction:rtl]">
-                        السابق
-                      </span>
+                      <span className=" font-bold text-sm">السابق</span>
+                      <ArrowRightIcon className="w-5 h-5" />
                     </Button>
 
                     {[...Array(totalPages)].map((_, index) => {
@@ -634,10 +670,9 @@ export const Users = (): JSX.Element => {
                       }
                       return null;
                     })}
-
                     <Button
                       variant="outline"
-                      className="flex items-center gap-2 px-4 py-2.5 rounded-[0px_8px_8px_0px] border border-solid border-[#cfd4dc]"
+                      className="flex items-center gap-2 px-4 py-2.5 [direction:rtl] rounded-[8px_0px_0px_8px] border border-solid border-[#cfd4dc]"
                       onClick={() =>
                         setCurrentPage(Math.min(totalPages, currentPage + 1))
                       }
@@ -646,7 +681,7 @@ export const Users = (): JSX.Element => {
                       <span className=" font-bold  text-sm [direction:rtl]">
                         التالي
                       </span>
-                      <ArrowRightIcon className="w-5 h-5" />
+                      <ArrowLeftIcon className="w-5 h-5 " />
                     </Button>
                   </PaginationContent>
                 </Pagination>
@@ -655,7 +690,6 @@ export const Users = (): JSX.Element => {
           </section>
         </div>
       </Card>
-
     </div>
   );
 };

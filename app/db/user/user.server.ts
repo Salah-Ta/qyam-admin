@@ -55,11 +55,11 @@ const getAllUsers = (dbUrl: string): Promise<StatusResponse<QUser[]>> => {
     }
     db.user
       .findMany({
-        include: {
-          userRegion: true,
-          userEduAdmin: true,
-          userSchool: true
-        },
+        // include: {
+        //   userRegion: true,
+        //   userEduAdmin: true,
+        //   userSchool: true
+        // },
         orderBy: {
           name: 'asc'
         }

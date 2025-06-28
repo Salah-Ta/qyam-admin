@@ -1,9 +1,6 @@
-import { LoaderFunctionArgs } from "@remix-run/cloudflare";
+import { LoaderFunctionArgs, json } from "@remix-run/cloudflare";
 import materialDB from "~/db/material/material.server";
-import {
-  MinusCircleIcon,
-  XIcon,
-} from "lucide-react";
+import { MinusCircleIcon, XIcon } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "./assets/avatar";
 import { Badge } from "./assets/badge";
 import { Button } from "./assets/button";
@@ -12,79 +9,208 @@ import { Checkbox } from "./assets/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./assets/tabs";
 import { Textarea } from "./assets/textarea";
 import { useState } from "react";
- 
+import { useLoaderData, useRouteLoaderData } from "@remix-run/react";
+import reportservice from "../../../../db/report/report.server";
+import { toast as sonnerToast } from "sonner";
+
 import Group30476 from "../../../../assets/images/new-design/group-3.svg";
 import sendicon from "../../../../assets/icons/send.svg";
 import avatar from "../../../../assets/icons/avatar.svg";
- import verifiedTick from "../../../../assets/icons/Verified-tick.svg";
+import verifiedTick from "../../../../assets/icons/Verified-tick.svg";
 import mail from "../../../../assets/icons/mail.svg";
-import phone from "../../../../assets/icons/phone.svg"
+import phone from "../../../../assets/icons/phone.svg";
 
 import region from "../../../../assets/icons/region.svg";
 
 import profile from "../../../../assets/icons/profile.svg";
+import { CreateReportData } from "~/types/types";
+import { getToast } from "~/lib/toast.server";
+import React from "react";
 
+export type LoaderData = {
+  materials: any;
+};
 
-export async function loader({ request, context, params }: LoaderFunctionArgs) {
-  return materialDB
+export async function loader({
+  request,
+  context,
+  params,
+}: LoaderFunctionArgs): Promise<Response> {
+  // Fetch other data as needed
+  const DBurl = context.cloudflare.env.DATABASE_URL;
+  const materials = await materialDB
     .getAllMaterials(context.cloudflare.env.DATABASE_URL)
     .then((res: any) => {
       return Response.json(res.data);
     })
-    .catch(() => {
-      return null;
-    });
+    .catch(() => null);
+    console.log("Materials loaded:", materials);
+    
+  const { toast, headers } = await getToast(request);
+
+  return Response.json({ materials, DBurl, toast, headers });
+}
+
+
+export async function action({ request, context }: LoaderFunctionArgs) {
+  const DBurl = context.cloudflare.env.DATABASE_URL;
+  const formData = await request.formData();
+  const reportData = JSON.parse(formData.get("reportData") as string);
+
+  try {
+    await reportservice.createReport(reportData, DBurl);
+    return json({ success: true });
+  } catch (error) {
+    return json({ success: false, error: error.message }, { status: 500 });
+  }
 }
 
 export const TrainerProfile = () => {
+  const { user } = useRouteLoaderData<any>("root");
+
+  const { materials, DBurl, toast } = useLoaderData<any>();
+
+  console.log(user, materials);
+
+  // Show toast if present
+
+  // Now you can use `user` in your component
+
   // Data for review opinions
-  const opinions = [
-    { id: 1, title: "الرأي الأول", active: false },
-    { id: 2, title: "الرأي الثاني", active: false },
-    { id: 3, title: "الرأي الثالث", active: false },
-    { id: 4, title: "الرأي الرابع", active: false },
-    { id: 5, title: "الرأي الخامس", active: false },
-  ];
+  const [opinions, setOpinions] = useState([
+    { id: 1, title: "", active: true, comment: "" },
+  ]);
+  const [activeTab, setActiveTab] = useState("opinion-1");
 
-  // Data for progress checklist
-  const progressItems = [
-    { id: 1, title: "التقارير", completed: true },
-    { id: 2, title: "رأي المتدربات", completed: true },
-    { id: 3, title: "المهارات", completed: true },
-  ];
+  // Handler to add a new opinion
+  const handleAddOpinion = () => {
+    const newId =
+      opinions.length > 0 ? opinions[opinions.length - 1].id + 1 : 1;
+    setOpinions([
+      ...opinions.map((op) => ({ ...op, active: false })),
+      { id: newId, title: "", active: true, comment: "" },
+    ]);
+    setActiveTab(`opinion-${newId}`);
+  };
 
-  // Data for sidebar menu items
-  const menuItems = [
-    { id: 1, title: "مركز المعرفة" },
-    { id: 2, title: "شهاداتي" },
-    { id: 3, title: "ركائز نجاح البرنامج" },
-    { id: 4, title: "تقرير إنجازاتي" },
-  ];
+  // filepath: c:\Users\aminj\OneDrive\Documents\GitHub\qyam-admin\app\routes\_auth+\dashboard+\trainer+\trainerProfile.tsx
+  const handleSendReport = async () => {
+    // show an toast message "تم إرسال التقرير بنجاح" and reset reportData to default values
+    setReportData({
+      userId: user?.id ?? "",
+      volunteerHours: 0,
+      volunteerCount: 0,
+      activitiesCount: 0,
+      volunteerOpportunities: 0,
+      economicValue: 0,
+      skillsEconomicValue: 0,
+      skillsTrainedCount: 0,
+      attachedFiles: [],
+      skillIds: [],
+      testimonials: [],
+    });
+    React.useEffect(() => {
+      if (toast?.description) {
+        sonnerToast[toast.type === "error" ? "error" : "success"](
+          toast.description
+        );
+      }
+    }, [toast]);
+    return;
+
+    // Build the latest reportData from current state
+    const latestReportData: CreateReportData = {
+      ...reportData,
+      skillIds: skillsColumns
+        .flat()
+        .filter((skill) => skill.checked)
+        .map((skill) => skill.id),
+      testimonials: opinions.map((opinion) => ({
+        name: opinion.title,
+        comment: opinion.comment ?? "",
+      })),
+    };
+    console.log();
+
+    try {
+      const formData = new FormData();
+      formData.append("reportData", JSON.stringify(latestReportData));
+
+      // reportservice.createReport(latestReportData, DBurl);
+      const response = await fetch(window.location.pathname, {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        alert("تم إرسال التقرير بنجاح");
+      } else {
+        alert("حدث خطأ أثناء إرسال التقرير");
+      }
+    } catch (error) {
+      alert("حدث خطأ أثناء إرسال التقرير");
+    }
+  };
+
+  // Handler to toggle tab open/close
+  const handleTabClick = (id: number) => {
+    setActiveTab((prev) => (prev === `opinion-${id}` ? "" : `opinion-${id}`));
+  };
+
+  // Handler to update opinion title or comment
+  const handleOpinionChange = (
+    id: number,
+    field: "title" | "comment",
+    value: string
+  ) => {
+    setOpinions((prev) =>
+      prev.map((op) => (op.id === id ? { ...op, [field]: value } : op))
+    );
+  };
+
+  // // Data for progress checklist
+  // const progressItems = [
+  //   { id: 1, title: "التقارير", completed: true },
+  //   { id: 2, title: "رأي المتدربات", completed: true },
+  //   { id: 3, title: "المهارات", completed: true },
+  // ];
+
+  // // Data for sidebar menu items
+  // const menuItems = [
+  //   { id: 1, title: "مركز المعرفة" },
+  //   { id: 2, title: "شهاداتي" },
+  //   { id: 3, title: "ركائز نجاح البرنامج" },
+  //   { id: 4, title: "تقرير إنجازاتي" },
+  // ];
 
   // User data for feedback section
   const userData = [
     {
       id: 1,
-      label: "الاسم : نورة علي",
+      label: "الاسم :",
       icon: profile,
-      
+      key: "name",
     },
     {
       id: 2,
-      label: "الجوال : 123456789",
+      label: "الجوال :",
       icon: phone,
+      key: "phone",
     },
     {
       id: 3,
-      label: "الايميل : kmsalms@gmail.com",
+      label: "الايميل :",
       icon: mail,
+      key: "email",
     },
     {
       id: 4,
-      label: "المنطقة : الرياض",
+      label: "المنطقة : ",
       icon: region,
+      key: "region",
     },
-    { id: 5, label: "الإدارة : تعليم الزلفي", icon: null },
+    { id: 5, label: "الإدارة : ", icon: null, key: "education" },
   ];
 
   // Message data for navigation section
@@ -99,14 +225,17 @@ export const TrainerProfile = () => {
 
   // Data for metric cards
   const metricCards = [
-    { title: "الساعات التطوعية المحققة", value: "0" },
-    { title: "المتطوعات المشاركات", value: "45" },
-    { title: "الأنشطة التي نفذت", value: "45" },
-    { title: "الفرص التطوعية المنفذة", value: "45" },
+    { title: "الساعات التطوعية المحققة", value: "0", key: "volunteerHours" },
+    { title: "المتطوعات المشاركات", value: "0" },
+    { title: "الأنشطة التي نفذت", value: "0" },
+    {
+      title: "الفرص التطوعية المنفذة",
+      value: "0",
+      key: "volunteerOpportunities",
+    },
     { title: "القيمية الاقتصادية من التطوع", value: "0" },
-
-    { title: "القيمة الاقتصادية للمهارات", value: "45" },
-    { title: "المهارات اللي تم تدريب الفتيات عليها", value: "45" },
+    { title: "القيمة الاقتصادية للمهارات", value: "0" },
+    { title: "المهارات اللي تم تدريب الفتيات عليها", value: "0" },
   ];
 
   // Data for the skills checklist organized in columns
@@ -183,17 +312,18 @@ export const TrainerProfile = () => {
       { id: "responsibility", label: "تحمل المسؤولية", checked: false },
     ],
   ]);
-  const handleCheckboxChange = (columnIndex: number, skillIndex: number) => {
-    console.log("Updated Columns:"); // Debugging
-
+  const handleCheckboxChange = (
+    columnIndex: number,
+    skillIndex: number,
+    checked: boolean
+  ) => {
     setSkillsColumns((prevColumns) => {
-      console.log("Updated Columns:"); // Debugging
-
       const updatedColumns = [...prevColumns];
-      updatedColumns[columnIndex][skillIndex].checked =
-        !updatedColumns[columnIndex][skillIndex].checked;
-      console.log("Updated Columns:", updatedColumns); // Debugging
-
+      updatedColumns[columnIndex] = [...updatedColumns[columnIndex]];
+      updatedColumns[columnIndex][skillIndex] = {
+        ...updatedColumns[columnIndex][skillIndex],
+        checked,
+      };
       return updatedColumns;
     });
   };
@@ -212,6 +342,42 @@ export const TrainerProfile = () => {
       return updatedColumns;
     });
   }
+
+  // Example: mapping metricCards and skillsColumns to CreateReportData
+  const createReportData: CreateReportData = {
+    userId: user?.id ?? "",
+    volunteerHours: Number(metricCards[0].value),
+    volunteerCount: Number(metricCards[1].value),
+    activitiesCount: Number(metricCards[2].value),
+    volunteerOpportunities: Number(metricCards[3].value),
+    economicValue: Number(metricCards[4].value),
+    skillsEconomicValue: Number(metricCards[5].value),
+    skillsTrainedCount: Number(metricCards[6].value),
+    attachedFiles: [],
+    skillIds: skillsColumns
+      .flat()
+      .filter((skill) => skill.checked)
+      .map((skill) => skill.id),
+    testimonials: opinions.map((opinion, idx) => ({
+      name: opinion.title,
+      comment: opinion.title ?? "",
+    })),
+  };
+
+  // Add state for createReportData to enable editing
+  const [reportData, setReportData] =
+    useState<CreateReportData>(createReportData);
+
+  // Helper to update a field in reportData
+  const handleReportFieldChange = (
+    field: keyof CreateReportData,
+    value: string
+  ) => {
+    setReportData((prev) => ({
+      ...prev,
+      [field]: Number(value),
+    }));
+  };
 
   return (
     <div className="flex flex-col w-full max-w-full overflow-hidden  ">
@@ -234,7 +400,7 @@ export const TrainerProfile = () => {
               <img
                 className="absolute w-3.5 h-3.5 bottom-0 right-0"
                 alt="Verified tick"
-              src={messageData.verifiedIconUrl}
+                src={messageData.verifiedIconUrl}
               />
             </div>
             <div className="flex flex-col gap-1">
@@ -272,12 +438,11 @@ export const TrainerProfile = () => {
                 key={item.id}
                 className="inline-flex items-center justify-start gap-3 p-2.5 bg-white rounded-[8px] border border-solid border-[#d0d5dd] max-md:w-full"
               >
-               
                 {typeof item.icon === "string" && (
                   <img src={item.icon} alt="icon" className="w-5 h-5" />
                 )}
                 <div className="font-medium text-[#1f2a37] text-base tracking-[0] leading-[normal] [direction:rtl]">
-                  {item.label}
+                  {item.label} {user?.[item.key] ?? "-"}
                 </div>
               </div>
             ))}
@@ -310,20 +475,41 @@ export const TrainerProfile = () => {
             <div className="relative w-fit font-normal text-white text-sm text-left tracking-[0] leading-5 whitespace-nowrap [direction:rtl] max-md:hidden">
               تم تقييم 4 من أصل 7
             </div>
-            <Button
+            <div></div>
+            {/* <Button
               variant="outline"
               className="flex w-[120px] items-center justify-center gap-1 px-3 py-2 bg-white rounded-md overflow-hidden border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs-skeuomorphic"
             >
               <span className="relative w-fit font-bold text-[#414651] text-sm text-left tracking-[0] leading-5 whitespace-nowrap [direction:rtl]">
                 حفظ
               </span>
-            </Button>
+            </Button> */}
           </div>
 
           {/* Modified content section */}
           <div className="flex flex-wrap w-full items-center gap-y-6 p-0">
             <div className="flex flex-wrap w-full items-center gap-x-6 gap-y-6 p-0 max-md:flex-col max-md:gap-x-0">
-              {metricCards.map((card, index) => (
+              {[
+                { title: "الساعات التطوعية المحققة", field: "volunteerHours" },
+                { title: "المتطوعات المشاركات", field: "volunteerCount" },
+                { title: "الأنشطة التي نفذت", field: "activitiesCount" },
+                {
+                  title: "الفرص التطوعية المنفذة",
+                  field: "volunteerOpportunities",
+                },
+                {
+                  title: "القيمية الاقتصادية من التطوع",
+                  field: "economicValue",
+                },
+                {
+                  title: "القيمة الاقتصادية للمهارات",
+                  field: "skillsEconomicValue",
+                },
+                {
+                  title: "المهارات اللي تم تدريب الفتيات عليها",
+                  field: "skillsTrainedCount",
+                },
+              ].map((card, index) => (
                 <div
                   key={index}
                   className="flex flex-col items-center justify-start gap-4 max-md:w-full"
@@ -333,10 +519,20 @@ export const TrainerProfile = () => {
                     {card.title}
                   </div>
                   <input
-                    type="text"
-                    className="w-[136px] h-9 text-center font-medium text-[#1f2a37] text-sm bg-[#f8f9fb] rounded-[8px] border border-solid border-[#d0d5dd] focus:outline-none focus:ring-2 focus:ring-[#68c35c] max-md:w-full"
-                    value={card.value}
-                    onChange={(e) => handleValueChange(index, e.target.value)}
+                    type="number"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    className="w-[136px] h-9 text-center font-medium text-[#1f2a37] text-sm bg-[#f8f9fb] rounded-[8px] border border-solid border-[#d0d5dd] focus:outline-none focus:ring-2 focus:ring-[#68c35c] max-md:w-full [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    style={{ MozAppearance: "textfield" }}
+                    value={
+                      reportData[card.field as keyof CreateReportData] ?? ""
+                    }
+                    onChange={(e) =>
+                      handleReportFieldChange(
+                        card.field as keyof CreateReportData,
+                        e.target.value
+                      )
+                    }
                   />
                 </div>
               ))}
@@ -357,53 +553,79 @@ export const TrainerProfile = () => {
               <Button
                 variant="outline"
                 className="flex w-[120px] items-center justify-center gap-1 px-3 py-2 bg-white rounded-md overflow-hidden border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs-skeuomorphic"
+                onClick={handleAddOpinion}
               >
                 <span className="relative w-fit  font-bold text-[#414651] text-sm text-left tracking-[0] leading-5 whitespace-nowrap [direction:rtl]">
-                  حفظ
+                  أضف
                 </span>
               </Button>
             </CardContent>
           </Card>
 
           {/* Review Opinions */}
-
-          <Tabs defaultValue="opinion-1">
+          <Tabs value={activeTab} onValueChange={() => {}}>
             {/* Tabs List */}
-            <TabsList className="flex-col w-full mt-5  rounded-[8px] p-0 h-auto">
+            <TabsList className="flex-col w-full mt-5 rounded-[8px] p-0 h-auto">
               {opinions.map((opinion) => (
-                <TabsTrigger
-                  key={opinion.id}
-                  value={`opinion-${opinion.id}`}
-                  className={`flex  items-center justify-between w-full p-3 h-[42px] data-[state=active]:bg-[#ebedf0] data-[state=inactive]:bg-[#f9f9f9] rounded-lg`}
-                >
-                  <div className="flex items-center justify-end w-full gap-4">
-                    <MinusCircleIcon className="w-6 h-6" />
-                    <div className="flex items-start justify-end flex-1">
-                      <div className="flex w-full gap-6 items-center justify-end">
-                        <div className="flex-col w-full items-end gap-2 flex">
-                          <div
-                            className={`w-fit  font-bold ${
-                              opinion.active ? "text-black" : "text-[#414651]"
-                            } text-base leading-normal [direction:rtl]`}
-                          >
-                            {opinion.title}
+                <div key={opinion.id} className="w-full">
+                  <TabsTrigger
+                    value={`opinion-${opinion.id}`}
+                    className={`flex items-center justify-between w-full p-3 h-[42px] rounded-lg ${
+                      activeTab === `opinion-${opinion.id}`
+                        ? "bg-[#ebedf0]"
+                        : "bg-[#f9f9f9]"
+                    }`}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      handleTabClick(opinion.id);
+                    }}
+                    aria-selected={activeTab === `opinion-${opinion.id}`}
+                    style={{ width: "100%" }}
+                  >
+                    <div className="flex items-center justify-end w-full gap-4">
+                      <MinusCircleIcon className="w-6 h-6" />
+                      <div className="flex items-start justify-end flex-1 w-full">
+                        <div className="flex w-full gap-6 items-center justify-end">
+                          <div className="flex-col w-full items-end gap-2 flex">
+                            <input
+                              className={`w-full font-bold ${
+                                opinion.active ? "text-black" : "text-[#414651]"
+                              } text-base leading-normal [direction:rtl] bg-transparent border-none outline-none`}
+                              placeholder="عنوان الانطباع"
+                              value={opinion.title}
+                              onChange={(e) =>
+                                handleOpinionChange(
+                                  opinion.id,
+                                  "title",
+                                  e.target.value
+                                )
+                              }
+                            />
                           </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                </TabsTrigger>
+                  </TabsTrigger>
+                  {/* Show textarea directly below the active tab */}
+                  {activeTab === `opinion-${opinion.id}` && (
+                    <div className="w-full px-0 pb-4">
+                      <Textarea
+                        className="w-full"
+                        placeholder="اكتب هنا"
+                        value={opinion.comment}
+                        onChange={(e) =>
+                          handleOpinionChange(
+                            opinion.id,
+                            "comment",
+                            e.target.value
+                          )
+                        }
+                      />
+                    </div>
+                  )}
+                </div>
               ))}
             </TabsList>
-            {opinions.map((opinion) => (
-              <TabsContent
-                key={`content-${opinion.id}`}
-                value={`opinion-${opinion.id}`}
-              >
-                <Textarea placeholder="اكتب هنا" />
-              </TabsContent>
-            ))}
-            {/* Tabs Content */}
           </Tabs>
         </CardContent>
       </Card>
@@ -418,18 +640,11 @@ export const TrainerProfile = () => {
                 <span className=" font-bold text-white text-2xl ">
                   المهارات
                 </span>
-                <span className=" font-medium text-white text-xs max-md:hidden"> 
+                <span className=" font-medium text-white text-xs max-md:hidden">
                   /22 مهارات مختارة
                 </span>
               </div>
-              <Button
-                variant="outline"
-                className="flex w-[120px] items-center justify-center gap-1 px-3 py-2 bg-white rounded-md overflow-hidden border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs-skeuomorphic"
-              >
-                <span className="relative w-fit  font-bold text-[#414651] text-sm text-left tracking-[0] leading-5 whitespace-nowrap [direction:rtl]">
-                  حفظ
-                </span>
-              </Button>
+              <div></div>
             </CardContent>
           </Card>
 
@@ -449,8 +664,12 @@ export const TrainerProfile = () => {
                       <Checkbox
                         className="w-4 h-4 rounded border border-solid border-[#199491] data-[state=checked]:bg-[#199491]"
                         checked={skill.checked}
-                        onCheckedChange={() =>
-                          handleCheckboxChange(columnIndex, skillIndex)
+                        onCheckedChange={(checked) =>
+                          handleCheckboxChange(
+                            columnIndex,
+                            skillIndex,
+                            Boolean(checked)
+                          )
                         }
                       />
                     </div>
@@ -466,7 +685,10 @@ export const TrainerProfile = () => {
       </Card>
       {/* Bottom Action Button */}
       <div className="w-full max-w-full flex justify-center mt-[52px] [direction:rtl] ">
-        <Button className="w-full bg-[#006173] text-white hover:bg-[#0a7285]  h-[48px]">
+        <Button
+          className="w-full bg-[#006173] text-white hover:bg-[#0a7285]  h-[48px]"
+          onClick={handleSendReport}
+        >
           إرسال التقرير
           <img src={sendicon} alt="" />
         </Button>

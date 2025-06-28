@@ -16,69 +16,6 @@ import { canViewElement } from "~/lib/check-permission";
 import DashboardNav from "./dashboardNav";
 
 const Navbar = () => {
-  const navigate = useNavigate();
-  const navigation = useNavigation();
-  const { user } = useRouteLoaderData<any>("root");
-
-  const [isMenuOpen, toggleMenu] = useReducer((st) => !st, false);
-
-  const handleLogout = () => {
-    navigate("/logout");
-  };
-
-  const AuthActions = () =>
-    user ? (
-      <div className="h-full flex flex-auto  justify-end   ">
-        <button
-          onClick={handleLogout}
-          className="button  font-bold text-center text-xs md:text-sm  md:p-3 rounded-lg text-gray-700 hover:bg-black/5 transition-all"
-        >
-          تسجيل الخروج
-        </button>
-      </div>
-    ) : (
-      <div className="visitors flex flex-auto  justify-end  gap-x-4">
-        <button
-          onClick={() => navigate("/dashboard")}
-          className="button font-bold text-xs  md:text-sm text-center p-3 rounded-lg bg-primary text-white hover:opacity-90 transition-opacity"
-        >
-          {" "}
-          انضمام
-        </button>
-        <button
-          onClick={() => navigate("/dashboard/infocenter")}
-          className="button font-bold text-xs  md:text-sm text-center p-3 rounded-lg bg-primary text-white hover:opacity-90 transition-opacity"
-        >
-          {" "}
-          انضمام
-        </button>
-        <button
-          onClick={() => navigate("/login")}
-          className="button font-bold text-xs  md:text-sm text-center p-3 rounded-lg text-gray-700 hover:bg-black/5 transition-all"
-        >
-          دخول
-        </button>
-      </div>
-    );
-  const DisplayedNavList = () => (
-    <ul className="flex flex-col-reverse md:flex-row  items-end gap-x-8 gap-y-8 ">
-      {NavbarElements.filter((element) =>
-        canViewElement(element, user as any)
-      ).map((element) => (
-        <li
-          key={element.id}
-          className="flex cursor-pointer font-bold text-gray-700"
-        >
-          <NavLink prefetch="intent" to={element.link}>
-            <span>{element.arabicLabel}</span>
-            {element.children && element.children.length && (
-              <Icon name="below-arrow" size="sm" />
-            )}
-          </NavLink>
-        </li>
-      ))}
-    </ul>
-  );
 
   return (
     <>
