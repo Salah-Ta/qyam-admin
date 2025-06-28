@@ -93,7 +93,7 @@ model Material {
   id         String   @id @default(cuid())
   storageKey String
   title      String
-  //categoryId String
+  categoryId String?
   published  Boolean  @default(false)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
