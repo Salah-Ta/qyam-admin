@@ -14,7 +14,7 @@ export type Category = {
   id?: string;
   title: string;
   icon: string;
-  Material: Material[];
+  //Material: Material[];
 };
 
 export type Program = {
@@ -52,11 +52,11 @@ export type QUser = {
   role: string;
   phone?: string;
   regionId?: string;
-  userRegion?: Region; // Match the field name from Prisma schema
+  //userRegion?: Region; // Match the field name from Prisma schema
   eduAdminId?: string;
-  userEduAdmin?: EduAdmin; // Match the field name from Prisma schema
+  //userEduAdmin?: EduAdmin; // Match the field name from Prisma schema
   schoolId?: string;
-  userSchool?: School; // Match the field name from Prisma schema
+  //userSchool?: School; // Match the field name from Prisma schema
   reports?: Report[];
   createdAt?: Date;
   updatedAt?: Date;
@@ -82,7 +82,7 @@ type UserCertificate = {
 export type Region = {
   id?: string;
   name: string;
-  users?: QUser[]; // Add users relation
+  //users?: QUser[]; // Add users relation
   createdAt?: Date;
   updatedAt?: Date;
 };
@@ -90,7 +90,7 @@ export type Region = {
 export type EduAdmin = {
   id?: string;
   name: string;
-  users?: QUser[]; // Add users relation
+  //users?: QUser[]; // Add users relation
   createdAt?: Date;
   updatedAt?: Date;
 };
@@ -99,7 +99,7 @@ export type School = {
   id?: string;
   name: string;
   address: string;
-  users?: QUser[]; // Add users relation
+  //users?: QUser[]; // Add users relation
   createdAt?: Date;
   updatedAt?: Date;
 };
