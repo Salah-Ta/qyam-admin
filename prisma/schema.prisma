@@ -36,9 +36,9 @@ model User {
   receivedMessages Message[]         @relation("ReceivedMessages")
   reports          Report[]
   Session          Session[]
-  userEduAdmin     EduAdmin?         @relation(fields: [eduAdminId], references: [id])
-  userRegion       Region?           @relation(fields: [regionId], references: [id])
-  userSchool       School?           @relation(fields: [schoolId], references: [id])
+  //userEduAdmin     EduAdmin?         @relation(fields: [eduAdminId], references: [id])
+  //userRegion       Region?           @relation(fields: [regionId], references: [id])
+  //userSchool       School?           @relation(fields: [schoolId], references: [id])
   UserCertificate  UserCertificate[]
 
   @@map("user")
@@ -93,11 +93,11 @@ model Material {
   id         String   @id @default(cuid())
   storageKey String
   title      String
-  categoryId String
+  //categoryId String
   published  Boolean  @default(false)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  //category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
   @@map("material")
 }
@@ -120,7 +120,7 @@ model Category {
   icon      String
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
-  Material  Material[]
+  //Material  Material[]
 
   @@map("category")
 }
@@ -165,7 +165,7 @@ model Region {
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
   //eduAdmins EduAdmin[]
-  users     User[]
+  //users     User[]
 
   @@map("region")
 }
@@ -175,7 +175,7 @@ model EduAdmin {
   name      String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  users     User[]
+  //users     User[]
 
   @@map("eduAdministration")
 }
@@ -188,7 +188,7 @@ model School {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   //eduAdmin   EduAdmin @relation(fields: [eduAdminId], references: [id])
-  users      User[]
+  //users      User[]
 
   @@map("school")
 }
