@@ -241,10 +241,10 @@ export const TrainerProfile = () => {
   // Data for the skills checklist organized in columns
   const [skillsColumns, setSkillsColumns] = useState([
     [
-      { id: "concept", label: "معرفة مفهوم التطوع شرعا ونظاما", checked: true },
+      { id: "concept", label: "معرفة مفهوم التطوع شرعا ونظاما", checked: false },
       { id: "dialogue", label: "مهارات الحوار والعمل الجماعي", checked: false },
       { id: "communication", label: "مهارات الاتصال", checked: false },
-      { id: "selfAwareness", label: "تنمية الوعي الذاتي", checked: true },
+      { id: "selfAwareness", label: "تنمية الوعي الذاتي", checked: false },
       {
         id: "digitalTools",
         label: "استخدام الأدوات الرقمية في الأنشطة التطوعية",
@@ -610,7 +610,7 @@ export const TrainerProfile = () => {
                   {activeTab === `opinion-${opinion.id}` && (
                     <div className="w-full px-0 pb-4">
                       <Textarea
-                        className="w-full"
+                        className="w-full text-right"
                         placeholder="اكتب هنا"
                         value={opinion.comment}
                         onChange={(e) =>
