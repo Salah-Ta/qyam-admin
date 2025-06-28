@@ -173,11 +173,8 @@ model Region {
 model EduAdmin {
   id        String   @id @default(cuid())
   name      String
-  //regionId  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  //region    Region   @relation(fields: [regionId], references: [id])
-  //schools   School[]
   users     User[]
 
   @@map("eduAdministration")

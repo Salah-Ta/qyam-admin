@@ -26,7 +26,7 @@ const initDb = (dbUrl: string) => {
   }
 };
 
-const createEduAdmin = (name: string,  dbUrl: string): Promise<StatusResponse<null>> => {
+const createEduAdmin = (name: string, dbUrl: string): Promise<StatusResponse<null>> => {
   const db = initDb(dbUrl);
   if (!db) {
     return Promise.resolve({
@@ -38,11 +38,9 @@ const createEduAdmin = (name: string,  dbUrl: string): Promise<StatusResponse<nu
   return new Promise((resolve, reject) => {
     db.eduAdmin
       .create({
-        data: { 
-          name
-        }
+        data: { name }
       })
-          .then(() => {
+      .then(() => {
         resolve({
           status: "success",
           message: "تم إضافة الإدارة التعليمية بنجاح",
@@ -69,7 +67,7 @@ const getAllEduAdmins = (dbUrl: string): Promise<StatusResponse<EduAdmin[]>> => 
 
   return new Promise((resolve, reject) => {
     db.eduAdmin
-      .findMany()
+      .findMany() // No includes - remove dependency on schools
       .then((res) => {
         resolve({ status: "success", data: res });
       })
@@ -96,7 +94,7 @@ const getEduAdmin = (id: string, dbUrl: string): Promise<StatusResponse<EduAdmin
     db.eduAdmin
       .findFirstOrThrow({
         where: { id }
-        
+        // No includes - remove dependency on schools
       })
       .then((res) => {
         resolve({ status: "success", data: res });
