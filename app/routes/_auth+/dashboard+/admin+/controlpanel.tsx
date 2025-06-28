@@ -24,7 +24,6 @@ import {
 } from "@remix-run/cloudflare";
 import { Link } from "@remix-run/react";
 import { createId } from "@paralleldrive/cuid2";
-
 // Utility function
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -92,50 +91,56 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-  const uploadHandler = async (props: any) => {
-    const { data, filename, contentType } = props;
-    const key = `${Date.now()}-${createId()}.${filename.split(".")[1]}`;
-    const dataArray1 = [];
-
-    for await (const x of data) {
-      dataArray1.push(x);
-    }
-
-    const file1 = new File(dataArray1, filename, { type: contentType });
-    const buffer = await file1.arrayBuffer();
-    return context.cloudflare.env.QYAM_BUCKET.put(key, buffer, {
-      httpMetadata: {
-        contentType,
-      },
-    })
-      .then(() => {
-        return materialDB
-          .createMaterial(
-            {
-              title: filename,
-              storageKey: key,
-              categoryId: "1",
-              published: true,
-            },
-            context.cloudflare.env.DATABASE_URL
-          )
-          .then((res) => {
-            return res;
-          })
-          .catch((err) => {
-            throw new Error("FAILED_ADD_USER_CERTS");
-          });
-      })
-      .catch((err) => {
-        return null;
-      });
-  };
   const contentType = request.headers.get("Content-Type") || "";
 
   // Handle multipart form data (file uploads)
   if (contentType.includes("multipart/form-data")) {
     try {
-      const formData = await unstable_parseMultipartFormData(
+      // Clone the request to safely read form fields
+      const formData = await request.clone().formData();
+      const categoryId = formData.get("categoryId");
+      console.log("Upload started with categoryId:", categoryId);
+      const uploadHandler = async (props: any) => {
+        const { data, filename, contentType } = props;
+        const key = `${Date.now()}-${createId()}.${filename?.split(".")[1]}`;
+        const dataArray1 = [];
+
+        for await (const x of data) {
+          dataArray1.push(x);
+        }
+
+        const file1 = new File(dataArray1, filename, { type: contentType });
+        const buffer = await file1.arrayBuffer();
+        return context.cloudflare.env.QYAM_BUCKET.put(key, buffer, {
+          httpMetadata: {
+            contentType,
+          },
+        })
+          .then(() => {
+            return materialDB
+              .createMaterial(
+                {
+                  title: filename,
+                  storageKey: key,
+                  categoryId: categoryId as string,
+                  published: true,
+                },
+                context.cloudflare.env.DATABASE_URL
+              )
+              .then((res) => {
+                return res;
+              })
+              .catch((err) => {
+                throw new Error("FAILED_ADD_USER_CERTS");
+              });
+          })
+          .catch((err) => {
+            return null;
+          });
+      };
+
+      // then call unstable_parseMultipartFormData(request, uploadHandler)
+      const formDataParsed = await unstable_parseMultipartFormData(
         request,
         uploadHandler as any
       );
@@ -202,8 +207,16 @@ export async function action({ request, context }: ActionFunctionArgs) {
 }
 
 export const ControlPanel = (): JSX.Element => {
-  // --- MATERIALS LOGIC FROM material.tsx ---
+  const categories = [
+    { name: "مركز المعرفة", id: "1" },
+    { name: "أدلة البرنامج", id: "2" },
+    { name: "أنشطة البرنامج", id: "3" },
+    { name: "بنك الفرص التطوعية", id: "4" },
+    { name: "أدوات التحفيز", id: "5" },
+  ];
   const materials = useLoaderData<any[]>();
+  console.log("Materials:", materials);
+
   const [selectedFiles, setSelectedFiles] = useState<any[]>([]);
   const fetcher = useFetcher();
 
@@ -227,9 +240,11 @@ export const ControlPanel = (): JSX.Element => {
 
   const uploadMaterial = () => {
     const formData = new FormData();
+    // send the selectedButton value as categoryId to the server
     selectedFiles.forEach((file) => {
       formData.append("files", file);
     });
+    formData.set("categoryId", selectedButton);
     fetcher.submit(formData, {
       method: "POST",
       encType: "multipart/form-data",
@@ -245,6 +260,10 @@ export const ControlPanel = (): JSX.Element => {
   const handleButtonClick = (buttonName: string) => {
     setSelectedButton(buttonName);
   };
+
+  const filteredFiles = materials.filter(
+    (file) => file.categoryId === selectedButton
+  );
 
   return (
     <div>
@@ -320,12 +339,12 @@ export const ControlPanel = (): JSX.Element => {
             </div>
 
             {/* Uploaded Files List */}
-            <div className="flex flex-col md:flex-row gap-6 w-full mt-2">
-              {materials && materials.length > 0 ? (
-                materials.map((m: Material, i: number) => (
+            <div className="flex flex-col md:flex-row gap-6 w-full mt-2 flex-wrap">
+              {filteredFiles && filteredFiles.length > 0 ? (
+                filteredFiles.map((m: Material, i: number) => (
                   <Card
                     key={m.id || i}
-                    className="w-full md:flex-1 flex items-center justify-center gap-[13.75px] px-[13.75px] py-[11px] bg-white rounded-[11px] border-[2.38px]  border-dashed border-[#cfd4dc] shadow-[0px_1.38px_2.75px_#1018280d]"
+                    className="w-full md:flex-1 flex  items-center justify-center gap-[13.75px] px-[13.75px] py-[11px] bg-white rounded-[11px] border-[2.38px]  border-dashed border-[#cfd4dc] shadow-[0px_1.38px_2.75px_#1018280d]"
                   >
                     <button
                       onClick={() => deleteMaterial(m.id!)}
@@ -413,23 +432,17 @@ export const ControlPanel = (): JSX.Element => {
           </CardContent>
         </Card>
         <section className="flex flex-col  items-center bg-gray-100 ml-6  max-lg:hidden">
-          {[
-            { name: "مركز المعرفة", categoryId: "knowledge-center" },
-            { name: "أدلة البرنامج", categoryId: "program-guides" },
-            { name: "أنشطة البرنامج", categoryId: "program-activities" },
-            { name: "بنك الفرص التطوعية", categoryId: "volunteer-bank" },
-            { name: "أدوات التحفيز", categoryId: "motivation-tools" },
-          ].map((button) => (
+          {categories.map((category) => (
             <button
-              key={button.categoryId}
-              onClick={() => handleButtonClick(button.categoryId)}
+              key={category?.id}
+              onClick={() => handleButtonClick(category?.id)}
               className={`font-bold py-4 px-3 rounded-xl shadow-sm w-64 mb-6 ${
-                selectedButton === button.categoryId
+                selectedButton === category?.id
                   ? "bg-[#006173] text-white"
                   : "bg-white text-[#344054]"
               }`}
             >
-              {button.name}
+              {category?.name}
             </button>
           ))}
         </section>
