@@ -1,100 +1,34 @@
-import { CheckIcon,   } from "lucide-react";
-import React, { useState } from "react";
+import { CheckIcon } from "lucide-react";
+import React, { useCallback, useState } from "react";
+import { useLoaderData, useFetcher } from "@remix-run/react";
+import { useDropzone } from "react-dropzone";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import imageDashed from "../../../../assets/images/new-design/image-2.png";
 import plusImg from "../../../../assets/images/new-design/plus-sign.svg";
-
 import pdf01 from "../../../../assets/icons/pdf.svg";
 import pageSvg from "../../../../assets/icons/doc.svg";
 import featuredIcon from "../../../../assets/icons/feature-2.svg";
 import deleteIcon from "../../../../assets/icons/delete.svg";
 import UploadCloudIcon from "../../../../assets/icons/upload-cloud.svg";
- 
+import { Icon } from "~/components/icon";
+import { Button } from "~/components/ui/button";
+import { sanitizeArabicFilenames } from "~/utils/santize-arabic.filenames";
+import type { Material } from "~/types/types";
+import { createToastHeaders } from "~/lib/toast.server";
+import materialDB from "~/db/material/material.server";
+import {
+  ActionFunctionArgs,
+  LoaderFunctionArgs,
+  unstable_parseMultipartFormData,
+} from "@remix-run/cloudflare";
+import { Link } from "@remix-run/react";
+import { createId } from "@paralleldrive/cuid2";
 
 // Utility function
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
-
-// File data for mapping
-const fileCards = [
-  {
-    id: 1,
-    title: "مقرر القيم 1",
-    icon: "/admin+/assets/pdf-01.svg",
-    deleteIcon: "/group-30519.png",
-  },
-  {
-    id: 2,
-    title: "مقرر القيم 1",
-    icon: "../admin+/assets/pdf-01.png",
-    deleteIcon: "/group-30519-1.png",
-  },
-  {
-    id: 3,
-    title: "مقرر القيم 1",
-    icon: "/admin+/assets/pdf-01.svg",
-    deleteIcon: "/group-30519-2.png",
-  },
-  {
-    id: 4,
-    title: "مقرر القيم 1",
-    icon: "/admin+/assets/pdf-01.svg",
-    deleteIcon: "/group-30519-3.png",
-  },
-];
-
-const uploadedFiles = [
-  {
-    id: 1,
-    title: "التطوع منهج حياة",
-    type: "PDF",
-    size: "200 KB",
-    progress: 100,
-    status: "complete",
-  },
-  {
-    id: 2,
-    title: "كيف يمكن أن أتطوع",
-    type: "MP4",
-    size: "16 MB",
-    progress: 70,
-    status: "complete",
-  },
-  {
-    id: 3,
-    title: "خطوات عملية للتطوع",
-    type: "FIG",
-    size: "4.2 MB",
-    progress: 70,
-    status: "uploading",
-  },
-];
-
-// Component definitions
-const Button = React.forwardRef<
-  HTMLButtonElement,
-  React.ButtonHTMLAttributes<HTMLButtonElement> & {
-    variant?: "default" | "outline";
-  }
->(({ className, variant = "default", ...props }, ref) => {
-  return (
-    <button
-      className={cn(
-        "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background",
-        variant === "default" &&
-          "bg-primary text-primary-foreground hover:bg-primary/90",
-        variant === "outline" &&
-          "border border-input hover:bg-accent hover:text-accent-foreground",
-        className
-      )}
-      ref={ref}
-      {...props}
-    />
-  );
-});
-Button.displayName = "Button";
 
 const Badge = React.forwardRef<
   HTMLDivElement,
@@ -134,32 +68,6 @@ const CardContent = React.forwardRef<
 ));
 CardContent.displayName = "CardContent";
 
-const Progress = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement> & {
-    value?: number;
-  }
->(({ className, value, ...props }, ref) => (
-  <div
-    ref={ref}
-    role="progressbar"
-    aria-valuemin={0}
-    aria-valuemax={100}
-    aria-valuenow={value}
-    className={cn(
-      "relative h-4 w-full overflow-hidden rounded-full bg-primary/10",
-      className
-    )}
-    {...props}
-  >
-    <div
-      className="h-full w-full flex-1 bg-secondary  "
-      style={{ transform: `translateX(${100 - (value || 0)}%)` }}
-    />
-  </div>
-));
-Progress.displayName = "Progress";
-
 const Separator = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
@@ -172,7 +80,165 @@ const Separator = React.forwardRef<
 ));
 Separator.displayName = "Separator";
 
+export async function loader({ request, context, params }: LoaderFunctionArgs) {
+  return materialDB
+    .getAllMaterials(context.cloudflare.env.DATABASE_URL)
+    .then((res: any) => {
+      return Response.json(res.data);
+    })
+    .catch(() => {
+      return null;
+    });
+}
+
+export async function action({ request, context }: ActionFunctionArgs) {
+  const uploadHandler = async (props: any) => {
+    const { data, filename, contentType } = props;
+    const key = `${Date.now()}-${createId()}.${filename.split(".")[1]}`;
+    const dataArray1 = [];
+
+    for await (const x of data) {
+      dataArray1.push(x);
+    }
+
+    const file1 = new File(dataArray1, filename, { type: contentType });
+    const buffer = await file1.arrayBuffer();
+    return context.cloudflare.env.QYAM_BUCKET.put(key, buffer, {
+      httpMetadata: {
+        contentType,
+      },
+    })
+      .then(() => {
+        return materialDB
+          .createMaterial(
+            {
+              title: filename,
+              storageKey: key,
+              categoryId: "1",
+              published: true,
+            },
+            context.cloudflare.env.DATABASE_URL
+          )
+          .then((res) => {
+            return res;
+          })
+          .catch((err) => {
+            throw new Error("FAILED_ADD_USER_CERTS");
+          });
+      })
+      .catch((err) => {
+        return null;
+      });
+  };
+  const contentType = request.headers.get("Content-Type") || "";
+
+  // Handle multipart form data (file uploads)
+  if (contentType.includes("multipart/form-data")) {
+    try {
+      const formData = await unstable_parseMultipartFormData(
+        request,
+        uploadHandler as any
+      );
+
+      return Response.json(
+        { success: true },
+        {
+          headers: await createToastHeaders({
+            description: "",
+            title: `تم رفع الملفات  بنجاح`,
+            type: "success",
+          }),
+        }
+      );
+    } catch (error) {
+      console.error("Upload failed:", error);
+      return Response.json(
+        { success: false },
+        {
+          headers: await createToastHeaders({
+            description: "",
+            title: `فشلت عملية رفع  الملفات`,
+            type: "error",
+          }),
+        }
+      );
+    }
+  } else {
+    try {
+      const formData = await request.formData();
+      return materialDB
+        .deleteMaterial(
+          formData.get("id") as string,
+          context.cloudflare.env.DATABASE_URL
+        )
+        .then(async (res) => {
+          return Response.json(
+            { success: true },
+            {
+              headers: await createToastHeaders({
+                description: "",
+                title: `تم حذف الملف  بنجاح`,
+                type: "success",
+              }),
+            }
+          );
+        })
+        .catch(async (e) => {
+          throw new Error("FAILED_DELETE");
+        });
+    } catch (e) {
+      return Response.json(
+        { success: false },
+        {
+          headers: await createToastHeaders({
+            description: "",
+            title: `فشلت عملية حذف  الملفات`,
+            type: "error",
+          }),
+        }
+      );
+    }
+  }
+}
+
 export const ControlPanel = (): JSX.Element => {
+  // --- MATERIALS LOGIC FROM material.tsx ---
+  const materials = useLoaderData<any[]>();
+  const [selectedFiles, setSelectedFiles] = useState<any[]>([]);
+  const fetcher = useFetcher();
+
+  const onDrop = useCallback((acceptedFiles: any[]) => {
+    setSelectedFiles((prev) => [...prev, ...acceptedFiles]);
+  }, []);
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: { "application/pdf": [".pdf"] },
+  });
+
+  const removeFileFromSelection = (file: any) => {
+    setSelectedFiles(selectedFiles.filter((f) => file.path !== f.path));
+  };
+
+  const deleteMaterial = (id: string) => {
+    const formData = new FormData();
+    formData.set("id", id);
+    fetcher.submit(formData, { method: "POST" });
+  };
+
+  const uploadMaterial = () => {
+    const formData = new FormData();
+    selectedFiles.forEach((file) => {
+      formData.append("files", file);
+    });
+    fetcher.submit(formData, {
+      method: "POST",
+      encType: "multipart/form-data",
+    });
+    setSelectedFiles([]); // Optionally clear after upload
+  };
+
+  // --- END MATERIALS LOGIC ---
+
   const [selectedButton, setSelectedButton] =
     useState<string>("knowledge-center");
 
@@ -183,53 +249,64 @@ export const ControlPanel = (): JSX.Element => {
   return (
     <div>
       <div className="lg:flex items-start   relative w-full  h-full pt-6  ">
-
         <Card className="w-full h-full rounded-2xl border border-[#d0d5dd]  ">
           <CardContent className="p-8 flex flex-col gap-4">
             {/* Upload Area */}
-            <div className="flex flex-col items-center gap-3 p-4 bg-[#fdfdfd] rounded-[8px] border border-[#e4e7ec] [direction:rtl]">
+            <div
+              className="flex flex-col items-center gap-3 p-4 bg-[#fdfdfd] rounded-[8px] border border-[#e4e7ec] [direction:rtl] cursor-pointer"
+              {...getRootProps()}
+            >
+              <input {...getInputProps()} />
               <div className="relative w-[46px] h-[46px] bg-gray-100 rounded-[28px] border-[6px] border-[#f8f9fb] flex items-center justify-center">
-              <img src={UploadCloudIcon} alt="" />
+                <img src={UploadCloudIcon} alt="" />
               </div>
-
               <div className="flex flex-col items-center gap-1 w-full">
                 <div className="flex items-center justify-center gap-1 w-full">
                   <div className="  font-normal text-gray-600 text-sm leading-5 whitespace-nowrap tracking-[0] [direction:rtl]">
                     أو بالسحب والإفلات
                   </div>
-
                   <div className="inline-flex items-center justify-center gap-2">
                     <div className="  font-bold text-[#8bc53f] text-sm leading-5 whitespace-nowrap tracking-[0] [direction:rtl]">
                       قم بالضغط للتحميل
                     </div>
                   </div>
                 </div>
-
                 <div className="text-gray-600 text-xs text-center leading-[18px]   font-normal tracking-[0]">
-                  SVG, PNG, JPG or GIF (max.4.00 MB)
+                  PDF فقط (max.4.00 MB)
                 </div>
               </div>
             </div>
 
-            {/* Footer */}
-            <footer className="flex flex-col w-full items-end bg-transparent ">
-              <div className="flex items-center justify-end gap-4 px-6 py-4 w-full">
-                <div className="flex items-start gap-3 ">
-                  <Button
-                    variant="outline"
-                    className="rounded-[8px]   font-bold text-gray-700 text-sm  px-4 py-[10px] "
-                  >
-                    إلغاء
-                  </Button>
-
-                  <Button className="bg-[#006173] rounded-[8px] border border-[#0d3151]  px-4 py-[10px] font-bold text-white text-sm ">
-                    حفظ الملفات
-                  </Button>
-                </div>
+            {/* Selected Files Preview */}
+            {selectedFiles.length > 0 && (
+              <div className="border border-[#E4E7EC] mt-6 rounded-lg p-4">
+                <p className="mb-2">
+                  الملفات المختارة ({selectedFiles.length})
+                </p>
+                <ul>
+                  {selectedFiles.map((file, i) => (
+                    <li
+                      key={i}
+                      className="flex p-2 w-full my-2  items-center justify-between rounded-lg border border-gray-100 bg-gray-50"
+                    >
+                      <span className="w-1/2">
+                        {file.relativePath?.split("/")[1] || file.name}
+                      </span>
+                      <span className="w-1/3">{file.size} بايت</span>
+                      <Button
+                        onClick={() => removeFileFromSelection(file)}
+                        className="p-1  bg-transparent hover:bg-gray-100 ml-2 px-2"
+                      >
+                        <Icon name="remove" size="md" />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+                <Button onClick={uploadMaterial} className="mt-4">
+                  رفع الملفات
+                </Button>
               </div>
-
-              <Separator className="w-full" />
-            </footer>
+            )}
 
             {/* Uploaded Items Label */}
             <div className="flex items-center gap-[5px] self-end mt-16">
@@ -237,129 +314,79 @@ export const ControlPanel = (): JSX.Element => {
                 <CheckIcon className="w-[9px] h-[9px]" />
                 <img src={featuredIcon} alt="" />
               </div>
-
               <div className="  font-medium text-[#039754] text-sm text-center tracking-[0] leading-[18px] whitespace-nowrap [direction:rtl]">
-                العناصر التي تم تحميلها
+                الملفات المرفوعة
               </div>
             </div>
 
-            {/* File Cards */}
+            {/* Uploaded Files List */}
             <div className="flex flex-col md:flex-row gap-6 w-full mt-2">
-              {fileCards.map((file) => (
-                <Card
-                  key={file.id}
-                  className="w-full md:flex-1 flex items-center justify-center gap-[13.75px] px-[13.75px] py-[11px] bg-white rounded-[11px] border-[2.38px]  border-dashed border-[#cfd4dc] shadow-[0px_1.38px_2.75px_#1018280d]"
-                >
-                  <img
-                    className="w-[16.5px] h-[16.5px]"
-                    alt="Delete"
-                    src={deleteIcon}
-                  />
-
-                  <div className="font-normal text-black text-[13.8px] leading-[27.5px] whitespace-nowrap tracking-[0] [direction:rtl]">
-                    {file.title}
-                  </div>
-
-                  <img className="w-[33px] h-[33px]" alt="PDF" src={pdf01} />
-                </Card>
-              ))}
+              {materials && materials.length > 0 ? (
+                materials.map((m: Material, i: number) => (
+                  <Card
+                    key={m.id || i}
+                    className="w-full md:flex-1 flex items-center justify-center gap-[13.75px] px-[13.75px] py-[11px] bg-white rounded-[11px] border-[2.38px]  border-dashed border-[#cfd4dc] shadow-[0px_1.38px_2.75px_#1018280d]"
+                  >
+                    <button
+                      onClick={() => deleteMaterial(m.id!)}
+                      className="w-[16.5px] h-[16.5px]"
+                    >
+                      <img src={deleteIcon} alt="Delete" />
+                    </button>
+                    <div className="font-normal text-black text-[13.8px] leading-[27.5px] whitespace-nowrap tracking-[0] [direction:rtl]">
+                      {m.title}
+                    </div>
+                    <a
+                      className="w-[33px] h-[33px] flex items-center"
+                      href={`/download/${m.storageKey}`}
+                      download={sanitizeArabicFilenames(m.title)}
+                    >
+                      <img
+                        className="w-[33px] h-[33px]"
+                        alt="PDF"
+                        src={pdf01}
+                      />
+                    </a>
+                  </Card>
+                ))
+              ) : (
+                <div className="w-full text-center text-gray-400 py-8">
+                  لا توجد ملفات مرفوعة
+                </div>
+              )}
             </div>
 
             {/* Status Messages */}
-            <div className="flex flex-col md:flex-row gap-4 self-end mt-[29px]">
-              {/* Error Badge */}
-              <Badge className="flex items-center justify-between md:justify-start w-full md:w-auto gap-3 pl-2 pr-2 py-1 bg-[#fef3f2] rounded-2xl">
-                <div className="text-[#b32318] font-medium text-sm tracking-[0] leading-5 whitespace-nowrap">
-                  تأكد من حجم أو نوع الملف
-                </div>
-                <div className="px-2.5 py-0.5 bg-white rounded-2xl border border-[#fecdc9]">
-                  <span className="font-medium text-[#b32218] text-sm text-center leading-5 whitespace-nowrap tracking-[0]">
-                    خطأ
-                  </span>
-                </div>
-              </Badge>
+            {fetcher.data && fetcher.data.success === false && (
+              <div className="flex flex-col md:flex-row gap-4 self-end mt-[29px]">
+                <Badge className="flex items-center justify-between md:justify-start w-full md:w-auto gap-3 pl-2 pr-2 py-1 bg-[#fef3f2] rounded-2xl">
+                  <div className="text-[#b32318] font-medium text-sm tracking-[0] leading-5 whitespace-nowrap">
+                    تأكد من حجم أو نوع الملف
+                  </div>
+                  <div className="px-2.5 py-0.5 bg-white rounded-2xl border border-[#fecdc9]">
+                    <span className="font-medium text-[#b32218] text-sm text-center leading-5 whitespace-nowrap tracking-[0]">
+                      خطأ
+                    </span>
+                  </div>
+                </Badge>
+              </div>
+            )}
+            {fetcher.data && fetcher.data.success === true && (
+              <div className="flex flex-col md:flex-row gap-4 self-end mt-[29px]">
+                <Badge className="flex items-center justify-between md:justify-start w-full md:w-auto gap-3 pl-2 pr-1 py-1 bg-[#ECFDF3] rounded-2xl">
+                  <div className="text-[#027A48] font-medium text-sm tracking-[0] leading-5 whitespace-nowrap">
+                    تم رفع الملفات بنجاح
+                  </div>
+                  <div className="px-2.5 py-0.5 bg-white rounded-2xl border border-[#0dbd7563]">
+                    <span className="font-medium text-[#027A48] text-sm text-center leading-5 whitespace-nowrap tracking-[0]">
+                      نجاح
+                    </span>
+                  </div>
+                </Badge>
+              </div>
+            )}
 
-              {/* Success Badge */}
-              <Badge className="flex items-center justify-between md:justify-start w-full md:w-auto gap-3 pl-2 pr-1 py-1 bg-[#ECFDF3] rounded-2xl">
-                <div className="text-[#027A48] font-medium text-sm tracking-[0] leading-5 whitespace-nowrap">
-                  تم رفع الملفات بنجاح
-                </div>
-                <div className="px-2.5 py-0.5 bg-white rounded-2xl border border-[#0dbd7563]">
-                  <span className="font-medium text-[#027A48] text-sm text-center leading-5 whitespace-nowrap tracking-[0]">
-                    نجاح
-                  </span>
-                </div>
-              </Badge>
-            </div>
-
-            {/* Uploaded Files List */}
-            <div className="w-full flex flex-col gap-4 mt-8">
-              {uploadedFiles.map((file) => (
-                <Card
-                  key={file.id}
-                  className={`w-full h-[72px] rounded-xl border border-[#e9e9eb] overflow-hidden ${
-                    file.status === "uploading" ? "relative" : ""
-                  }`}
-                >
-                  <CardContent className="p-0">
-                    <div className="flex items-start gap-3 p-4 w-full">
-                      {file.status === "complete" && (
-                        <div className="w-4 h-4 bg-[#68c35c] rounded flex items-center justify-center">
-                          <CheckIcon className="w-3 h-3 text-white" />
-                        </div>
-                      )}
-                      <div className="flex flex-col   gap-1 flex-1 [direction:rtl]">
-                        <div className="  font-medium text-[#414651] text-sm leading-5 tracking-[0] ">
-                          {file.title}
-                        </div>
-                        <div className="text-[#535861] text-sm leading-5 font-normal">
-                          {file.size} – {file.progress}% uploaded
-                        </div>
-                      </div>
-
-                      <div className="relative w-10 h-10">
-                        <div className="relative w-8 h-10 left-1">
-                          <img
-                            className="absolute w-8 h-10 top-0 left-0"
-                            alt="Page"
-                            // src="/page.svg"
-                            src={pageSvg}
-                          />
-                          <div className="absolute w-8 top-[5px] left-0 [font-family:'Inter',Helvetica] font-bold text-white text-[9px] text-center tracking-[0] leading-[normal]">
-                            {file.type}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                  {file.status === "uploading" && (
-                    <>
-                      {/* Progress spinner */}
-                      <div className="absolute left-4 top-6">
-                        <div className="w-8 h-8">
-                          <div
-                            className="w-full h-full rounded-full border-2 border-gray-300  border-t-blue-500 animate-spin"
-                            style={{
-                              borderTopWidth: "4px",
-                              borderRightWidth: "4px",
-                              borderBottomWidth: "4px",
-                              borderLeftWidth: "4px",
-                              transformOrigin: "center",
-                              animationDuration: "0s",
-                              borderTopColor: "#68c35c", // blue-500
-                              borderRightColor: "#68c35c",
-                              borderBottomColor: "bg-tertiary",
-                              borderLeftColor: "bg-tertiary",
-                            }}
-                          />
-                          {/* Optional progress text inside spinner */}
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </Card>
-              ))}
-            </div>
+            {/* Example Content */}
             <div className=" w-full mx-auto rounded-[11.78px]   shadow-lg bg-white overflow-hidden p-2">
               <div
                 className="w-full h-[184px] rounded-[5.89px]"
@@ -370,7 +397,6 @@ export const ControlPanel = (): JSX.Element => {
                   backgroundRepeat: "no-repeat",
                 }}
               ></div>
-
               <div className="flex flex-col items-end p-4">
                 <div className="text-right w-full">
                   <div className="font-bold text-[#1F2A37] mb-1"> نص جديد </div>
@@ -388,17 +414,17 @@ export const ControlPanel = (): JSX.Element => {
         </Card>
         <section className="flex flex-col  items-center bg-gray-100 ml-6  max-lg:hidden">
           {[
-            { name: "مركز المعرفة", id: "knowledge-center" },
-            { name: "أدلة البرنامج", id: "program-guides" },
-            { name: "أنشطة البرنامج", id: "program-activities" },
-            { name: "بنك الفرص التطوعية", id: "volunteer-bank" },
-            { name: "أدوات التحفيز", id: "motivation-tools" },
+            { name: "مركز المعرفة", categoryId: "knowledge-center" },
+            { name: "أدلة البرنامج", categoryId: "program-guides" },
+            { name: "أنشطة البرنامج", categoryId: "program-activities" },
+            { name: "بنك الفرص التطوعية", categoryId: "volunteer-bank" },
+            { name: "أدوات التحفيز", categoryId: "motivation-tools" },
           ].map((button) => (
             <button
-              key={button.id}
-              onClick={() => handleButtonClick(button.id)}
+              key={button.categoryId}
+              onClick={() => handleButtonClick(button.categoryId)}
               className={`font-bold py-4 px-3 rounded-xl shadow-sm w-64 mb-6 ${
-                selectedButton === button.id
+                selectedButton === button.categoryId
                   ? "bg-[#006173] text-white"
                   : "bg-white text-[#344054]"
               }`}
