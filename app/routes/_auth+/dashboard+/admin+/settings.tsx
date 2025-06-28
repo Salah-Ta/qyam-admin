@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { Button } from "~/routes/_auth+/new-design/components/ui/button";
-import { Card, CardContent } from "~/routes/_auth+/new-design/components/ui/card";
+import {
+  Card,
+  CardContent,
+} from "~/routes/_auth+/new-design/components/ui/card";
 import { Input } from "~/routes/_auth+/new-design/components/ui/input";
 import plusImg from "../../../../assets/icons/plus.svg";
 import UserIcon from "../../../../assets/icons/user-modified.svg";
@@ -16,8 +19,7 @@ import { MinusCircleIcon } from "lucide-react";
 export async function loader({ context }: LoaderFunctionArgs) {
   const dbUrl = context.cloudflare.env.DATABASE_URL;
   const regions = await regionDB.getAllRegions(dbUrl);
-  const eduAdminsResponse = await eduAdminDB.getAllEduAdmins(dbUrl);
-  return json({ regions: regions.data, dbUrl, eduAdminsResponse });
+  return json({ regions: regions.data, dbUrl });
 }
 
 export const action = async ({ request, context }: LoaderFunctionArgs) => {
@@ -39,7 +41,10 @@ export const action = async ({ request, context }: LoaderFunctionArgs) => {
         const regions = await regionDB.getAllRegions(dbUrl);
         return json({ status: "success", regions: regions.data });
       } catch (error: any) {
-        return json({ status: "error", message: error.message }, { status: 500 });
+        return json(
+          { status: "error", message: error.message },
+          { status: 500 }
+        );
       }
     }
 
@@ -171,7 +176,9 @@ export const ManageData = (): JSX.Element => {
                                     ? {
                                         ...s,
                                         inputs: s.inputs.map((inp, i) =>
-                                          i === index ? { ...inp, name: value } : inp
+                                          i === index
+                                            ? { ...inp, name: value }
+                                            : inp
                                         ),
                                       }
                                     : s
