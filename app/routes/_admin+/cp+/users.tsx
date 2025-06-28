@@ -447,6 +447,11 @@ const transformedData = data.map((el:any)=>({
       columnHelper.accessor("cvKey", {
         header: ()=><span className="text-nowrap">السيرة الذاتية</span>,
         cell: (info) => {
+          // Check if getValue() returns a value before calling split()
+          const value = info.getValue();
+          if (!value) {
+            return <span className="text-gray-400">لا يوجد ملف</span>;
+          }
           const extention = info.getValue().split(".")[1]
          return  <button className="button hover:bg-gray-100 rounded-lg transition-all text-nowrap p-2">
             {" "}

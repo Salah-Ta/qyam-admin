@@ -78,7 +78,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         }
       })
       .catch((err) => {
-        return null;
+        return null; // This hides the actual error
       });
   };
 
