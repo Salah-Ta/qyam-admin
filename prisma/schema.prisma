@@ -8,58 +8,54 @@ datasource db {
   url      = env("DEV_DATABASE_URL")
 }
 
-
-
 model User {
   id               String            @id
   name             String
-  email            String
+  email            String            @unique
   emailVerified    Boolean
   image            String?
   createdAt        DateTime
   updatedAt        DateTime
-  role             String?          @default("USER")
-  banned           Boolean?
-  banReason        String?
-  banExpires       DateTime?
+  role             String?
+  acceptenceState  String?           @default("idle")
   cvKey            String?
   bio              String?
   phone            Int?
-  acceptenceState  String?           @default("idle")
-  trainingHours    Int               @default(0)
+  banned           Boolean?
+  banReason        String?
+  banExpires       DateTime?
   noStudents       Int               @default(0)
-  region           String            @default("none")
+  trainingHours    Int               @default(0)
   level            String            @default("LEVEL_1")
-  regionId         String?
-  userRegion       Region?           @relation(fields: [regionId], references: [id])
+  region           String            @default("none")
   eduAdminId       String?
-  userEduAdmin     EduAdmin?         @relation(fields: [eduAdminId], references: [id])
+  regionId         String?
   schoolId         String?
-  userSchool       School?           @relation(fields: [schoolId], references: [id])
-  Session          Session[]
   Account          Account[]
-  UserCertificate  UserCertificate[]
-  reports          Report[] // User's reports
   sentMessages     Message[]         @relation("SentMessages")
   receivedMessages Message[]         @relation("ReceivedMessages")
+  reports          Report[]
+  Session          Session[]
+  userEduAdmin     EduAdmin?         @relation(fields: [eduAdminId], references: [id])
+  userRegion       Region?           @relation(fields: [regionId], references: [id])
+  userSchool       School?           @relation(fields: [schoolId], references: [id])
+  UserCertificate  UserCertificate[]
 
-  @@unique([email])
   @@map("user")
 }
 
 model Session {
   id             String   @id
   expiresAt      DateTime
-  token          String
-  createdAt      DateTime
-  updatedAt      DateTime
   ipAddress      String?
   userAgent      String?
   userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   impersonatedBy String?
+  createdAt      DateTime
+  token          String   @unique
+  updatedAt      DateTime
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([token])
   @@map("session")
 }
 
@@ -68,16 +64,16 @@ model Account {
   accountId             String
   providerId            String
   userId                String
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   accessToken           String?
   refreshToken          String?
   idToken               String?
+  password              String?
   accessTokenExpiresAt  DateTime?
+  createdAt             DateTime
   refreshTokenExpiresAt DateTime?
   scope                 String?
-  password              String?
-  createdAt             DateTime
   updatedAt             DateTime
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("account")
 }
@@ -98,10 +94,10 @@ model Material {
   storageKey String
   title      String
   categoryId String
-  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   published  Boolean  @default(false)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
   @@map("material")
 }
@@ -111,22 +107,21 @@ model Program {
   link        String
   title       String
   description String
-  image       String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  image       String?
 
   @@map("program")
 }
 
 model Category {
   id        String     @id @default(cuid())
-  title     String
+  title     String     @unique
   icon      String
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
   Material  Material[]
 
-  @@unique([title])
   @@map("category")
 }
 
@@ -134,7 +129,7 @@ model Article {
   id          String   @id @default(cuid())
   title       String
   description String
-  image       String?  @db.Text
+  image       String?
   content     String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -145,9 +140,9 @@ model Article {
 model Statistics {
   id              String   @id @default("stats")
   registeredUsers Int      @default(0)
-  curriculums     Int      @default(0)
   trainingHours   Int      @default(0)
   updatedAt       DateTime @updatedAt
+  curriculums     Int      @default(0)
 
   @@map("statistics")
 }
@@ -155,11 +150,11 @@ model Statistics {
 model UserCertificate {
   id             String @id @default(cuid())
   userId         String
-  user           User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  certificateKey String
   contentType    String
   size           Int
-  certificateKey String
   name           String
+  user           User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("userCertificate")
 }
@@ -169,8 +164,8 @@ model Region {
   name      String     @unique
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
+  //eduAdmins EduAdmin[]
   users     User[]
-  eduAdmins EduAdmin[]
 
   @@map("region")
 }
@@ -178,12 +173,9 @@ model Region {
 model EduAdmin {
   id        String   @id @default(cuid())
   name      String
-  regionId  String
-  region    Region   @relation(fields: [regionId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   users     User[]
-  schools   School[]
 
   @@map("eduAdministration")
 }
@@ -192,10 +184,10 @@ model School {
   id         String   @id @default(cuid())
   name       String
   address    String
-  eduAdminId String
-  eduAdmin   EduAdmin @relation(fields: [eduAdminId], references: [id])
+  //eduAdminId String
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+  //eduAdmin   EduAdmin @relation(fields: [eduAdminId], references: [id])
   users      User[]
 
   @@map("school")
@@ -204,7 +196,6 @@ model School {
 model Report {
   id                     String              @id @default(cuid())
   userId                 String
-  user                   User                @relation(fields: [userId], references: [id])
   volunteerHours         Float
   economicValue          Float
   volunteerOpportunities Int
@@ -212,9 +203,10 @@ model Report {
   volunteerCount         Int
   skillsEconomicValue    Float
   skillsTrainedCount     Int
-  attachedFiles          String[] // Array of file URLs or keys
+  attachedFiles          String[]
   createdAt              DateTime            @default(now())
   updatedAt              DateTime            @updatedAt
+  user                   User                @relation(fields: [userId], references: [id])
   skills                 SkillReport[]
   testimonials           TestimonialReport[]
 
@@ -235,9 +227,9 @@ model Skill {
 model SkillReport {
   skillId   String
   reportId  String
-  skill     Skill    @relation(fields: [skillId], references: [id])
-  report    Report   @relation(fields: [reportId], references: [id])
   createdAt DateTime @default(now())
+  report    Report   @relation(fields: [reportId], references: [id])
+  skill     Skill    @relation(fields: [skillId], references: [id])
 
   @@id([skillId, reportId])
   @@map("skill_report")
@@ -246,7 +238,7 @@ model SkillReport {
 model Testimonial {
   id        String              @id @default(cuid())
   name      String
-  comment   String              @db.Text
+  comment   String
   rating    Int                 @default(5)
   createdAt DateTime            @default(now())
   updatedAt DateTime            @updatedAt
@@ -258,30 +250,26 @@ model Testimonial {
 model TestimonialReport {
   testimonialId String
   reportId      String
-  testimonial   Testimonial @relation(fields: [testimonialId], references: [id])
-  report        Report      @relation(fields: [reportId], references: [id])
   createdAt     DateTime    @default(now())
+  report        Report      @relation(fields: [reportId], references: [id])
+  testimonial   Testimonial @relation(fields: [testimonialId], references: [id])
 
   @@id([testimonialId, reportId])
   @@map("testimonial_report")
 }
 
 model Message {
-  id        String    @id @default(cuid())
-  content   String    @db.Text
-  sentAt    DateTime  @default(now())
-  isRead    Boolean   @default(false)
-  readAt    DateTime?
-  isDeleted Boolean   @default(false)
-  deletedAt DateTime?
-
-  // Sender relationship
+  id         String    @id @default(cuid())
+  content    String
+  sentAt     DateTime  @default(now())
+  isRead     Boolean   @default(false)
+  readAt     DateTime?
+  isDeleted  Boolean   @default(false)
+  deletedAt  DateTime?
   fromUserId String
-  fromUser   User   @relation("SentMessages", fields: [fromUserId], references: [id])
-
-  // Recipient relationship
-  toUserId String
-  toUser   User   @relation("ReceivedMessages", fields: [toUserId], references: [id])
+  toUserId   String
+  fromUser   User      @relation("SentMessages", fields: [fromUserId], references: [id])
+  toUser     User      @relation("ReceivedMessages", fields: [toUserId], references: [id])
 
   @@index([fromUserId])
   @@index([toUserId])
