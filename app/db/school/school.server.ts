@@ -2,18 +2,41 @@ import glossary from "~/lib/glossary";
 import { client } from "../db-client.server";
 import { StatusResponse, School } from "~/types/types";
 
+/**
+ * Initialize database client with error handling
+ */
+const initDb = (dbUrl: string) => {
+  if (!dbUrl) {
+    console.log("ERROR: Database URL is not provided");
+    return null;
+  }
+
+  try {
+    const db = client(dbUrl);
+    if (!db || !db.school) {
+      console.log("ERROR: Failed to initialize database client");
+      return null;
+    }
+    return db;
+  } catch (error) {
+    console.log("ERROR [DB initialization]: ", error);
+    return null;
+  }
+};
+
 const getAllSchools = (dbUrl: string): Promise<StatusResponse<School[]>> => {
-  const db = client(dbUrl);
+  const db = initDb(dbUrl);
+  if (!db) {
+    return Promise.resolve({
+      status: "error",
+      message: "Failed to initialize database"
+    });
+  }
+  
   return new Promise((resolve, reject) => {
     db.school
       .findMany({
-        include: {
-          eduAdmin: {
-            include: {
-              region: true
-            }
-          }
-        },
+        // Remove eduAdmin and region includes
         orderBy: {
           name: 'asc'
         }
@@ -32,17 +55,20 @@ const getAllSchools = (dbUrl: string): Promise<StatusResponse<School[]>> => {
 };
 
 const getSchool = (id: string, dbUrl: string): Promise<StatusResponse<School>> => {
-  const db = client(dbUrl);
+  const db = initDb(dbUrl);
+  if (!db) {
+    return Promise.resolve({
+      status: "error",
+      message: "Failed to initialize database"
+    });
+  }
+  
   return new Promise((resolve, reject) => {
     db.school
       .findFirstOrThrow({
         where: { id },
         include: {
-          eduAdmin: {
-            include: {
-              region: true
-            }
-          },
+          // Remove eduAdmin and region includes
           users: true
         }
       })
@@ -59,15 +85,22 @@ const getSchool = (id: string, dbUrl: string): Promise<StatusResponse<School>> =
   });
 };
 
-const createSchool = (name: string, address: string, eduAdminId: string, dbUrl: string): Promise<StatusResponse<null>> => {
-  const db = client(dbUrl);
+const createSchool = (name: string, address: string, dbUrl: string): Promise<StatusResponse<null>> => {
+  const db = initDb(dbUrl);
+  if (!db) {
+    return Promise.resolve({
+      status: "error",
+      message: "Failed to initialize database"
+    });
+  }
+  
   return new Promise((resolve, reject) => {
     db.school
       .create({
         data: { 
           name,
-          address,
-          eduAdminId
+          address
+          // Remove eduAdminId
         }
       })
       .then(() => {
@@ -86,16 +119,23 @@ const createSchool = (name: string, address: string, eduAdminId: string, dbUrl: 
   });
 };
 
-const updateSchool = (id: string, name: string, address: string, eduAdminId: string, dbUrl: string): Promise<StatusResponse<null>> => {
-  const db = client(dbUrl);
+const updateSchool = (id: string, name: string, address: string, dbUrl: string): Promise<StatusResponse<null>> => {
+  const db = initDb(dbUrl);
+  if (!db) {
+    return Promise.resolve({
+      status: "error",
+      message: "Failed to initialize database"
+    });
+  }
+  
   return new Promise((resolve, reject) => {
     db.school
       .update({
         where: { id },
         data: { 
           name,
-          address,
-          eduAdminId
+          address
+          // Remove eduAdminId
         }
       })
       .then(() => {
@@ -115,7 +155,14 @@ const updateSchool = (id: string, name: string, address: string, eduAdminId: str
 };
 
 const deleteSchool = (id: string, dbUrl: string): Promise<StatusResponse<null>> => {
-  const db = client(dbUrl);
+  const db = initDb(dbUrl);
+  if (!db) {
+    return Promise.resolve({
+      status: "error",
+      message: "Failed to initialize database"
+    });
+  }
+  
   return new Promise((resolve, reject) => {
     db.school
       .delete({
