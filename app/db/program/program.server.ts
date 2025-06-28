@@ -46,11 +46,13 @@ const getAllPrograms = (dbUrl: string): Promise<StatusResponse<Program>> => {
   });
 };
 
-const getProgram = (id: number, dbUrl: string) => {
+const getProgram = (id: string, dbUrl: string) => {
   const db = client(dbUrl);
   return new Promise((resolve, reject) => {
     db.program
-      .findFirstOrThrow()
+      .findFirstOrThrow({
+        where: { id: id },
+      })
       .then((res) => {
         resolve({ status: "success", data: res });
       })
