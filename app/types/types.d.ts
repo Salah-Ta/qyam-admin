@@ -4,7 +4,7 @@ export type Material = {
   id?: string;
   storageKey: string;
   title: string;
-  categoryId: string;
+  categoryId?: string;
   published: boolean;
   createdAt?: Date;
   updatedAt?: Date;

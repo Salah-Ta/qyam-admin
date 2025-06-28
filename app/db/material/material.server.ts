@@ -8,10 +8,7 @@ const createMaterial = (material: Material, dbUrl:string):Promise<StatusResponse
  const db = client(dbUrl)
   return new Promise((resolve, reject) => {
     db.material.create({
-        data: material,
-          include: {
-            category: true
-          }
+        data: material
     }).then(()=>{
         resolve({status:"success", message:glossary.status_response.success.material_added})
 
@@ -93,11 +90,7 @@ const getAllCategoriesWithLinkedMaterials = (dbUrl:string)=>{
 
     return new Promise((resolve, reject) => {
         db.category.findMany({
-            include:{
-                Material:{
-
-                }
-            }
+            
         }).then((res)=>{
             resolve({status:"success",data:res, message:glossary.status_response.success.material_deleted})
         }).catch((error:any)=>{
