@@ -1,13 +1,14 @@
-import { CheckIcon } from "lucide-react";
 import React, { useCallback, useState } from "react";
 import { useLoaderData, useFetcher } from "@remix-run/react";
 import { useDropzone } from "react-dropzone";
+import { CheckIcon } from "lucide-react";
+import { Link } from "@remix-run/react";
+import { createId } from "@paralleldrive/cuid2";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import imageDashed from "../../../../assets/images/new-design/image-2.png";
 import plusImg from "../../../../assets/images/new-design/plus-sign.svg";
 import pdf01 from "../../../../assets/icons/pdf.svg";
-import pageSvg from "../../../../assets/icons/doc.svg";
 import featuredIcon from "../../../../assets/icons/feature-2.svg";
 import deleteIcon from "../../../../assets/icons/delete.svg";
 import UploadCloudIcon from "../../../../assets/icons/upload-cloud.svg";
@@ -22,129 +23,53 @@ import {
   LoaderFunctionArgs,
   unstable_parseMultipartFormData,
 } from "@remix-run/cloudflare";
-import { Link } from "@remix-run/react";
-import { createId } from "@paralleldrive/cuid2";
-// Utility function
+
+// Utility function for class names
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-const Badge = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
-  <div
-    ref={ref}
-    className={cn(
-      "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold   ",
-      className
-    )}
-    {...props}
-  />
-));
-Badge.displayName = "Badge";
-
-const Card = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
-  <div
-    ref={ref}
-    className={cn(
-      "rounded-lg border bg-card text-card-foreground shadow-sm",
-      className
-    )}
-    {...props}
-  />
-));
-Card.displayName = "Card";
-
-const CardContent = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
-  <div ref={ref} className={cn("p-6 pt-0", className)} {...props} />
-));
-CardContent.displayName = "CardContent";
-
-const Separator = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
-  <div
-    ref={ref}
-    className={cn("shrink-0 bg-border", "h-[1px] w-full", className)}
-    {...props}
-  />
-));
-Separator.displayName = "Separator";
-
-export async function loader({ request, context, params }: LoaderFunctionArgs) {
-  return materialDB
-    .getAllMaterials(context.cloudflare.env.DATABASE_URL)
-    .then((res: any) => {
-      return Response.json(res.data);
-    })
-    .catch(() => {
-      return null;
-    });
+// --- Remix Loader & Action ---
+export async function loader({ context }: LoaderFunctionArgs) {
+  try {
+    const res = await materialDB.getAllMaterials(
+      context.cloudflare.env.DATABASE_URL
+    );
+    return Response.json(res.data);
+  } catch {
+    return null;
+  }
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
   const contentType = request.headers.get("Content-Type") || "";
 
-  // Handle multipart form data (file uploads)
+  // Handle file uploads
   if (contentType.includes("multipart/form-data")) {
     try {
-      // Clone the request to safely read form fields
       const formData = await request.clone().formData();
       const categoryId = formData.get("categoryId");
-      console.log("Upload started with categoryId:", categoryId);
-      const uploadHandler = async (props: any) => {
-        const { data, filename, contentType } = props;
+      const uploadHandler = async ({ data, filename, contentType }: any) => {
         const key = `${Date.now()}-${createId()}.${filename?.split(".")[1]}`;
-        const dataArray1 = [];
-
-        for await (const x of data) {
-          dataArray1.push(x);
-        }
-
-        const file1 = new File(dataArray1, filename, { type: contentType });
-        const buffer = await file1.arrayBuffer();
-        return context.cloudflare.env.QYAM_BUCKET.put(key, buffer, {
-          httpMetadata: {
-            contentType,
+        const dataArray: any[] = [];
+        for await (const x of data) dataArray.push(x);
+        const file = new File(dataArray, filename, { type: contentType });
+        const buffer = await file.arrayBuffer();
+        await context.cloudflare.env.QYAM_BUCKET.put(key, buffer, {
+          httpMetadata: { contentType },
+        });
+        await materialDB.createMaterial(
+          {
+            title: filename,
+            storageKey: key,
+            categoryId: categoryId as string,
+            published: true,
           },
-        })
-          .then(() => {
-            return materialDB
-              .createMaterial(
-                {
-                  title: filename,
-                  storageKey: key,
-                  categoryId: categoryId as string,
-                  published: true,
-                },
-                context.cloudflare.env.DATABASE_URL
-              )
-              .then((res) => {
-                return res;
-              })
-              .catch((err) => {
-                throw new Error("FAILED_ADD_USER_CERTS");
-              });
-          })
-          .catch((err) => {
-            return null;
-          });
+          context.cloudflare.env.DATABASE_URL
+        );
+        return true;
       };
-
-      // then call unstable_parseMultipartFormData(request, uploadHandler)
-      const formDataParsed = await unstable_parseMultipartFormData(
-        request,
-        uploadHandler as any
-      );
-
+      await unstable_parseMultipartFormData(request, uploadHandler as any);
       return Response.json(
         { success: true },
         {
@@ -155,8 +80,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
           }),
         }
       );
-    } catch (error) {
-      console.error("Upload failed:", error);
+    } catch {
       return Response.json(
         { success: false },
         {
@@ -169,29 +93,24 @@ export async function action({ request, context }: ActionFunctionArgs) {
       );
     }
   } else {
+    // Handle delete
     try {
       const formData = await request.formData();
-      return materialDB
-        .deleteMaterial(
-          formData.get("id") as string,
-          context.cloudflare.env.DATABASE_URL
-        )
-        .then(async (res) => {
-          return Response.json(
-            { success: true },
-            {
-              headers: await createToastHeaders({
-                description: "",
-                title: `تم حذف الملف  بنجاح`,
-                type: "success",
-              }),
-            }
-          );
-        })
-        .catch(async (e) => {
-          throw new Error("FAILED_DELETE");
-        });
-    } catch (e) {
+      await materialDB.deleteMaterial(
+        formData.get("id") as string,
+        context.cloudflare.env.DATABASE_URL
+      );
+      return Response.json(
+        { success: true },
+        {
+          headers: await createToastHeaders({
+            description: "",
+            title: `تم حذف الملف  بنجاح`,
+            type: "success",
+          }),
+        }
+      );
+    } catch {
       return Response.json(
         { success: false },
         {
@@ -206,6 +125,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
   }
 }
 
+// --- Main Component ---
 export const ControlPanel = (): JSX.Element => {
   const categories = [
     { name: "مركز المعرفة", id: "1" },
@@ -214,20 +134,21 @@ export const ControlPanel = (): JSX.Element => {
     { name: "بنك الفرص التطوعية", id: "4" },
     { name: "أدوات التحفيز", id: "5" },
   ];
-  const materials = useLoaderData<any[]>();
-  console.log("Materials:", materials);
-
+  const materials = useLoaderData<any[]>() || [];
   const [selectedFiles, setSelectedFiles] = useState<any[]>([]);
+  const [selectedButton, setSelectedButton] = useState<string>("1");
   const fetcher = useFetcher();
 
+  // Dropzone logic
   const onDrop = useCallback((acceptedFiles: any[]) => {
     setSelectedFiles((prev) => [...prev, ...acceptedFiles]);
   }, []);
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+  const { getRootProps, getInputProps } = useDropzone({
     onDrop,
     accept: { "application/pdf": [".pdf"] },
   });
 
+  // Handlers
   const removeFileFromSelection = (file: any) => {
     setSelectedFiles(selectedFiles.filter((f) => file.path !== f.path));
   };
@@ -240,7 +161,6 @@ export const ControlPanel = (): JSX.Element => {
 
   const uploadMaterial = () => {
     const formData = new FormData();
-    // send the selectedButton value as categoryId to the server
     selectedFiles.forEach((file) => {
       formData.append("files", file);
     });
@@ -249,16 +169,11 @@ export const ControlPanel = (): JSX.Element => {
       method: "POST",
       encType: "multipart/form-data",
     });
-    setSelectedFiles([]); // Optionally clear after upload
+    setSelectedFiles([]);
   };
 
-  // --- END MATERIALS LOGIC ---
-
-  const [selectedButton, setSelectedButton] =
-    useState<string>("knowledge-center");
-
-  const handleButtonClick = (buttonName: string) => {
-    setSelectedButton(buttonName);
+  const handleButtonClick = (buttonId: string) => {
+    setSelectedButton(buttonId);
   };
 
   const filteredFiles = materials.filter(
@@ -267,8 +182,8 @@ export const ControlPanel = (): JSX.Element => {
 
   return (
     <div>
-      <div className="lg:flex items-start   relative w-full  h-full pt-6  ">
-        <Card className="w-full h-full rounded-2xl border border-[#d0d5dd]  ">
+      <div className="lg:flex items-start relative w-full h-full pt-6">
+        <Card className="w-full h-full rounded-2xl border border-[#d0d5dd]">
           <CardContent className="p-8 flex flex-col gap-4">
             {/* Upload Area */}
             <div
@@ -281,16 +196,16 @@ export const ControlPanel = (): JSX.Element => {
               </div>
               <div className="flex flex-col items-center gap-1 w-full">
                 <div className="flex items-center justify-center gap-1 w-full">
-                  <div className="  font-normal text-gray-600 text-sm leading-5 whitespace-nowrap tracking-[0] [direction:rtl]">
+                  <div className="font-normal text-gray-600 text-sm leading-5 whitespace-nowrap tracking-[0] [direction:rtl]">
                     أو بالسحب والإفلات
                   </div>
                   <div className="inline-flex items-center justify-center gap-2">
-                    <div className="  font-bold text-[#8bc53f] text-sm leading-5 whitespace-nowrap tracking-[0] [direction:rtl]">
+                    <div className="font-bold text-[#8bc53f] text-sm leading-5 whitespace-nowrap tracking-[0] [direction:rtl]">
                       قم بالضغط للتحميل
                     </div>
                   </div>
                 </div>
-                <div className="text-gray-600 text-xs text-center leading-[18px]   font-normal tracking-[0]">
+                <div className="text-gray-600 text-xs text-center leading-[18px] font-normal tracking-[0]">
                   PDF فقط (max.4.00 MB)
                 </div>
               </div>
@@ -306,7 +221,7 @@ export const ControlPanel = (): JSX.Element => {
                   {selectedFiles.map((file, i) => (
                     <li
                       key={i}
-                      className="flex p-2 w-full my-2  items-center justify-between rounded-lg border border-gray-100 bg-gray-50"
+                      className="flex p-2 w-full my-2 items-center justify-between rounded-lg border border-gray-100 bg-gray-50"
                     >
                       <span className="w-1/2">
                         {file.relativePath?.split("/")[1] || file.name}
@@ -314,7 +229,7 @@ export const ControlPanel = (): JSX.Element => {
                       <span className="w-1/3">{file.size} بايت</span>
                       <Button
                         onClick={() => removeFileFromSelection(file)}
-                        className="p-1  bg-transparent hover:bg-gray-100 ml-2 px-2"
+                        className="p-1 bg-transparent hover:bg-gray-100 ml-2 px-2"
                       >
                         <Icon name="remove" size="md" />
                       </Button>
@@ -333,7 +248,7 @@ export const ControlPanel = (): JSX.Element => {
                 <CheckIcon className="w-[9px] h-[9px]" />
                 <img src={featuredIcon} alt="" />
               </div>
-              <div className="  font-medium text-[#039754] text-sm text-center tracking-[0] leading-[18px] whitespace-nowrap [direction:rtl]">
+              <div className="font-medium text-[#039754] text-sm text-center tracking-[0] leading-[18px] whitespace-nowrap [direction:rtl]">
                 الملفات المرفوعة
               </div>
             </div>
@@ -344,7 +259,7 @@ export const ControlPanel = (): JSX.Element => {
                 filteredFiles.map((m: Material, i: number) => (
                   <Card
                     key={m.id || i}
-                    className="w-full md:flex-1 flex  items-center justify-center gap-[13.75px] px-[13.75px] py-[11px] bg-white rounded-[11px] border-[2.38px]  border-dashed border-[#cfd4dc] shadow-[0px_1.38px_2.75px_#1018280d]"
+                    className="w-full md:flex-1 flex items-center justify-center gap-[13.75px] px-[13.75px] py-[11px] bg-white rounded-[11px] border-[2.38px] border-dashed border-[#cfd4dc] shadow-[0px_1.38px_2.75px_#1018280d]"
                   >
                     <button
                       onClick={() => deleteMaterial(m.id!)}
@@ -377,36 +292,22 @@ export const ControlPanel = (): JSX.Element => {
 
             {/* Status Messages */}
             {fetcher.data && fetcher.data.success === false && (
-              <div className="flex flex-col md:flex-row gap-4 self-end mt-[29px]">
-                <Badge className="flex items-center justify-between md:justify-start w-full md:w-auto gap-3 pl-2 pr-2 py-1 bg-[#fef3f2] rounded-2xl">
-                  <div className="text-[#b32318] font-medium text-sm tracking-[0] leading-5 whitespace-nowrap">
-                    تأكد من حجم أو نوع الملف
-                  </div>
-                  <div className="px-2.5 py-0.5 bg-white rounded-2xl border border-[#fecdc9]">
-                    <span className="font-medium text-[#b32218] text-sm text-center leading-5 whitespace-nowrap tracking-[0]">
-                      خطأ
-                    </span>
-                  </div>
-                </Badge>
-              </div>
+              <StatusBadge
+                text="تأكد من حجم أو نوع الملف"
+                status="خطأ"
+                color="error"
+              />
             )}
             {fetcher.data && fetcher.data.success === true && (
-              <div className="flex flex-col md:flex-row gap-4 self-end mt-[29px]">
-                <Badge className="flex items-center justify-between md:justify-start w-full md:w-auto gap-3 pl-2 pr-1 py-1 bg-[#ECFDF3] rounded-2xl">
-                  <div className="text-[#027A48] font-medium text-sm tracking-[0] leading-5 whitespace-nowrap">
-                    تم رفع الملفات بنجاح
-                  </div>
-                  <div className="px-2.5 py-0.5 bg-white rounded-2xl border border-[#0dbd7563]">
-                    <span className="font-medium text-[#027A48] text-sm text-center leading-5 whitespace-nowrap tracking-[0]">
-                      نجاح
-                    </span>
-                  </div>
-                </Badge>
-              </div>
+              <StatusBadge
+                text="تم رفع الملفات بنجاح"
+                status="نجاح"
+                color="success"
+              />
             )}
 
             {/* Example Content */}
-            <div className=" w-full mx-auto rounded-[11.78px]   shadow-lg bg-white overflow-hidden p-2">
+            <div className="w-full mx-auto rounded-[11.78px] shadow-lg bg-white overflow-hidden p-2">
               <div
                 className="w-full h-[184px] rounded-[5.89px]"
                 style={{
@@ -423,7 +324,7 @@ export const ControlPanel = (): JSX.Element => {
                     هنا نص بداية المقال وهو نص حسب المحتوى{" "}
                   </div>
                 </div>
-                <button className=" flex items-center justify-center mt-4 px-6 py-1 bg-[#006173] text-white rounded-[5.89px] shadow hover:bg-teal-800 transition">
+                <button className="flex items-center justify-center mt-4 px-6 py-1 bg-[#006173] text-white rounded-[5.89px] shadow hover:bg-teal-800 transition">
                   <img src={plusImg} alt="" />
                   <span className="ml-2">جديد</span>
                 </button>
@@ -431,18 +332,19 @@ export const ControlPanel = (): JSX.Element => {
             </div>
           </CardContent>
         </Card>
-        <section className="flex flex-col  items-center bg-gray-100 ml-6  max-lg:hidden">
+        {/* Categories Sidebar */}
+        <section className="flex flex-col items-center bg-gray-100 ml-6 max-lg:hidden">
           {categories.map((category) => (
             <button
-              key={category?.id}
-              onClick={() => handleButtonClick(category?.id)}
+              key={category.id}
+              onClick={() => handleButtonClick(category.id)}
               className={`font-bold py-4 px-3 rounded-xl shadow-sm w-64 mb-6 ${
-                selectedButton === category?.id
+                selectedButton === category.id
                   ? "bg-[#006173] text-white"
                   : "bg-white text-[#344054]"
               }`}
             >
-              {category?.name}
+              {category.name}
             </button>
           ))}
         </section>
@@ -450,5 +352,80 @@ export const ControlPanel = (): JSX.Element => {
     </div>
   );
 };
+
+// --- UI Subcomponents ---
+const Badge = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn(
+      "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold",
+      className
+    )}
+    {...props}
+  />
+));
+Badge.displayName = "Badge";
+
+const Card = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn(
+      "rounded-lg border bg-card text-card-foreground shadow-sm",
+      className
+    )}
+    {...props}
+  />
+));
+Card.displayName = "Card";
+
+const CardContent = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div ref={ref} className={cn("p-6 pt-0", className)} {...props} />
+));
+CardContent.displayName = "CardContent";
+
+// Status badge for upload/delete feedback
+function StatusBadge({
+  text,
+  status,
+  color,
+}: {
+  text: string;
+  status: string;
+  color: "success" | "error";
+}) {
+  const bg = color === "success" ? "bg-[#ECFDF3]" : "bg-[#fef3f2]";
+  const border =
+    color === "success" ? "border-[#0dbd7563]" : "border-[#fecdc9]";
+  const textColor = color === "success" ? "text-[#027A48]" : "text-[#b32318]";
+  return (
+    <div className="flex flex-col md:flex-row gap-4 self-end mt-[29px]">
+      <Badge
+        className={`flex items-center justify-between md:justify-start w-full md:w-auto gap-3 pl-2 pr-2 py-1 ${bg} rounded-2xl`}
+      >
+        <div
+          className={`${textColor} font-medium text-sm tracking-[0] leading-5 whitespace-nowrap`}
+        >
+          {text}
+        </div>
+        <div className={`px-2.5 py-0.5 bg-white rounded-2xl border ${border}`}>
+          <span
+            className={`font-medium ${textColor} text-sm text-center leading-5 whitespace-nowrap tracking-[0]`}
+          >
+            {status}
+          </span>
+        </div>
+      </Badge>
+    </div>
+  );
+}
 
 export default ControlPanel;
