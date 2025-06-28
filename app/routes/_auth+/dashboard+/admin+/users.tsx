@@ -538,8 +538,11 @@ export const Users = (): JSX.Element => {
                         {actionBadges.map((tag, index) => (
                           <Badge
                             key={index}
-                                style={acceptanceStateFilter === tag.value ? selectedBadgeStyle : unselectedBadgeStyle}
-
+                            style={
+                              acceptanceStateFilter === tag.value
+                                ? selectedBadgeStyle
+                                : unselectedBadgeStyle
+                            }
                             className="px-2.5 py-[3px] rounded-lg border border-solid border-[#e5e7ea] font-body-small-bold text-[#475467]"
                             onClick={() => handleBadgeClick(tag.value)}
                           >
@@ -629,12 +632,12 @@ export const Users = (): JSX.Element => {
                         </TableCell>
                         <TableCell className="py-1 px-2 text-right max-md:hidden ">
                           <span className=" font-medium text-[#027163] text-base [direction:rtl]">
-                            {/* {row.school} */}
+                            {row?.schoolId}
                           </span>
                         </TableCell>
                         <TableCell className="py-1 px-2 text-right max-md:hidden ">
                           <span className=" font-medium text-[#027163] text-base [direction:rtl]">
-                            {/* {row.department} */}
+                            {row?.eduAdminId}
                           </span>
                         </TableCell>
                         <TableCell className="py-1 px-2 text-right max-md:hidden ">
