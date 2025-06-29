@@ -18,7 +18,6 @@ const createMaterial = (material: Material, dbUrl:string):Promise<StatusResponse
     })
   });
 };
-
 const getAllMaterials = (dbUrl:string):Promise<StatusResponse<Material>> => {
     const db = client(dbUrl)
     return new Promise((resolve, reject) => {
@@ -32,7 +31,21 @@ const getAllMaterials = (dbUrl:string):Promise<StatusResponse<Material>> => {
       });
 
 };
+/*
+const getAllMaterials = (dbUrl:string):Promise<StatusResponse<Material>> => {
+    const db = client(dbUrl)
+    return new Promise((resolve, reject) => {
+        db.material.findMany().then((res)=>{
+            resolve({status:"success", data:res})
+        }).catch((error:any)=>{
+            // console.log("ERROR [getAllMaterials]: ", error);
+            reject({status:"error", message:glossary.status_response.error.general})
+    
+        })
+      });
 
+};
+*/
 const getMaterial = (id:number, dbUrl:string) => {
     const db = client(dbUrl)
     return new Promise((resolve, reject) => {
