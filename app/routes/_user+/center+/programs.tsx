@@ -1,4 +1,4 @@
-import ProgramContainer from "~/components/programContainer";
+// import ProgramContainer from "~/components/programContainer";
 import { LoaderFunctionArgs } from "@remix-run/cloudflare";
 import programDB from "~/db/program/program.server";
 import { useLoaderData } from "@remix-run/react";
@@ -22,13 +22,13 @@ const Programs = () => {
   
     <h4 className="font-bold text-primary my-4">البرامج</h4>
     <div className="bg-gray-50 rounded-xl p-8 my-6">
-      <ProgramContainer
+      {/* <ProgramContainer
         role="user"
         programs={programs.data}
         onAddNewProgram={function (program: Program): void {
           throw new Error("Function not implemented.");
         }}
-      />
+      /> */}
     </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import ProgramContainer from "~/components/programContainer";
+// import ProgramContainer from "~/components/programContainer";
 import { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/cloudflare";
 import programDB from "~/db/program/program.server";
 import { useFetcher, useLoaderData } from "@remix-run/react";
@@ -262,7 +262,7 @@ const Programs = () => {
 
 
       </div>
-      <ProgramContainer editable={true} onDelete={removeProgram} onEdit={updateProgram} programs={programs.data} />
+      {/* <ProgramContainer editable={true} onDelete={removeProgram} onEdit={updateProgram} programs={programs.data} /> */}
     </div>
   );
 };

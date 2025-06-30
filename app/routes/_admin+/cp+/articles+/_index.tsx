@@ -3,8 +3,8 @@ import { Article, StatusResponse } from "~/types/types";
 import articleDB from "~/db/articles/articles.server";
 import { useFetcher, useLoaderData } from "@remix-run/react";
 import { requireSpecialCase } from "~/lib/get-authenticated.server";
-import ArticleCard from "~/components/articlesCard";
-import ArticleDialog from "~/components/articleDialog";
+// import ArticleCard from "~/components/articlesCard";
+// import ArticleDialog from "~/components/articleDialog";
 import { useState } from "react";
 import { Button } from "~/components/ui/button";
 import { createToastHeaders } from "~/lib/toast.server";
@@ -111,7 +111,7 @@ export default function Articles() {
         <Button onClick={() => setIsDialogOpen(true)}>إضافة مقال جديد</Button>
       </div>
 
-      <div className="flex flex-wrap gap-6">
+      {/* <div className="flex flex-wrap gap-6">
         {articles?.map((article) => (
           <ArticleCard
             key={article.id}
@@ -134,7 +134,7 @@ export default function Articles() {
           if (!open) setEditingArticle(null);
         }}
         article={editingArticle}
-      />
+      /> */}
     </section>
   );
 }

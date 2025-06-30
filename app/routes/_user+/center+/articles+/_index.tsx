@@ -1,7 +1,7 @@
 import { LoaderFunctionArgs } from "@remix-run/cloudflare";
 import { useLoaderData } from "@remix-run/react";
 import articleDB from "~/db/articles/articles.server";
-import UserArticleCard from "~/components/userArticleCard";
+// import UserArticleCard from "~/components/userArticleCard";
 import { Article } from "~/types/types";
 
 export async function loader({ context }: LoaderFunctionArgs) {
@@ -22,9 +22,9 @@ export default function Articles() {
     <div className="lg:px-8 py-6">
       <h4 className="text-primary font-bold mb-8">المقالات</h4>
       <div className="flex flex-wrap bg-gray-50 rounded-lg p-4 gap-6">
-        {articles?.map((article) => (
+        {/* {articles?.map((article) => (
           <UserArticleCard key={article.id} article={article} />
-        ))}
+        ))} */}
       </div>
     </div>
   );

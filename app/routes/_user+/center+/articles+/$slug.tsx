@@ -1,7 +1,7 @@
 import { LoaderFunctionArgs } from "@remix-run/cloudflare";
 import { useLoaderData } from "@remix-run/react";
 import articleDB from "~/db/articles/articles.server";
-import UserArticleView from "~/components/userArticleView";
+// import UserArticleView from "~/components/userArticleView";
 
 export async function loader({ params, context }: LoaderFunctionArgs) {
   const { slug } = params;
@@ -23,6 +23,6 @@ export async function loader({ params, context }: LoaderFunctionArgs) {
 }
 
 export default function Article() {
-  const article = useLoaderData<Article>();
-  return <UserArticleView article={article} />;
+  // const article = useLoaderData<Article>();
+  return <div></div>;
 }
