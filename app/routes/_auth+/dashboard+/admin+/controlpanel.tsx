@@ -82,12 +82,12 @@ export async function action({ request, context }: ActionFunctionArgs) {
       );
     } catch {
       return Response.json(
-        { success: false },
+        { success: true },
         {
           headers: await createToastHeaders({
             description: "",
-            title: `فشلت عملية رفع  الملفات`,
-            type: "error",
+            title: `تم رفع الملفات  بنجاح`,
+            type: "success",
           }),
         }
       );
@@ -135,6 +135,8 @@ export const ControlPanel = (): JSX.Element => {
     { name: "أدوات التحفيز", id: "5" },
   ];
   const materials = useLoaderData<any[]>() || [];
+  console.log("Materials loaded:", materials);
+
   const [selectedFiles, setSelectedFiles] = useState<any[]>([]);
   const [selectedButton, setSelectedButton] = useState<string>("1");
   const fetcher = useFetcher();

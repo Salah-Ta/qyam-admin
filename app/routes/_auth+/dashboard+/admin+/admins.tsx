@@ -355,10 +355,46 @@ export const Admins = (): JSX.Element => {
 
   console.log("Metrics Data:", metricsData);
   // filter users based on role user
-  const filteredUsers = users.filter((user) => user.role.toLowerCase() === "supervisor" || user.role === "مشرف");
+  const filteredUsers = users.filter(
+    (user) => user.role.toLowerCase() === "supervisor" || user.role === "مشرف"
+  );
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
 
   const [checkedRows, setCheckedRows] = useState([]);
+
+  const [search, setSearch] = useState("");
+  const [acceptanceStateFilter, setAcceptanceStateFilter] = useState<
+    string | null
+  >(null);
+
+  const filteredData = filteredUsers.filter((row) => {
+    const matchesSearch =
+      row.name.toLowerCase().includes(search.toLowerCase()) ||
+      row?.phone?.toString().includes(search) ||
+      row.email.toLowerCase().includes(search.toLowerCase());
+
+    const matchesAcceptance =
+      !acceptanceStateFilter || row.acceptenceState === acceptanceStateFilter;
+
+    return matchesSearch && matchesAcceptance;
+  });
+  console.log("Filtered Data:", filteredData);
+
+  const selectedBadgeStyle = {
+    background: "#22c55e", // Tailwind's green-500
+    color: "#fff",
+    border: "1px solid #22c55e",
+  };
+
+  const unselectedBadgeStyle = {
+    background: "#fff",
+    color: "#22c55e",
+    border: "1px solid #22c55e",
+  };
+
+  const handleBadgeClick = (state: string) => {
+    setAcceptanceStateFilter((prev) => (prev === state ? null : state));
+  };
 
   const handleCheckboxChange = (rowId: any) => {
     setCheckedRows((prev: any) =>
@@ -374,14 +410,28 @@ export const Admins = (): JSX.Element => {
   const getCurrentPageData = () => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
-    return filteredUsers.slice(startIndex, endIndex);
+    return filteredData.slice(startIndex, endIndex);
   };
 
-  // Action badges data
   const actionBadges = [
-    { label: "مقبول", color: "#1a7f37", borderColor: "#1a7f37" },
-    { label: "مرفوض", color: "#bc4c00", borderColor: "#bc4c00" },
-    { label: "غير نشط", color: "#9a6700", borderColor: "#bf8700" },
+    {
+      label: "مقبول",
+      color: "#1a7f37",
+      borderColor: "#1a7f37",
+      value: "accepted",
+    },
+    {
+      label: "مرفوض",
+      color: "#bc4c00",
+      borderColor: "#bc4c00",
+      value: "denied",
+    },
+    {
+      label: "غير نشط",
+      color: "#9a6700",
+      borderColor: "#bf8700",
+      value: "pending",
+    },
   ];
 
   const statusTranslation = {
@@ -439,7 +489,8 @@ export const Admins = (): JSX.Element => {
                   <div className="text-gray-700 text-sm font-bold whitespace-nowrap">
                     تم تحديد : {selectedRows}
                   </div>
-                  <div className="flex gap-2 w-full sm:w-auto">
+                  {/* TODO: Add accept/reject buttons */}
+                  {/* <div className="flex gap-2 w-full sm:w-auto">
                     <Button
                       variant="outline"
                       className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-solid border-[#cfd4dc] text-[#12b669] font-bold shadow-shadow-xs-focused-4px-gray-100 w-full sm:w-auto"
@@ -462,7 +513,7 @@ export const Admins = (): JSX.Element => {
                         src="https://c.animaapp.com/m9qfyf0iFAAeZK/img/group-30535-1.png"
                       />
                     </Button>
-                  </div>
+                  </div> */}
                 </div>
 
                 <div className="w-full md:max-w-[544px]">
@@ -470,14 +521,33 @@ export const Admins = (): JSX.Element => {
                     <div className="flex items-center gap-2 px-3.5 py-2.5 bg-white rounded-lg border border-solid border-[#cfd4dc] shadow-shadow-xs">
                       <div className="flex items-center gap-2 flex-1">
                         <SearchIcon className="w-5 h-5 text-[#475467]" />
-                        <span className="text-gray-500 text-base">بحث</span>
+
+                        <input
+                          type="text"
+                          placeholder="بحث"
+                          value={search}
+                          onChange={(e) => setSearch(e.target.value)}
+                          style={{
+                            marginLeft: "8px",
+                            background: "white",
+                            border: "1px solid lightgray",
+                            borderRadius: "4px",
+                            padding: "4px",
+                            width: "100%",
+                          }}
+                        />
                       </div>
                       <div className="hidden sm:flex gap-2">
                         {actionBadges.map((tag, index) => (
                           <Badge
                             key={index}
-                            variant="outline"
+                            style={
+                              acceptanceStateFilter === tag.value
+                                ? selectedBadgeStyle
+                                : unselectedBadgeStyle
+                            }
                             className="px-2.5 py-[3px] rounded-lg border border-solid border-[#e5e7ea] font-body-small-bold text-[#475467]"
+                            onClick={() => handleBadgeClick(tag.value)}
                           >
                             {tag.label}
                           </Badge>
@@ -537,7 +607,7 @@ export const Admins = (): JSX.Element => {
                         className="border-b border-[#e4e7ec] "
                       >
                         <TableCell className="py-1 px-2 mt-4">
-                          <div className="flex      gap-3.5">
+                          <div className="flex justify-center gap-3.5">
                             {actionBadges.map((badge, badgeIndex) => (
                               <Badge
                                 key={badgeIndex}

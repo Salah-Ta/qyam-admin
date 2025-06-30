@@ -1,5 +1,6 @@
 import { LoaderFunctionArgs, json } from "@remix-run/cloudflare";
 import materialDB from "~/db/material/material.server";
+import reportDB from "~/db/report/report.server";
 import { MinusCircleIcon, XIcon } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "./assets/avatar";
 import { Badge } from "./assets/badge";
@@ -9,8 +10,13 @@ import { Checkbox } from "./assets/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./assets/tabs";
 import { Textarea } from "./assets/textarea";
 import { useState } from "react";
-import { useLoaderData, useRouteLoaderData } from "@remix-run/react";
-import reportservice from "../../../../db/report/report.server";
+import {
+  useLoaderData,
+  useRouteLoaderData,
+  useSubmit,
+  useNavigation,
+} from "@remix-run/react";
+// import reportservice from "../../../../db/report/report.server";
 import { toast as sonnerToast } from "sonner";
 
 import Group30476 from "../../../../assets/images/new-design/group-3.svg";
@@ -26,6 +32,7 @@ import profile from "../../../../assets/icons/profile.svg";
 import { CreateReportData } from "~/types/types";
 import { getToast } from "~/lib/toast.server";
 import React from "react";
+import { createToastHeaders } from "~/lib/toast.server";
 
 export type LoaderData = {
   materials: any;
@@ -38,39 +45,57 @@ export async function loader({
 }: LoaderFunctionArgs): Promise<Response> {
   // Fetch other data as needed
   const DBurl = context.cloudflare.env.DATABASE_URL;
-  const materials = await materialDB
-    .getAllMaterials(context.cloudflare.env.DATABASE_URL)
-    .then((res: any) => {
-      return Response.json(res.data);
-    })
-    .catch(() => null);
-    console.log("Materials loaded:", materials);
-    
+  const materials = await materialDB.getAllMaterials(
+    context.cloudflare.env.DATABASE_URL
+  );
+
+  // load reportDB all reports
+  const reports = await reportDB.getAllReports(
+    context.cloudflare.env.DATABASE_URL
+  );
+
   const { toast, headers } = await getToast(request);
 
-  return Response.json({ materials, DBurl, toast, headers });
+  return Response.json({
+    materials: materials.data,
+    DBurl,
+    toast,
+    headers,
+    reports: reports.data,
+  });
 }
-
 
 export async function action({ request, context }: LoaderFunctionArgs) {
   const DBurl = context.cloudflare.env.DATABASE_URL;
   const formData = await request.formData();
   const reportData = JSON.parse(formData.get("reportData") as string);
+  console.log("Received report data:", reportData);
 
   try {
-    await reportservice.createReport(reportData, DBurl);
-    return json({ success: true });
+    await reportDB.createReport(reportData, DBurl);
+    const headers = await createToastHeaders({
+      type: "success",
+      description: "تم إرسال التقرير بنجاح",
+    });
+    return json({ success: true }, { headers });
   } catch (error) {
-    return json({ success: false, error: error.message }, { status: 500 });
+    const headers = await createToastHeaders({
+      type: "error",
+      description: "حدث خطأ أثناء إرسال التقرير",
+    });
+    return json(
+      { success: false, error: error.message },
+      { status: 500, headers }
+    );
   }
 }
 
 export const TrainerProfile = () => {
   const { user } = useRouteLoaderData<any>("root");
 
-  const { materials, DBurl, toast } = useLoaderData<any>();
+  const { materials, DBurl, reports } = useLoaderData<any>();
 
-  console.log(user, materials);
+  console.log(user, materials, reports);
 
   // Show toast if present
 
@@ -94,31 +119,11 @@ export const TrainerProfile = () => {
   };
 
   // filepath: c:\Users\aminj\OneDrive\Documents\GitHub\qyam-admin\app\routes\_auth+\dashboard+\trainer+\trainerProfile.tsx
-  const handleSendReport = async () => {
-    // show an toast message "تم إرسال التقرير بنجاح" and reset reportData to default values
-    setReportData({
-      userId: user?.id ?? "",
-      volunteerHours: 0,
-      volunteerCount: 0,
-      activitiesCount: 0,
-      volunteerOpportunities: 0,
-      economicValue: 0,
-      skillsEconomicValue: 0,
-      skillsTrainedCount: 0,
-      attachedFiles: [],
-      skillIds: [],
-      testimonials: [],
-    });
-    React.useEffect(() => {
-      if (toast?.description) {
-        sonnerToast[toast.type === "error" ? "error" : "success"](
-          toast.description
-        );
-      }
-    }, [toast]);
-    return;
+  const submit = useSubmit();
 
-    // Build the latest reportData from current state
+  const handleSendReport = (e: React.FormEvent) => {
+    e.preventDefault();
+
     const latestReportData: CreateReportData = {
       ...reportData,
       skillIds: skillsColumns
@@ -130,27 +135,13 @@ export const TrainerProfile = () => {
         comment: opinion.comment ?? "",
       })),
     };
-    console.log();
 
-    try {
-      const formData = new FormData();
-      formData.append("reportData", JSON.stringify(latestReportData));
+    console.log("Submitting report data:", latestReportData);
 
-      // reportservice.createReport(latestReportData, DBurl);
-      const response = await fetch(window.location.pathname, {
-        method: "POST",
-        body: formData,
-      });
+    const formData = new FormData();
+    formData.append("reportData", JSON.stringify(latestReportData));
 
-      const result = await response.json();
-      if (result.success) {
-        alert("تم إرسال التقرير بنجاح");
-      } else {
-        alert("حدث خطأ أثناء إرسال التقرير");
-      }
-    } catch (error) {
-      alert("حدث خطأ أثناء إرسال التقرير");
-    }
+    submit(formData, { method: "post" });
   };
 
   // Handler to toggle tab open/close
@@ -241,7 +232,11 @@ export const TrainerProfile = () => {
   // Data for the skills checklist organized in columns
   const [skillsColumns, setSkillsColumns] = useState([
     [
-      { id: "concept", label: "معرفة مفهوم التطوع شرعا ونظاما", checked: false },
+      {
+        id: "concept",
+        label: "معرفة مفهوم التطوع شرعا ونظاما",
+        checked: false,
+      },
       { id: "dialogue", label: "مهارات الحوار والعمل الجماعي", checked: false },
       { id: "communication", label: "مهارات الاتصال", checked: false },
       { id: "selfAwareness", label: "تنمية الوعي الذاتي", checked: false },
@@ -373,14 +368,129 @@ export const TrainerProfile = () => {
     field: keyof CreateReportData,
     value: string
   ) => {
+    console.log(`Updating field ${field} with value:`, value);
+    console.log(` reportData: ---- `, reportData);
+
     setReportData((prev) => ({
       ...prev,
       [field]: Number(value),
     }));
   };
 
+  const navigation = useNavigation();
+
+  // Add this effect to reset form after successful submit
+  React.useEffect(() => {
+    // Reset report data
+    setReportData({
+      userId: user?.id ?? "",
+      volunteerHours: 0,
+      volunteerCount: 0,
+      activitiesCount: 0,
+      volunteerOpportunities: 0,
+      economicValue: 0,
+      skillsEconomicValue: 0,
+      skillsTrainedCount: 0,
+      attachedFiles: [],
+      skillIds: [],
+      testimonials: [],
+    });
+    // Reset opinions
+    setOpinions([{ id: 1, title: "", active: true, comment: "" }]);
+    setActiveTab("opinion-1");
+    // Reset skills
+    setSkillsColumns([
+      [
+        {
+          id: "concept",
+          label: "معرفة مفهوم التطوع شرعا ونظاما",
+          checked: false,
+        },
+        {
+          id: "dialogue",
+          label: "مهارات الحوار والعمل الجماعي",
+          checked: false,
+        },
+        { id: "communication", label: "مهارات الاتصال", checked: false },
+        { id: "selfAwareness", label: "تنمية الوعي الذاتي", checked: false },
+        {
+          id: "digitalTools",
+          label: "استخدام الأدوات الرقمية في الأنشطة التطوعية",
+          checked: false,
+        },
+        { id: "selfConfidence", label: "الثقة بالنفس", checked: false },
+        {
+          id: "careerPath",
+          label: "تحديد المسار التعليمي والمهني المناسب",
+          checked: false,
+        },
+      ],
+      [
+        { id: "timeManagement", label: "إدارة الوقت", checked: false },
+        {
+          id: "rightsAndDuties",
+          label: "تحديد حقوق وواجبات المتطوع",
+          checked: false,
+        },
+        {
+          id: "socialRoles",
+          label: "إدراك الأدوار الاجتماعية المختلفة",
+          checked: false,
+        },
+        {
+          id: "criticalThinking",
+          label: "مهارات التفكير الناقد",
+          checked: false,
+        },
+        { id: "problemSolving", label: "حل المشكلات", checked: false },
+        {
+          id: "nationalIdentity",
+          label: "الاعتزاز بالثقافة والهوية الوطنية",
+          checked: false,
+        },
+        { id: "creativity", label: "مهارات الإبداع", checked: false },
+      ],
+      [
+        {
+          id: "resilience",
+          label: "الصلابة النفسية، والتعامل مع التحديات",
+          checked: false,
+        },
+        {
+          id: "careerPlanning",
+          label: "تحديد المسار التعليمي والمهني المناسب",
+          checked: false,
+        },
+        {
+          id: "strengths",
+          label: "اكتشاف نقاط القوة وتوظيفها",
+          checked: false,
+        },
+        {
+          id: "identity",
+          label: "بناء الهوية الذاتية والقيم الأصيلة",
+          checked: false,
+        },
+        {
+          id: "ageCharacteristics",
+          label: "التعرف على خصائص المرحلة العمرية",
+          checked: false,
+        },
+        {
+          id: "platformAccount",
+          label: "امتلاك حساب في المنصة الوطنية للعمل التطوعي",
+          checked: false,
+        },
+        { id: "responsibility", label: "تحمل المسؤولية", checked: false },
+      ],
+    ]);
+  }, [navigation.state, navigation.formMethod, user?.id]);
+
   return (
-    <div className="flex flex-col w-full max-w-full overflow-hidden  ">
+    <form
+      onSubmit={handleSendReport}
+      className="flex flex-col w-full max-w-full overflow-hidden"
+    >
       {/* Navigation Section */}
       <div className="w-full rounded-xl mb-4 [direction:rtl]">
         <Card className="relative w-full border-[1px] border-[#004E5C] shadow-shadows-shadow-xs rounded-xl p-4 flex flex-col gap-4 [direction:rtl]">
@@ -552,6 +662,7 @@ export const TrainerProfile = () => {
               </h2>
               <Button
                 variant="outline"
+                type="button"
                 className="flex w-[120px] items-center justify-center gap-1 px-3 py-2 bg-white rounded-md overflow-hidden border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs-skeuomorphic"
                 onClick={handleAddOpinion}
               >
@@ -686,14 +797,14 @@ export const TrainerProfile = () => {
       {/* Bottom Action Button */}
       <div className="w-full max-w-full flex justify-center mt-[52px] [direction:rtl] ">
         <Button
+          type="submit"
           className="w-full bg-[#006173] text-white hover:bg-[#0a7285]  h-[48px]"
-          onClick={handleSendReport}
         >
           إرسال التقرير
           <img src={sendicon} alt="" />
         </Button>
       </div>
-    </div>
+    </form>
   );
 };
 

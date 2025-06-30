@@ -487,7 +487,8 @@ export const Users = (): JSX.Element => {
                   <div className="text-gray-700 text-sm font-bold whitespace-nowrap">
                     تم تحديد : {selectedRows}
                   </div>
-                  <div className="flex gap-2 w-full sm:w-auto">
+                  {/* TODO: Add accept/reject buttons */}
+                  {/* <div className="flex gap-2 w-full sm:w-auto">
                     <Button
                       variant="outline"
                       className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-solid border-[#cfd4dc] text-[#12b669] font-bold shadow-shadow-xs-focused-4px-gray-100 w-full sm:w-auto"
@@ -510,9 +511,10 @@ export const Users = (): JSX.Element => {
                         src="https://c.animaapp.com/m9qfyf0iFAAeZK/img/group-30535-1.png"
                       />
                     </Button>
-                  </div>
+                  </div> */}
                 </div>
 
+                {/* Search section */}
                 <div className="w-full md:max-w-[544px]">
                   <div className="flex flex-col w-full gap-1.5">
                     <div className="flex items-center gap-2 px-3.5 py-2.5 bg-white rounded-lg border border-solid border-[#cfd4dc] shadow-shadow-xs">
