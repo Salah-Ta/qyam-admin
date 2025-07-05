@@ -3,9 +3,15 @@ import { PlusIcon } from "lucide-react";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import column1 from "../../../assets/images/new-design/column-1.svg";
-import Skillscloudbackground from "../../../assets/images/new-design/skills-cloud.svg";
-import Skillscloudvisualization from "../../../assets/images/new-design/isolation-mode.svg";
 import { useNavigate } from "@remix-run/react";
+import { json, LoaderFunctionArgs } from "@remix-run/cloudflare";
+import { useLoaderData } from "@remix-run/react";
+import skillDb from "../../../db/skill/skill.server";
+import testimonialDb from "../../../db/testimonial/testimonial.server";
+import ClientWordCloud from "../../../components/ClientWordCloud";
+import WordCloudErrorBoundary from "../../../components/WordCloudErrorBoundary";
+import OriginalColumnTestimonials from "../../../components/OriginalColumnTestimonials";
+import { getAuthenticated } from "~/lib/get-authenticated.server";
 
 // Utility function
 const cn = (...inputs: any[]) => {
@@ -87,8 +93,84 @@ const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
   }
 );
 
+// Loader function to fetch skills data
+export async function loader({ request, context }: LoaderFunctionArgs) {
+  try {
+    // Check authentication
+    const user = await getAuthenticated({ request, context });
+    if (!user) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const dbUrl = context.cloudflare.env.DATABASE_URL;
+
+    // Fetch skills with usage counts and testimonials in parallel
+    const [skillsResult, testimonialsResult] = await Promise.all([
+      skillDb.getSkillsWithUsageCount(dbUrl),
+      testimonialDb.getAllTestimonials(dbUrl)
+    ]);
+
+    if (!skillsResult.success) {
+      return Response.json(
+        { error: "Failed to fetch skills" },
+        { status: 500 }
+      );
+    }
+
+    return Response.json({
+      skills: skillsResult.data || [],
+      testimonials: testimonialsResult.success ? testimonialsResult.data || [] : [],
+    });
+  } catch (error) {
+    console.error("Error in skills loader:", error);
+    return Response.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
 // Main Supervisor Component
 export const Skills = (): JSX.Element => {
+  const loaderData = useLoaderData<{
+    skills: Array<{
+      id: string;
+      name: string;
+      description: string | null;
+      usageCount: number;
+      createdAt: string;
+      updatedAt: string;
+    }>;
+    testimonials: Array<{
+      id: string;
+      name: string;
+      comment: string;
+      rating: number;
+      createdAt: string;
+      updatedAt: string;
+    }>;
+  }>();
+
+  const navigate = useNavigate();
+
+  // Transform skills data for the word cloud
+  const wordCloudData = loaderData.skills.map((skill) => ({
+    text: skill.name,
+    value: skill.usageCount || 1, // Ensure minimum value of 1
+  }));
+
+  // Add some sample data if no skills exist (for testing)
+  const sampleData = [
+    { text: "البرمجة", value: 15 },
+    { text: "التصميم", value: 12 },
+    { text: "التسويق", value: 10 },
+    { text: "الإدارة", value: 8 },
+    { text: "التحليل", value: 6 },
+    { text: "الكتابة", value: 5 },
+    { text: "التعليم", value: 4 },
+    { text: "التطوير", value: 3 },
+  ];
+
+  const finalWordCloudData =
+    wordCloudData.length > 0 ? wordCloudData : sampleData;
+
   // Navigation menu items data
   const menuItems = [
     { text: "تواصل معنا", hasDropdown: true },
@@ -97,13 +179,6 @@ export const Skills = (): JSX.Element => {
     { text: "أهداف البرنامج", hasDropdown: true },
     { text: "يانعة", hasDropdown: true },
     { text: "الرئيسة", hasDropdown: false },
-  ];
-
-  // Testimonial columns data
-  const testimonialColumns = [
-    { id: 1, imageSrc: "/column.svg", alt: "Column" },
-    { id: 2, imageSrc: "/column-2.svg", alt: "Column" },
-    { id: 3, imageSrc: "/column-1.svg", alt: "Column" },
   ];
 
   // Navigation links data for footer
@@ -143,13 +218,10 @@ export const Skills = (): JSX.Element => {
       active: false,
     },
   ];
-  const navigate = useNavigate(); // Initialize navigate
 
   return (
     <div>
       <div className="w-11/12 m-auto">
- 
-
         {/* Container Section */}
         <div className="flex flex-col w-full items-end   -mt-[10px]">
           <div className="flex flex-col items-end gap-6 relative self-stretch w-full">
@@ -262,7 +334,6 @@ export const Skills = (): JSX.Element => {
               </Button>
             </div>
           </div> */}
-
         </div>
       </div>
 
@@ -278,52 +349,37 @@ export const Skills = (): JSX.Element => {
             </p>
           </div>
 
-          <div className="relative w-full h-[900px] flex justify-center">
-            <img
-              className="absolute w-[979px] h-[932px]"
-              alt="Skills cloud background"
-              // src="/isolation-mode.svg"
-              src={Skillscloudvisualization}
-            />
-            <img
-              className="absolute  w-[979px] h-[932px] "
-              alt="Skills cloud visualization"
-              // src="/layer-1.svg"
-              src={Skillscloudbackground}
-            />
+          <div className="relative w-full h-[600px] flex justify-center items-center">
+            {finalWordCloudData.length > 0 ? (
+              <WordCloudErrorBoundary>
+                <ClientWordCloud
+                  words={finalWordCloudData}
+                  width={900}
+                  height={600}
+                />
+              </WordCloudErrorBoundary>
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <p className="text-gray-500 text-xl">لا توجد مهارات متاحة</p>
+              </div>
+            )}
           </div>
         </div>
       </section>
 
       {/* Testimonial Section */}
-      <section className="flex flex-col w-full items-center mt-24  ">
-        <div className="flex flex-col   items-start gap-8 px-8 w-full">
-          <div className="flex flex-col items-center gap-8 w-full">
-            <div className="flex flex-col max-w-screen-md items-center gap-5 w-full">
-              <h2 className="w-full font-display-md-semibold text-[#181d27] text-[36px] text-center tracking-[-0.72px] leading-[44px] [direction:rtl]">
-                انطباع الطالبات
-              </h2>
-              <p className="w-full   font-normal text-[#535861] text-xl text-center tracking-[0] leading-[30px] [direction:rtl]">
-                آراء المتدربات اللاتي شاركن في الدورة التدريبة
-              </p>
-            </div>
+      <section className="flex flex-col w-full items-center mt-24">
+        <div className="flex flex-col items-center gap-8 px-8 w-full max-w-screen-xl">
+          <div className="flex flex-col max-w-screen-md items-center gap-5 w-full">
+            <h2 className="w-full font-display-md-semibold text-[#181d27] text-[36px] text-center tracking-[-0.72px] leading-[44px] [direction:rtl]">
+              انطباع الطالبات
+            </h2>
+            <p className="w-full font-normal text-[#535861] text-xl text-center tracking-[0] leading-[30px] [direction:rtl]">
+              آراء المتدربات اللاتي شاركن في الدورة التدريبة
+            </p>
           </div>
         </div>
-        <div className="flex flex-col max-w-screen-xl items-start gap-8 px-8 w-full mb-5">
-          <div className="flex flex-col items-center gap-10 w-full">
-            <div className="flex flex-col md:flex-row md:flex-nowrap items-start gap-8 w-full">
-              {testimonialColumns.map((column) => (
-                <div key={column.id} className="flex-1">
-                  <img
-                    className="w-full h-auto"
-                    alt={column.alt}
-                    src={column1}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        <OriginalColumnTestimonials testimonials={loaderData.testimonials} />
       </section>
     </div>
   );

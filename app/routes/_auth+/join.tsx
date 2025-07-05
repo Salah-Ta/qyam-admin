@@ -15,7 +15,6 @@ import {
 import { useEffect, useState } from "react";
 import { toast as showToast } from "sonner";
 import { ChevronDownIcon, MailIcon } from "lucide-react";
-import { createId } from "@paralleldrive/cuid2";
 import bcrypt from "bcryptjs";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -28,14 +27,54 @@ import {
 } from "~/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "~/components/ui/toggle-group";
 import { v4 as uuidv4 } from "uuid";
-import { redirectIfAuthenticated } from "../../lib/auth.server";
 import { getSession, commitSession } from "../../utils/session.server";
 import { getPrismaClient } from "../../db/db-client.server";
 import registerLogo from "~/assets/images/new-design/logo-login.svg";
 import arrowLeft from "~/assets/icons/square-arrow-login.svg";
 import arrowregister from "~/assets/icons/arrow-White.svg";
 import regionDB from "~/db/region/region.server";
-import glossary from "./glossary";
+
+// --- Helper: Validation ---
+function validateSignup({
+  name,
+  phone,
+  email,
+  role,
+  region,
+  eduAdmin,
+  school,
+  password,
+  passwordConfirmation,
+}: {
+  name: string;
+  phone: string;
+  email: string;
+  role: string;
+  region: string;
+  eduAdmin: string;
+  school: string;
+  password: string;
+  passwordConfirmation: string;
+}) {
+  const errors: { [key: string]: string } = {};
+  if (!name.trim()) errors.name = "يرجى إدخال الاسم الرباعي";
+  if (!phone.trim()) errors.phone = "يرجى إدخال رقم الجوال";
+  if (!email.trim()) errors.email = "يرجى إدخال البريد الإلكتروني";
+  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+    errors.email = "البريد الإلكتروني غير صالح";
+  if (!role) errors.role = "يرجى اختيار الدور";
+  if (!region) errors.region = "يرجى اختيار المنطقة";
+  if (!eduAdmin) errors.eduAdmin = "يرجى اختيار الإدارة التعليمية";
+  if (!school) errors.school = "يرجى اختيار المدرسة";
+  if (!password) errors.password = "يرجى إدخال كلمة المرور";
+  else if (password.length < 8)
+    errors.password = "كلمة المرور يجب أن تكون 8 أحرف على الأقل";
+  if (!passwordConfirmation)
+    errors.passwordConfirmation = "يرجى تأكيد كلمة المرور";
+  else if (password !== passwordConfirmation)
+    errors.passwordConfirmation = "كلمات المرور غير متطابقة";
+  return errors;
+}
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
   // await redirectIfAuthenticated(request, context);
@@ -63,96 +102,53 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 export const action = async ({ request, context }: ActionFunctionArgs) => {
   const dbUrl = context.cloudflare.env.DATABASE_URL;
   const prisma = await getPrismaClient(dbUrl, context);
-
   const formData = await request.formData();
-  const name = formData.get("name") as string;
-  const email = formData.get("email") as string;
-  const phone = formData.get("phone") as string;
-  const role = formData.get("role") as string;
-  const region = formData.get("region") as string;
-  const eduAdminName = formData.get("eduAdmin") as string;
-  const schoolName = formData.get("school") as string;
-  const password = formData.get("password") as string;
-  const passwordConfirmation = formData.get("passwordConfirmation") as string;
-
-  // Validate required fields
-  if (
-    !name ||
-    !email ||
-    !phone ||
-    !role ||
-    !region ||
-    !eduAdminName ||
-    !schoolName ||
-    !password ||
-    !passwordConfirmation
-  ) {
-    return json({ error: "جميع الحقول مطلوبة" }, { status: 400 });
+  const fields = {
+    name: formData.get("name") as string,
+    email: formData.get("email") as string,
+    phone: formData.get("phone") as string,
+    role: formData.get("role") as string,
+    region: formData.get("region") as string,
+    eduAdmin: formData.get("eduAdmin") as string,
+    school: formData.get("school") as string,
+    password: formData.get("password") as string,
+    passwordConfirmation: formData.get("passwordConfirmation") as string,
+  };
+  const errors = validateSignup(fields);
+  if (Object.keys(errors).length > 0) {
+    return json({ error: Object.values(errors)[0] }, { status: 400 });
   }
-
-  if (password !== passwordConfirmation) {
-    return json({ error: "كلمات المرور غير متطابقة" }, { status: 400 });
-  }
-
-  if (password.length < 8) {
-    return json(
-      { error: "كلمة المرور يجب أن تكون 8 أحرف على الأقل" },
-      { status: 400 }
-    );
-  }
-
-  // Validate phone number format
   const phoneRegex = /^(009665|9665|\+9665|05|5)(5|0|3|6|4|9|1|8|7)([0-9]{7})$/;
-  if (!phoneRegex.test(phone)) {
+  if (!phoneRegex.test(fields.phone)) {
     return json({ error: "رقم الجوال غير صالح" }, { status: 400 });
   }
-
-  // Check if user already exists
-  const existingUser = await prisma.user.findUnique({ where: { email } });
+  const existingUser = await prisma.user.findUnique({
+    where: { email: fields.email },
+  });
   if (existingUser) {
     return json({ error: "البريد الإلكتروني مسجل مسبقاً" }, { status: 400 });
   }
-
   try {
-    // // Find related records by name
-    // const schoolRecord = await prisma.school.findFirst({
-    //   where: { name: schoolName },
-    // });
-    // const eduAdminRecord = await prisma.eduAdmin.findFirst({
-    //   where: { name: eduAdminName },
-    // });
-
-    // if (!schoolRecord) {
-    //   throw new Error(`School not found: ${schoolName}`);
-    // }
-    // if (!eduAdminRecord) {
-    //   throw new Error(`EduAdmin not found: ${eduAdminName}`);
-    // }
-
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Create user with proper relation IDs
+    const hashedPassword = await bcrypt.hash(fields.password, 10);
     const user = await prisma.user.create({
       data: {
         id: uuidv4(),
-        name,
-        email,
-        phone: Number(phone),
-        role,
-        schoolId: schoolName,
-        region,
-        eduAdminId: eduAdminName,
+        name: fields.name,
+        email: fields.email,
+        phone: Number(fields.phone),
+        role: fields.role,
+        schoolId: fields.school,
+        region: fields.region,
+        eduAdminId: fields.eduAdmin,
         emailVerified: false,
         createdAt: new Date(),
         updatedAt: new Date(),
+        acceptenceState: "pending", // Always set to pending
+        cvKey: "1738215328438-l1sxndp1tiiyrxvc0hmgkqgl.uploaded-file",
       },
     });
-
-    // Create session
     const session = await getSession(request.headers.get("Cookie"));
     session.set("userId", user.id);
-
     return redirect("/login", {
       headers: {
         "Set-Cookie": await commitSession(session),
@@ -171,87 +167,41 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
 };
 
 export default function Signup() {
-  // Form state
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
-  const [role, setRole] = useState("");
-  const [password, setPassword] = useState("");
-  const [passwordConfirmation, setPasswordConfirmation] = useState("");
-  const [selectedRegion, setSelectedRegion] = useState("");
-  const [selectedEduAdmin, setSelectedEduAdmin] = useState("");
-  const [selectedSchool, setSelectedSchool] = useState("");
+  // Group form state
+  const [form, setForm] = useState({
+    name: "",
+    phone: "",
+    email: "",
+    role: "",
+    password: "",
+    passwordConfirmation: "",
+    region: "",
+    eduAdmin: "",
+    school: "",
+  });
   const [isFormValid, setIsFormValid] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
-  const [passwordTouched, setPasswordTouched] = useState(false);
-  const [passwordConfirmationTouched, setPasswordConfirmationTouched] =
-    useState(false);
-
+  const [touched, setTouched] = useState<{ [key: string]: boolean }>({});
   const actionData = useActionData<{ error?: string }>();
   const navigate = useNavigate();
   const submit = useSubmit();
-
-  // Loader data
   const loaderData = useLoaderData<typeof loader>();
-  const regions = loaderData.regions;
-  const eduAdmins = loaderData.eduAdmins;
-  const schools = loaderData.schools;
-  console.log("loaderData", loaderData);
-
-  // // Filter eduAdmins by selected region
-  // const filteredEduAdmins = selectedRegion
-  //   ? eduAdmins.filter((a: any) => a.regionId === regions.find((r: any) => r.name === selectedRegion)?.id)
-  //   : [];
-
-  // // Filter schools by selected eduAdmin
-  // const filteredSchools = selectedEduAdmin
-  //   ? schools.filter((s: any) => s.eduAdminId === eduAdmins.find((a: any) => a.name === selectedEduAdmin)?.id)
-  //   : [];
+  const { regions, eduAdmins, schools } = loaderData;
 
   // Reset eduAdmin and school when region changes
   useEffect(() => {
-    setSelectedEduAdmin("");
-    setSelectedSchool("");
-  }, [selectedRegion]);
-
-  // Reset school when eduAdmin changes
+    setForm((f) => ({ ...f, eduAdmin: "", school: "" }));
+  }, [form.region]);
   useEffect(() => {
-    setSelectedSchool("");
-  }, [selectedEduAdmin]);
+    setForm((f) => ({ ...f, school: "" }));
+  }, [form.eduAdmin]);
 
-  // Validation logic
   useEffect(() => {
-    const newErrors: { [key: string]: string } = {};
-    if (!name.trim()) newErrors.name = "يرجى إدخال الاسم الرباعي";
-    if (!phone.trim()) newErrors.phone = "يرجى إدخال رقم الجوال";
-    if (!email.trim()) newErrors.email = "يرجى إدخال البريد الإلكتروني";
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
-      newErrors.email = "البريد الإلكتروني غير صالح";
-    if (!role) newErrors.role = "يرجى اختيار الدور";
-    if (!selectedRegion) newErrors.region = "يرجى اختيار المنطقة";
-    if (!selectedEduAdmin) newErrors.eduAdmin = "يرجى اختيار الإدارة التعليمية";
-    if (!selectedSchool) newErrors.school = "يرجى اختيار المدرسة";
-    if (!password) newErrors.password = "يرجى إدخال كلمة المرور";
-    else if (password.length < 8)
-      newErrors.password = "كلمة المرور يجب أن تكون 8 أحرف على الأقل";
-    if (!passwordConfirmation)
-      newErrors.passwordConfirmation = "يرجى تأكيد كلمة المرور";
-    else if (password !== passwordConfirmation)
-      newErrors.passwordConfirmation = "كلمات المرور غير متطابقة";
-    setErrors(newErrors);
-    setIsFormValid(Object.keys(newErrors).length === 0);
-  }, [
-    name,
-    phone,
-    email,
-    role,
-    selectedRegion,
-    selectedEduAdmin,
-    selectedSchool,
-    password,
-    passwordConfirmation,
-  ]);
+    const validationErrors = validateSignup(form);
+    setErrors(validationErrors);
+    setIsFormValid(Object.keys(validationErrors).length === 0);
+  }, [form]);
 
   useEffect(() => {
     if (actionData?.error) {
@@ -262,50 +212,22 @@ export default function Signup() {
     }
   }, [actionData]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleChange = (field: string, value: string) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+  };
+  const handleBlur = (field: string) => {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+  };
+  const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
     const formData = new FormData();
-    formData.append("name", name);
-    formData.append("email", email);
-    formData.append("phone", phone);
-    formData.append("role", role);
-    formData.append("region", selectedRegion);
-    formData.append("eduAdmin", selectedEduAdmin);
-    formData.append("school", selectedSchool);
-    formData.append("password", password);
-    formData.append("passwordConfirmation", passwordConfirmation);
-
+    Object.entries(form).forEach(([key, value]) => formData.append(key, value));
     submit(formData, {
       method: "post",
       encType: "multipart/form-data",
     });
   };
-
-  useEffect(() => {
-    console.log({
-      name,
-      phone,
-      email,
-      role,
-      selectedRegion,
-      selectedEduAdmin,
-      selectedSchool,
-      password,
-      passwordConfirmation,
-    });
-  }, [
-    name,
-    phone,
-    email,
-    role,
-    selectedRegion,
-    selectedEduAdmin,
-    selectedSchool,
-    password,
-    passwordConfirmation,
-  ]);
 
   return (
     <div className="bg-white flex h-screen w-full overflow-hidden [direction:rtl]">
@@ -342,7 +264,7 @@ export default function Signup() {
           {/* Form fields */}
           <Form
             method="post"
-            onSubmit={handleSubmit}
+            onSubmit={handleFormSubmit}
             className="flex flex-col gap-8"
           >
             <div className="flex flex-col md:flex-row gap-8">
@@ -357,10 +279,14 @@ export default function Signup() {
                     </div>
                   </div>
                   <Input
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    value={form.name}
+                    onChange={(e) => handleChange("name", e.target.value)}
+                    onBlur={() => handleBlur("name")}
                     className="justify-end gap-2 px-[10px] py-[14px] text-[#717680] bg-white rounded-lg border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs [direction:rtl]"
                   />
+                  {touched.name && errors.name && (
+                    <p className="text-red-500 text-sm">{errors.name}</p>
+                  )}
                 </div>
 
                 {/* Phone Number Field */}
@@ -380,8 +306,8 @@ export default function Signup() {
                     </div>
                     <input
                       name="phone"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
+                      value={form.phone}
+                      onChange={(e) => handleChange("phone", e.target.value)}
                       className="flex-1 font-normal h-11 px-[10px] py-[14px] text-[#717680] text-base text-right border-0 rounded-md bg-white border-input shadow-none p-0"
                     />
                   </div>
@@ -399,8 +325,8 @@ export default function Signup() {
                     <MailIcon className="relative w-5 text-[#717680]" />
                     <input
                       name="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      value={form.email}
+                      onChange={(e) => handleChange("email", e.target.value)}
                       className="flex-1 font-normal h-11 bg-white text-[#717680] text-base text-right border-0 shadow-none p-0"
                     />
                   </div>
@@ -409,8 +335,10 @@ export default function Signup() {
                 {/* Role selection toggle */}
                 <ToggleGroup
                   type="single"
-                  value={role}
-                  onValueChange={(value) => value && setRole(value)}
+                  value={form.role}
+                  onValueChange={(value) =>
+                    value && handleChange("role", value)
+                  }
                   className="flex h-11 items-center justify-center gap-0.5 bg-neutral-50 rounded-lg border border-solid border-[#e9e9eb]"
                 >
                   <ToggleGroupItem
@@ -444,13 +372,13 @@ export default function Signup() {
                   </div>
                   <Select
                     name="region"
-                    value={selectedRegion}
-                    onValueChange={setSelectedRegion} // Make sure this updates state
+                    value={form.region}
+                    onValueChange={(value) => handleChange("region", value)} // Make sure this updates state
                   >
                     <SelectTrigger className="justify-end gap-2 px-3.5 bg-white rounded-lg border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs [direction:rtl]">
                       {/* Fixed: Use selectedRegion instead of region */}
                       <div className="flex-1 text-start font-normal text-[#717680] text-base">
-                        {selectedRegion || "اختر المنطقة"}
+                        {form.region || "اختر المنطقة"}
                       </div>
                     </SelectTrigger>
                     <SelectContent>
@@ -459,7 +387,7 @@ export default function Signup() {
                           <SelectItem
                             key={reg.id}
                             className={`${
-                              selectedRegion === reg.name ? "bg-gray-50" : ""
+                              form.region === reg.name ? "bg-gray-50" : ""
                             }`}
                             value={reg.name}
                           >
@@ -481,13 +409,13 @@ export default function Signup() {
                   </div>
                   <Select
                     name="eduAdmin"
-                    value={selectedEduAdmin}
-                    onValueChange={setSelectedEduAdmin}
-                    disabled={!selectedRegion}
+                    value={form.eduAdmin}
+                    onValueChange={(value) => handleChange("eduAdmin", value)}
+                    disabled={!form.region}
                   >
                     <SelectTrigger className="justify-end gap-2 px-3.5 bg-white rounded-lg border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs [direction:rtl]">
                       <div className="flex-1 text-start font-normal text-[#717680] text-base">
-                        {selectedEduAdmin || "اختر الإدارة التعليمية"}
+                        {form.eduAdmin || "اختر الإدارة التعليمية"}
                       </div>
                     </SelectTrigger>
                     <SelectContent>
@@ -496,9 +424,7 @@ export default function Signup() {
                           <SelectItem
                             key={admin.id}
                             className={`${
-                              selectedEduAdmin === admin.name
-                                ? "bg-gray-50"
-                                : ""
+                              form.eduAdmin === admin.name ? "bg-gray-50" : ""
                             }`}
                             value={admin.name}
                           >
@@ -520,13 +446,13 @@ export default function Signup() {
                   </div>
                   <Select
                     name="school"
-                    value={selectedSchool}
-                    onValueChange={setSelectedSchool}
-                    disabled={!selectedEduAdmin}
+                    value={form.school}
+                    onValueChange={(value) => handleChange("school", value)}
+                    disabled={!form.eduAdmin}
                   >
                     <SelectTrigger className="justify-end gap-2 px-3.5 bg-white rounded-lg border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs [direction:rtl]">
                       <div className="flex-1 text-start font-normal text-[#717680] text-base">
-                        {selectedSchool ||
+                        {form.school ||
                           (schools.length
                             ? "اختر المدرسة"
                             : "لا توجد مدارس متاحة")}
@@ -538,7 +464,7 @@ export default function Signup() {
                           <SelectItem
                             key={s.id}
                             className={`${
-                              selectedSchool === s.name ? "bg-gray-50" : ""
+                              form.school === s.name ? "bg-gray-50" : ""
                             }`}
                             value={s.name}
                           >
@@ -564,11 +490,11 @@ export default function Signup() {
                     type="password"
                     name="password"
                     placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    onBlur={() => setPasswordTouched(true)}
+                    value={form.password}
+                    onChange={(e) => handleChange("password", e.target.value)}
+                    onBlur={() => handleBlur("password")}
                   />
-                  {passwordTouched && errors.password && (
+                  {touched.password && errors.password && (
                     <p className="text-red-500 text-sm">{errors.password}</p>
                   )}
                 </div>
@@ -584,11 +510,13 @@ export default function Signup() {
                     type="password"
                     name="passwordConfirmation"
                     placeholder="••••••••"
-                    value={passwordConfirmation}
-                    onChange={(e) => setPasswordConfirmation(e.target.value)}
-                    onBlur={() => setPasswordConfirmationTouched(true)}
+                    value={form.passwordConfirmation}
+                    onChange={(e) =>
+                      handleChange("passwordConfirmation", e.target.value)
+                    }
+                    onBlur={() => handleBlur("passwordConfirmation")}
                   />
-                  {passwordConfirmationTouched &&
+                  {touched.passwordConfirmation &&
                     errors.passwordConfirmation && (
                       <p className="text-red-500 text-sm">
                         {errors.passwordConfirmation}

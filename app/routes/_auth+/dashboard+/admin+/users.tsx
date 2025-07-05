@@ -7,24 +7,23 @@ import {
   ArrowLeftIcon,
   ArrowRightIcon,
   CheckIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
   MoreHorizontalIcon,
   SearchIcon,
   UserIcon,
 } from "lucide-react";
 import { twMerge } from "tailwind-merge";
-import HorizontalTabs from "./horizontalTabs";
 import { LoaderFunctionArgs } from "@remix-run/cloudflare";
-import userDB from "~/db/user/user.server"; // Make sure this path matches your project structure
-import { useLoaderData } from "@remix-run/react";
-import materialDB from "~/db/material/material.server";
-import { StatusResponse, Material, Category, QUser } from "~/types/types";
+import userDB from "~/db/user/user.server";
+import {
+  useLoaderData,
+  useRouteLoaderData,
+  useFetcher,
+} from "@remix-run/react";
+import { QUser } from "~/types/types";
+import { Link } from "@remix-run/react";
 
 // Utility function
-const cn = (...inputs: ClassValue[]) => {
-  return twMerge(clsx(inputs));
-};
+const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
 
 // Badge component
 const badgeVariants = cva(
@@ -49,12 +48,9 @@ const badgeVariants = cva(
 interface BadgeProps
   extends React.HTMLAttributes<HTMLDivElement>,
     VariantProps<typeof badgeVariants> {}
-
-const Badge = ({ className, variant, ...props }: BadgeProps) => {
-  return (
-    <div className={cn(badgeVariants({ variant }), className)} {...props} />
-  );
-};
+const Badge = ({ className, variant, ...props }: BadgeProps) => (
+  <div className={cn(badgeVariants({ variant }), className)} {...props} />
+);
 
 // Button component
 const buttonVariants = cva(
@@ -92,7 +88,6 @@ interface ButtonProps
     VariantProps<typeof buttonVariants> {
   asChild?: boolean;
 }
-
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, ...props }, ref) => {
     const Comp = asChild ? Slot : "button";
@@ -147,7 +142,8 @@ const Checkbox = React.forwardRef<
     <CheckboxPrimitive.Indicator
       className={cn("flex items-center justify-center text-current")}
     >
-      <CheckIcon className="h-4 w-4" />
+      {" "}
+      <CheckIcon className="h-4 w-4" />{" "}
     </CheckboxPrimitive.Indicator>
   </CheckboxPrimitive.Root>
 ));
@@ -188,7 +184,6 @@ type PaginationLinkProps = {
   isActive?: boolean;
 } & Pick<ButtonProps, "size"> &
   React.ComponentProps<"a">;
-
 const PaginationLink = ({
   className,
   isActive,
@@ -198,10 +193,7 @@ const PaginationLink = ({
   <a
     aria-current={isActive ? "page" : undefined}
     className={cn(
-      buttonVariants({
-        variant: isActive ? "outline" : "ghost",
-        size,
-      }),
+      buttonVariants({ variant: isActive ? "outline" : "ghost", size }),
       className
     )}
     {...props}
@@ -287,7 +279,7 @@ const TableCell = React.forwardRef<
 ));
 TableCell.displayName = "TableCell";
 
-// Data for the metrics cards
+// Metrics data
 const metricsData = {
   students: {
     id: 1,
@@ -309,34 +301,37 @@ const metricsData = {
   },
 };
 
-// This is correct usage in Remix:
+// Loader for Remix
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
   const DBurl = context.cloudflare.env.DATABASE_URL;
-  const materials = await materialDB
-    .getAllMaterials(context.cloudflare.env.DATABASE_URL)
-    .then((res: any) => {
-      return Response.json(res.data);
-    })
-    .catch(() => null);
-  console.log("Materials loaded:", materials);
-
-  // const { toast, headers } = await getToast(request);
-
-  // return Response.json({ materials, DBurl, toast, headers });
-  // Fetch data from your backend
-  console.log("Fetching users from loader");
   return userDB
-    .getAllUsers(context.cloudflare.env.DATABASE_URL)
+    .getAllUsers(DBurl)
     .then((res: any) => Response.json(res.data))
     .catch(() => null);
 }
 
+export async function action({ request, context }: any) {
+  const formData = await request.formData();
+  if (formData.get("id")) {
+    // Only handle acceptenceState update for now
+    const userDB = (await import("~/db/user/user.server")).default;
+    await userDB.editUserRegisteration(
+      formData.get("id"),
+      formData.get("status"),
+      context.cloudflare.env.DATABASE_URL
+    );
+    return new Response(JSON.stringify({ success: true }), { status: 200 });
+  }
+  return new Response(JSON.stringify({ success: false }), { status: 400 });
+}
+
 export const Users = (): JSX.Element => {
+  // State and data
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
-  const users = useLoaderData<QUser[]>() || []; // Fetch users from loader
-  console.log("users from API:", users); // This will log the data returned from loader
+  const users = useLoaderData<QUser[]>() || [];
 
+  // Metrics calculation
   metricsData.students.value = users
     .reduce((acc, user) => acc + (user.noStudents || 0), 0)
     .toString();
@@ -344,73 +339,59 @@ export const Users = (): JSX.Element => {
     .filter((user) => user.role === "user")
     .length.toString();
   metricsData.supervisors.value = users
-    .filter(
-      (user) =>
-        user.role === "مشرف" ||
-        user.role === "supervisor" ||
-        user.role === "SUPERVISOR"
-    )
+    .filter((user) => ["مشرف", "supervisor", "SUPERVISOR"].includes(user.role))
     .length.toString();
 
-  console.log("Metrics Data:", metricsData);
-  // filter users based on role user
-  const filteredUsers = users.filter((user) => user.role === "user");
+  // Filtering
+  const filteredUsers = users.filter((user) => user?.role === "user");
   const [search, setSearch] = useState("");
   const [acceptanceStateFilter, setAcceptanceStateFilter] = useState<
     string | null
   >(null);
-
   const filteredData = filteredUsers.filter((row) => {
     const matchesSearch =
       row.name.toLowerCase().includes(search.toLowerCase()) ||
       row?.phone?.toString().includes(search) ||
       row.email.toLowerCase().includes(search.toLowerCase());
-
     const matchesAcceptance =
       !acceptanceStateFilter || row.acceptenceState === acceptanceStateFilter;
-
     return matchesSearch && matchesAcceptance;
   });
-  console.log("Filtered Data:", filteredData);
 
+  // Badge styles
   const selectedBadgeStyle = {
-    background: "#22c55e", // Tailwind's green-500
+    background: "#22c55e",
     color: "#fff",
     border: "1px solid #22c55e",
   };
-
   const unselectedBadgeStyle = {
     background: "#fff",
     color: "#22c55e",
     border: "1px solid #22c55e",
   };
-
-  const handleBadgeClick = (state: string) => {
+  const handleBadgeClick = (state: string) =>
     setAcceptanceStateFilter((prev) => (prev === state ? null : state));
-  };
 
+  // Pagination
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
-
-  const [checkedRows, setCheckedRows] = useState([]);
-
-  const handleCheckboxChange = (rowId: any) => {
-    setCheckedRows((prev: any) =>
-      prev.includes(rowId)
-        ? prev.filter((id: any) => id !== rowId)
-        : [...prev, rowId]
-    );
-  };
-
-  const selectedRows = checkedRows.length;
-
-  // Get current page data
   const getCurrentPageData = () => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
     return filteredData.slice(startIndex, endIndex);
   };
 
-  // Action badges data
+  // Checkbox selection
+  const [checkedRows, setCheckedRows] = useState<any[]>([]);
+  const handleCheckboxChange = (rowId: any) => {
+    setCheckedRows((prev) =>
+      prev.includes(rowId)
+        ? prev.filter((id) => id !== rowId)
+        : [...prev, rowId]
+    );
+  };
+  const selectedRows = checkedRows.length;
+
+  // Action badges
   const actionBadges = [
     {
       label: "مقبول",
@@ -432,13 +413,12 @@ export const Users = (): JSX.Element => {
     },
   ];
 
+  // Translations
   const statusTranslation = {
     accepted: "مقبول",
     denied: "مرفوض",
     pending: "غير نشط",
   };
-
-  // Add role translation mapping
   const roleTranslation = {
     user: "مدربة",
     supervisor: "مشرف",
@@ -446,11 +426,41 @@ export const Users = (): JSX.Element => {
     مشرف: "مشرف",
     teacher: "مدربة",
     admin: "مدير",
-    // Add more roles as needed
+  };
+
+  // TODO: Replace this with your actual logic to get the logged-in user's role
+  // For example, from context, loader, or props
+  const { user } = useRouteLoaderData<any>("root");
+  const currentUserRole = user?.role || "supervisor"; // <-- Replace with real logic
+
+  // Action handlers for admin actions (accept, deny, disable/reactivate, delete)
+  const fetcher = useFetcher();
+  const handleAdminAction = (
+    action: "accepted" | "denied" | "idle",
+    user: any,
+    e: React.MouseEvent
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Update acceptenceState using fetcher
+    fetcher.submit(
+      {
+        status: action,
+        id: user.id,
+        email: user.email,
+      },
+      { method: "POST" }
+    );
+  };
+  const handleDeleteUser = (user: any, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // TODO: Implement your delete logic here (e.g., open dialog, call API, etc.)
+    console.log("Delete user:", user);
   };
 
   return (
-    <div className="w-full   mx-auto py-6">
+    <div className="w-full mx-auto py-6">
       <Card className="w-full rounded-2xl border border-gray-300 overflow-hidden">
         <div className="flex flex-col w-full p-6">
           {/* Metrics Overview Section */}
@@ -464,12 +474,11 @@ export const Users = (): JSX.Element => {
                   <div className="flex-shrink-0 w-10 h-10 bg-white rounded-lg overflow-hidden border border-[#e9e9eb] shadow-shadows-shadow-xs-skeuomorphic flex items-center justify-center">
                     {metric.icon}
                   </div>
-
                   <div className="flex flex-col gap-2 w-full">
-                    <h3 className="self-stretch  font-medium text-[#535861] text-sm tracking-[0] leading-5  w-full">
+                    <h3 className="self-stretch font-medium text-[#535861] text-sm tracking-[0] leading-5 w-full">
                       {metric.title}
                     </h3>
-                    <p className=" font-bold text-[#181d27] text-3xl  tracking-[0] leading-[38px]">
+                    <p className="font-bold text-[#181d27] text-3xl tracking-[0] leading-[38px]">
                       {metric.value}
                     </p>
                   </div>
@@ -487,40 +496,13 @@ export const Users = (): JSX.Element => {
                   <div className="text-gray-700 text-sm font-bold whitespace-nowrap">
                     تم تحديد : {selectedRows}
                   </div>
-                  {/* TODO: Add accept/reject buttons */}
-                  {/* <div className="flex gap-2 w-full sm:w-auto">
-                    <Button
-                      variant="outline"
-                      className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-solid border-[#cfd4dc] text-[#12b669] font-bold shadow-shadow-xs-focused-4px-gray-100 w-full sm:w-auto"
-                    >
-                      قبول
-                      <img
-                        className="w-[19.5px] h-[19.5px]"
-                        alt="Accept icon"
-                        src="https://c.animaapp.com/m9qfyf0iFAAeZK/img/group-30535.png"
-                      />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-solid border-[#cfd4dc] text-[#d1242f] font-bold w-full sm:w-auto"
-                    >
-                      رفض
-                      <img
-                        className="w-[19.5px] h-[19.5px]"
-                        alt="Reject icon"
-                        src="https://c.animaapp.com/m9qfyf0iFAAeZK/img/group-30535-1.png"
-                      />
-                    </Button>
-                  </div> */}
                 </div>
-
                 {/* Search section */}
                 <div className="w-full md:max-w-[544px]">
                   <div className="flex flex-col w-full gap-1.5">
                     <div className="flex items-center gap-2 px-3.5 py-2.5 bg-white rounded-lg border border-solid border-[#cfd4dc] shadow-shadow-xs">
                       <div className="flex items-center gap-2 flex-1">
                         <SearchIcon className="w-5 h-5 text-[#475467]" />
-
                         <input
                           type="text"
                           placeholder="بحث"
@@ -566,10 +548,6 @@ export const Users = (): JSX.Element => {
                 <Table>
                   <TableHeader>
                     <TableRow className="mb-4 border-[#e4e7ec]  ">
-                      {/* <TableHead className="text-right pr-2">
-                        <span className="sr-only">Select</span>
-                      </TableHead> */}
-
                       <TableHead className="text-center   font-medium text-gray-700 text-[15px] ">
                         الإجراء
                       </TableHead>
@@ -603,32 +581,95 @@ export const Users = (): JSX.Element => {
                     {getCurrentPageData().map((row, index) => (
                       <TableRow
                         key={index}
-                        className="border-b border-[#e4e7ec] "
+                        className={`border-b border-[#e4e7ec] ${currentUserRole === "admin" ? "cursor-pointer hover:bg-gray-50 transition-colors" : ""}`}
+                        onClick={currentUserRole === "admin" ? () => window.location.href = `/supervisor/supervisorStatics/${row.id}` : undefined}
                       >
                         <TableCell className="py-1 px-2 mt-4">
-                          <div className="flex justify-center gap-3.5">
-                            {actionBadges.map((badge, badgeIndex) => (
-                              <Badge
-                                key={badgeIndex}
-                                className={`px-2.5 py-[3px] rounded-[100px] border border-solid bg-transparent`}
-                                style={{ borderColor: badge.borderColor }}
-                              >
-                                <span
-                                  className=" font-bold  text-xs [direction:rtl]"
-                                  style={{ color: badge.color }}
+                          <div className="flex justify-center gap-3.5" onClick={(e) => e.stopPropagation()}>
+                            {currentUserRole === "admin" ? (
+                              row.acceptenceState !== "idle" ? (
+                                <>
+                                  <button
+                                    onClick={(e) =>
+                                      handleAdminAction("accepted", row, e)
+                                    }
+                                    disabled={
+                                      row.acceptenceState === "accepted"
+                                    }
+                                    className="button p-2 text-[#1A7F37] border border-[#1A7F37] rounded-lg disabled:border-gray-300  disabled:text-gray-300 disabled:cursor-not-allowed hover:bg-[#1A7F37]/10 transition-all"
+                                  >
+                                    قبول
+                                  </button>
+                                  <button
+                                    onClick={(e) =>
+                                      handleAdminAction("denied", row, e)
+                                    }
+                                    disabled={row.acceptenceState === "denied"}
+                                    className="button p-2 rounded-lg text-[#D1242F] border border-[#D1242F] disabled:border-gray-300  disabled:text-gray-300 disabled:cursor-not-allowed hover:opacity-80 hover:bg-[#D1242F]/10 transition-all"
+                                  >
+                                    رفض
+                                  </button>
+                                  <button
+                                    onClick={(e) =>
+                                      handleAdminAction("idle", row, e)
+                                    }
+                                    disabled={row.acceptenceState === "idle"}
+                                    className="button  p-2 rounded-lg text-[#e16f4cf7] border border-[#e16f4cf7] disabled:border-gray-300  disabled:text-gray-300 disabled:cursor-not-allowed hover:opacity-80 hover:bg-[#e16f4cf7]/10 transition-all"
+                                  >
+                                    تعطيل
+                                  </button>
+                                  <button
+                                    onClick={(e) => handleDeleteUser(row, e)}
+                                    className="button p-2 rounded-lg text-red-600 border border-red-600 flex gap-1 hover:opacity-80 hover:bg-red-600/10 transition-all"
+                                  >
+                                    حذف
+                                    <svg
+                                      xmlns="http://www.w3.org/2000/svg"
+                                      width="20"
+                                      height="21"
+                                      viewBox="0 0 20 21"
+                                      fill="none"
+                                    >
+                                      <path
+                                        d="M2.5 5.5H4.16667M4.16667 5.5H17.5M4.16667 5.5V17.1667C4.16667 17.6087 4.34226 18.0326 4.65482 18.3452C4.96738 18.6577 5.39131 18.8333 5.83333 18.8333H14.1667C14.6087 18.8333 15.0326 18.6577 15.3452 18.3452C15.6577 18.0326 15.8333 17.6087 15.8333 17.1667V5.5H4.16667ZM6.66667 5.5V3.83333C6.66667 3.3913 6.84226 2.96738 7.15482 2.65482C7.46738 2.34226 7.89131 2.16666 8.33333 2.16666H11.6667C12.1087 2.16666 12.5326 2.34226 12.8452 2.65482C13.1577 2.96738 13.3333 3.3913 13.3333 3.83333V5.5M8.33333 9.66666V14.6667M11.6667 9.66666V14.6667"
+                                        stroke="#B42318"
+                                        strokeWidth="1.3"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                      />
+                                    </svg>
+                                  </button>
+                                </>
+                              ) : (
+                                <button
+                                  onClick={(e) =>
+                                    handleAdminAction("accepted", row, e)
+                                  }
+                                  className="button p-2 rounded-lg text-[#e16f4cf7] border border-[#e16f4cf7] disabled:border-gray-300  disabled:text-gray-300 disabled:cursor-not-allowed hover:opacity-80 hover:bg-[#e16f4cf7]/10 transition-all"
                                 >
-                                  {badge.label}
-                                </span>
-                              </Badge>
-                            ))}
+                                  إعادة تنشيط
+                                </button>
+                              )
+                            ) : (
+                              <Button
+                                asChild
+                                variant="outline"
+                                className="px-4 py-2 rounded-lg border border-solid border-[#cfd4dc] font-bold text-[#027163]"
+                              >
+                                <Link
+                                  to={`/supervisor/supervisorStatics/${row.id}`}
+                                >
+                                  عرض
+                                </Link>
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell className="py-1 px-2 text-right max-md:hidden ">
                           <Badge className="px-2.5 py-[3px] rounded-[100px] border border-solid border-[#1a7f37] bg-transparent">
-                            <span className=" font-bold text-[#1a7f37] text-xs [direction:rtl]">
-                              {statusTranslation[
-                                row.acceptenceState as keyof typeof statusTranslation
-                              ] ?? row.acceptenceState}
+                            <span className=" font-bold text-[#1a7f37] text-xs [direction:rtl] text-nowrap">
+                              {/* {statusTranslation[row.acceptenceState as keyof typeof statusTranslation] ?? row.acceptenceState} */}
+                              {row?.acceptenceState}
                             </span>
                           </Badge>
                         </TableCell>
@@ -670,22 +711,23 @@ export const Users = (): JSX.Element => {
                           </span>
                         </TableCell>
                         <TableCell className="">
-                          <Checkbox
-                            checked={checkedRows.includes(row.id)}
-                            onCheckedChange={() => handleCheckboxChange(row.id)}
-                            className={
-                              row.isChecked
-                                ? "w-4 h-4 bg-[#0969da] rounded-[3px]"
-                                : "w-4 h-4 bg-[#ffffff] rounded-[3px] border border-solid border-[#868f99]"
-                            }
-                          />
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <Checkbox
+                              checked={checkedRows.includes(row.id)}
+                              onCheckedChange={() => handleCheckboxChange(row.id)}
+                              className={
+                                row.isChecked
+                                  ? "w-4 h-4 bg-[#0969da] rounded-[3px]"
+                                  : "w-4 h-4 bg-[#ffffff] rounded-[3px] border border-solid border-[#868f99]"
+                              }
+                            />
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
               </div>
-
               {/* Pagination */}
               <div className="flex justify-center items-center pt-3 pb-4 px-6 border-t border-[#e4e7ec] mt-4">
                 <Pagination className="w-full [direction:rtl]">
@@ -701,7 +743,6 @@ export const Users = (): JSX.Element => {
                       <span className=" font-bold text-sm">السابق</span>
                       <ArrowRightIcon className="w-5 h-5" />
                     </Button>
-
                     {[...Array(totalPages)].map((_, index) => {
                       const pageNumber = index + 1;
                       if (

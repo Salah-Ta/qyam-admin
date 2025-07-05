@@ -111,10 +111,48 @@ async function deleteSkill(id: string, dbUrl: string) {
   }
 }
 
+// Get skills with usage counts for word cloud
+async function getSkillsWithUsageCount(dbUrl: string) {
+  const prisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
+  
+  try {
+    const skills = await prisma.skill.findMany({
+      include: {
+        reports: {
+          select: {
+            skillId: true
+          }
+        }
+      }
+    });
+    
+    // Transform to include usage count
+    const skillsWithCount = skills.map(skill => ({
+      id: skill.id,
+      name: skill.name,
+      description: skill.description,
+      usageCount: skill.reports.length,
+      createdAt: skill.createdAt,
+      updatedAt: skill.updatedAt
+    }));
+    
+    // Sort by usage count (descending)
+    skillsWithCount.sort((a, b) => b.usageCount - a.usageCount);
+    
+    return { success: true, data: skillsWithCount };
+  } catch (error: any) {
+    console.error("Error fetching skills with usage count:", error);
+    return { success: false, error: error.message };
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
 export default {
   createSkill,
   getAllSkills,
   getSkill,
   updateSkill,
-  deleteSkill
+  deleteSkill,
+  getSkillsWithUsageCount
 };

@@ -112,11 +112,11 @@ const getUser = (id: string, dbUrl: string): Promise<StatusResponse<QUser>> => {
     db.user
       .findFirstOrThrow({
         where: { id },
-        include: {
-          userRegion: true,
-          userEduAdmin: true,
-          userSchool: true
-        }
+        // include: {
+        //   userRegion: true,
+        //   userEduAdmin: true,
+        //   userSchool: true
+        // }
       })
       .then((res) => {
         resolve({ status: "success", data: res });

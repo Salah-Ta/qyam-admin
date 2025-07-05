@@ -252,25 +252,19 @@ async function calculateStatistics(dbUrl: string): Promise<ReportStatistics> {
     // Fetch all the necessary data
     const reports = await prisma.report.findMany({
       include: {
-        user: {
-          include: {
-            userSchool: {
-              include: {
-                eduAdmin: true
-              }
-            }
-          }
-        }
+        user: true
       }
     });
 
     const regions = await prisma.region.findMany();
     const eduAdmins = await prisma.eduAdmin.findMany();
     const schools = await prisma.school.findMany();
+    const users = await prisma.user.findMany();
 
     // Create maps for quick lookups
     const regionMap = new Map(regions.map(r => [r.id, r.name]));
-    const eduAdminMap = new Map(eduAdmins.map(ea => [ea.id, { name: ea.name, regionId: ea.regionId }]));
+    const eduAdminMap = new Map(eduAdmins.map(ea => [ea.id, ea.name]));
+    const schoolMap = new Map(schools.map(s => [s.id, s.name]));
 
     // Calculate Global Totals
     const globalTotalsData = sumReportFields(reports as unknown as Report[]);
@@ -278,12 +272,15 @@ async function calculateStatistics(dbUrl: string): Promise<ReportStatistics> {
     const globalTotals: GlobalTotals = {
       ...globalTotalsData,
       schoolsCount: schools.length,
-      trainers: new Set(reports.filter(r => r.user?.schoolId).map(r => r.user?.id)).size
+      trainers: new Set(reports.map(r => r.userId)).size
     };
 
-    // Calculate Region Stats
+    // Calculate Region Stats - using regionId directly from users
     const regionStats: RegionStat[] = regions.map(region => {
-      const regionReports = reports.filter(report => report.user?.userSchool?.eduAdmin?.regionId === region.id);
+      const regionUsers = users.filter(user => user.regionId === region.id);
+      const regionReports = reports.filter(report => 
+        regionUsers.some(user => user.id === report.userId)
+      );
       const regionTotals = sumReportFields(regionReports as unknown as Report[]);
 
       return {
@@ -297,15 +294,22 @@ async function calculateStatistics(dbUrl: string): Promise<ReportStatistics> {
       };
     });
 
-    // Calculate EduAdmin Stats
+    // Calculate EduAdmin Stats - using eduAdminId directly from users
     const eduAdminStats: EduAdminStat[] = eduAdmins.map(eduAdmin => {
-      const eduAdminReports = reports.filter(report => report.user?.userSchool?.eduAdminId === eduAdmin.id);
+      const eduAdminUsers = users.filter(user => user.eduAdminId === eduAdmin.id);
+      const eduAdminReports = reports.filter(report => 
+        eduAdminUsers.some(user => user.id === report.userId)
+      );
       const eduAdminTotals = sumReportFields(eduAdminReports as unknown as Report[]);
+
+      // Find the region for this eduAdmin (if any user belongs to this eduAdmin, use their regionId)
+      const firstUser = eduAdminUsers[0];
+      const regionName = firstUser && firstUser.regionId ? regionMap.get(firstUser.regionId) || "غير محدد" : "غير محدد";
 
       return {
         eduAdminId: eduAdmin.id,
         eduAdminName: eduAdmin.name,
-        regionName: regionMap.get(eduAdmin.regionId) || "غير محدد",
+        regionName,
         volunteerHoursPercentage: globalTotals.volunteerHours > 0 ? (eduAdminTotals.volunteerHours / globalTotals.volunteerHours) * 100 : 0,
         economicValuePercentage: globalTotals.economicValue > 0 ? (eduAdminTotals.economicValue / globalTotals.economicValue) * 100 : 0,
         volunteerOpportunitiesPercentage: globalTotals.volunteerOpportunities > 0 ? (eduAdminTotals.volunteerOpportunities / globalTotals.volunteerOpportunities) * 100 : 0,
@@ -314,19 +318,24 @@ async function calculateStatistics(dbUrl: string): Promise<ReportStatistics> {
       };
     });
 
-    // Calculate School Stats
+    // Calculate School Stats - using schoolId directly from users
     const schoolStats: SchoolStat[] = schools.map(school => {
-      const schoolReports = reports.filter(report => report.user?.schoolId === school.id);
+      const schoolUsers = users.filter(user => user.schoolId === school.id);
+      const schoolReports = reports.filter(report => 
+        schoolUsers.some(user => user.id === report.userId)
+      );
       const schoolTotals = sumReportFields(schoolReports as unknown as Report[]);
 
-      const eduAdminInfo = eduAdminMap.get(school.eduAdminId);
-      const regionName = eduAdminInfo ? regionMap.get(eduAdminInfo.regionId) : "غير محدد";
+      // Find eduAdmin and region for this school
+      const firstUser = schoolUsers[0];
+      const eduAdminName = firstUser && firstUser.eduAdminId ? eduAdminMap.get(firstUser.eduAdminId) || "غير محدد" : "غير محدد";
+      const regionName = firstUser && firstUser.regionId ? regionMap.get(firstUser.regionId) || "غير محدد" : "غير محدد";
 
       return {
         schoolId: school.id,
         schoolName: school.name,
-        eduAdminName: eduAdminInfo?.name || "غير محدد",
-        regionName: regionName || "غير محدد",
+        eduAdminName,
+        regionName,
         volunteerHoursPercentage: globalTotals.volunteerHours > 0 ? (schoolTotals.volunteerHours / globalTotals.volunteerHours) * 100 : 0,
         economicValuePercentage: globalTotals.economicValue > 0 ? (schoolTotals.economicValue / globalTotals.economicValue) * 100 : 0,
         volunteerOpportunitiesPercentage: globalTotals.volunteerOpportunities > 0 ? (schoolTotals.volunteerOpportunities / globalTotals.volunteerOpportunities) * 100 : 0,
@@ -439,10 +448,10 @@ async function getEduAdminTotalStats(eduAdminId: string, dbUrl: string) {
   const prisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
 
   try {
-    // Fetch all reports for users in this eduAdmin (either directly or through schools)
+    // Fetch all reports for users in this eduAdmin
     const eduAdminReports = await prisma.report.findMany({
       where: {
-       user: { userSchool: { eduAdminId } } 
+        user: { eduAdminId }
       }
     });
 
@@ -462,10 +471,10 @@ async function getRegionTotalStats(regionId: string, dbUrl: string) {
   const prisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
 
   try {
-    // Fetch all reports for users in this region (directly or through eduAdmins/schools)
+    // Fetch all reports for users in this region
     const regionReports = await prisma.report.findMany({
       where: {
-         user: { userSchool: { eduAdmin: { regionId } } } 
+        user: { regionId }
       }
     });
 

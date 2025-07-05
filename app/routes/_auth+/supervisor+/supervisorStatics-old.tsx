@@ -12,11 +12,10 @@ import {
   Title,
   Tooltip,
   Legend,
- 
 } from "chart.js";
 import { Doughnut, Bar } from "react-chartjs-2";
 import { cn } from "~/lib/utils";
- 
+
 import { useNavigate } from "@remix-run/react";
 import { PlusIcon } from "lucide-react";
 
@@ -276,7 +275,6 @@ export const SupervisorStatistics = (): JSX.Element => {
     },
   };
 
-
   const barChartData = {
     labels: regions.map((region) => region.name),
     datasets: [
@@ -395,12 +393,9 @@ export const SupervisorStatistics = (): JSX.Element => {
   ];
 
   return (
-
     <div className="bg-[#f9f9f9]">
- 
-    <div className=" mx-auto  max-w-full lg:px-[112px]  max-lg:px-[10px]">
-  
-
+      ssssssssssssssssssdddddddddddddd
+      <div className=" mx-auto  max-w-full lg:px-[112px]  max-lg:px-[10px]">
         {/* Container Section */}
         <div className="flex flex-col w-full items-end   -mt-[10px]">
           {/* User Profile Section */}
@@ -437,15 +432,15 @@ export const SupervisorStatistics = (): JSX.Element => {
 
             {/* Tabs Navigation */}
             <div className="flex flex-col gap-4 relative self-stretch w-full [direction:rtl] ">
-          <div className="w-full">
-            <div className="flex flex-col md:flex-row">
-              {tabItems.map((tab, index) => (
-                <button
-                  key={tab.id}
-                  onClick={() => navigate(tab.path)}
-                  className={`min-h-10 px-4 py-2   border border-[#D5D7DA] w-full md:w-auto ${
-                    tab.active ? "bg-[#FAFAFA]" : "bg-white"
-                  } [direction:rtl] ${!tab.active ? "z-[1]" : "z-[-5]"}
+              <div className="w-full">
+                <div className="flex flex-col md:flex-row">
+                  {tabItems.map((tab, index) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => navigate(tab.path)}
+                      className={`min-h-10 px-4 py-2   border border-[#D5D7DA] w-full md:w-auto ${
+                        tab.active ? "bg-[#FAFAFA]" : "bg-white"
+                      } [direction:rtl] ${!tab.active ? "z-[1]" : "z-[-5]"}
           ${index === 0 ? "md:rounded-r-lg rounded-t-lg md:rounded-l-none" : ""}
           ${
             index === tabItems.length - 1
@@ -457,22 +452,22 @@ export const SupervisorStatistics = (): JSX.Element => {
               ? "border-b-0 md:border-b md:border-r-0"
               : ""
           }`}
-                >
-                  <div className="flex items-center justify-center md:justify-start flex-row-reverse">
-                    {tab.hasIndicator && (
-                      <div className="relative w-2.5 h-2.5 ml-2">
-                        <div className="relative w-2 h-2 top-px -left-[5px] bg-[#17b169] rounded" />
+                    >
+                      <div className="flex items-center justify-center md:justify-start flex-row-reverse">
+                        {tab.hasIndicator && (
+                          <div className="relative w-2.5 h-2.5 ml-2">
+                            <div className="relative w-2 h-2 top-px -left-[5px] bg-[#17b169] rounded" />
+                          </div>
+                        )}
+                        <span className="font-bold text-[#414651] text-sm text-center md:text-right tracking-[0] leading-5 whitespace-nowrap">
+                          {tab.label}
+                        </span>
                       </div>
-                    )}
-                    <span className="font-bold text-[#414651] text-sm text-center md:text-right tracking-[0] leading-5 whitespace-nowrap">
-                      {tab.label}
-                    </span>
-                  </div>
-                </button>
-              ))}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
           </div>
 
           <div className="w-full p-4 bg-white rounded-xl border border-[#e4e7ec]   rotate-180 mt-8 ">
@@ -518,167 +513,166 @@ export const SupervisorStatistics = (): JSX.Element => {
           </div>
 
           {/* Separator */}
-      
-        </div>
-  
-
-      <div className="flex flex-col mx-auto mt-9 mb-[1346px]">
-        <div className="flex flex-col items-start gap-5 relative self-stretch w-full mb-6 mt-[72px]">
-          <div className="flex items-start gap-4 relative self-stretch w-full">
-            <div className="flex flex-col items-end justify-center gap-0.5 relative flex-1 self-stretch">
-              <h2 className="mt-[-1.00px] relative self-stretch font-bold text-[#181d27] text-lg tracking-[0] leading-7 [direction:rtl]">
-                التقارير
-              </h2>
-            </div>
-          </div>
-        </div>
-        <div className="flex flex-col md:flex-row justify-between items-baseline gap-6 mb-6 [direction:rtl]">
-          {/* Left side - 7/12 width */}
-          <div className="md:w-3/12  h-full flex items-center justify-center gap-[27px] relative self-stretch w-full flex-[0_0_auto]">
-            <Card className="flex flex-col  h-fit items-center justify-center gap-6 p-6 relative flex-1 grow bg-white rounded-xl border border-solid border-[#e9e9eb] shadow-shadows-shadow-xs">
-              <img
-                className="relative w-[54px] h-[54px] mt-[54px] mb-[24px]"
-                alt="Students"
-                src={students}
-              />
-              <CardContent className="flex items-center justify-center gap-6 relative flex-1 grow p-0 mb-[54px]">
-                <div className="flex items-center justify-center gap-6 relative flex-1 grow">
-                  <div className="flex-col items-end gap-6 flex-1 grow flex relative">
-                    <div className="self-stretch mt-[-1.00px] font-bold text-base leading-6 relative text-[#181d27] tracking-[0] [direction:rtl]">
-                      عدد الطالبات
-                    </div>
-
-                    <div className="flex flex-col items-start gap-2 relative self-stretch w-full flex-[0_0_auto]">
-                      <div className="flex items-end gap-4 relative self-stretch w-full flex-[0_0_auto]">
-                        <div className="relative flex-1 mt-[-1.00px] font-bold text-[#181d27] text-5xl tracking-[0] leading-[38px] [direction:rtl]">
-                          ٦٣
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="inline-flex items-start gap-4 relative flex-[0_0_auto] mt-[-13.00px] mb-[-13.00px]">
-                  <div className="relative w-[120px] h-[120px]">
-                    <Doughnut
-                      data={createCircleChartData(25)}
-                      options={circleChartOptions}
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-          {/* Right side - 5/12 width */}
-          <div className="w-full md:w-9/12">
-            {/* Metrics Section */}
-            <section className="flex items-start gap-9 relative self-stretch w-full">
-              <div className="flex flex-col w-full items-start gap-6 relative">
-                <div className="w-full border border-solid border-[#e9eaeb] rounded-xl bg-white p-6">
-                  <div className="flex flex-wrap items-center justify-center gap-[16px_42px]">
-                    {metricCards.map((card, index) => (
-                      <div
-                        key={index}
-                        className="flex flex-col items-center justify-center gap-3"
-                      >
-                        <div className="relative w-40 h-[88px]">
-                          <div className="relative w-36 h-36">
-                            <div className="absolute w-36 h-36">
-                              <Doughnut
-                                data={createDoughnutData(
-                                  card.value,
-                                  card.color
-                                )}
-                                options={doughnutOptions}
-                              />
-                              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center">
-                                <div className="text-xs text-[#535861] mb-2 mt-8">
-                                  {card.label}
-                                </div>
-                                <div className="text-2xl font-bold text-[#181d27]">
-                                  {card.value}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div
-                          className={`${
-                            card.description === "القيمة الاقتصادية للمهارات" &&
-                            index === 3
-                              ? "w-[152px]"
-                              : card.description ===
-                                  "القيمة الاقتصادية للمهارات" && index === 6
-                              ? "w-[126px]"
-                              : card.description === "الساعات التطوعية المحققة"
-                              ? "w-40"
-                              : "relative self-stretch"
-                          } font-medium text-[#181d27] text-sm text-center tracking-[0] leading-[14.2px] m-3 [direction:rtl]`}
-                        >
-                          {card.description}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </section>
-          </div>
         </div>
 
-        {/* Regions Section */}
-        <section className="flex flex-col gap-6 w-full mt-[36px]">
-          <div className="flex flex-col gap-5 w-full">
-            <div className="flex items-start gap-4 w-full h-full">
-              <div className="flex flex-col gap-5 w-full">
-                <div className="flex items-center w-full">
-                  {" "}
-                  {/* Changed to items-center for vertical alignment */}
-                  <div className="flex rounded-md border border-[#d5d6d9] overflow-hidden">
-                    {" "}
-                    {/* Added overflow-hidden */}
-                    <button className="px-4 py-2 border-r border-[#d5d6d9] bg-white hover:bg-neutral-50 transition-colors [direction:rtl]">
-                      <span className="font-bold text-[#414651] text-sm">
-                        المدارس
-                      </span>
-                    </button>
-                    <button className="px-4 py-2 border-r border-[#d5d6d9] bg-white hover:bg-neutral-50 transition-colors [direction:rtl]">
-                      <span className="font-bold text-[#414651] text-sm">
-                        الإدارات
-                      </span>
-                    </button>
-                    <button className="px-4 py-2 bg-neutral-50 [direction:rtl] flex items-center justify-center gap-2">
-                      {" "}
-                      {/* Removed border-right from last button */}
-                      <span className="font-bold text-[#414651] text-sm">
-                        المناطق
-                      </span>
-                      <div className="relative w-2.5 h-2.5 flex items-center justify-center">
-                        <div className="w-2 h-2 bg-[#17b169] rounded-full" />{" "}
-                        {/* Simplified green dot */}
-                      </div>
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex flex-col items-end justify-center gap-0.5 flex-1">
-                <h2 className=" font-bold text-[#181d27] text-lg leading-7 [direction:rtl]">
-                  المناطق
+        <div className="flex flex-col mx-auto mt-9 mb-[1346px]">
+          <div className="flex flex-col items-start gap-5 relative self-stretch w-full mb-6 mt-[72px]">
+            <div className="flex items-start gap-4 relative self-stretch w-full">
+              <div className="flex flex-col items-end justify-center gap-0.5 relative flex-1 self-stretch">
+                <h2 className="mt-[-1.00px] relative self-stretch font-bold text-[#181d27] text-lg tracking-[0] leading-7 [direction:rtl]">
+                  التقارير
                 </h2>
               </div>
             </div>
           </div>
+          <div className="flex flex-col md:flex-row justify-between items-baseline gap-6 mb-6 [direction:rtl]">
+            {/* Left side - 7/12 width */}
+            <div className="md:w-3/12  h-full flex items-center justify-center gap-[27px] relative self-stretch w-full flex-[0_0_auto]">
+              <Card className="flex flex-col  h-fit items-center justify-center gap-6 p-6 relative flex-1 grow bg-white rounded-xl border border-solid border-[#e9e9eb] shadow-shadows-shadow-xs">
+                <img
+                  className="relative w-[54px] h-[54px] mt-[54px] mb-[24px]"
+                  alt="Students"
+                  src={students}
+                />
+                <CardContent className="flex items-center justify-center gap-6 relative flex-1 grow p-0 mb-[54px]">
+                  <div className="flex items-center justify-center gap-6 relative flex-1 grow">
+                    <div className="flex-col items-end gap-6 flex-1 grow flex relative">
+                      <div className="self-stretch mt-[-1.00px] font-bold text-base leading-6 relative text-[#181d27] tracking-[0] [direction:rtl]">
+                        عدد الطالبات
+                      </div>
 
-          <div className="border border-[#e9eaeb] rounded-xl bg-white p-6">
-            <div className="h-[228px]">
-              <Bar data={barChartData} options={barChartOptions} />
+                      <div className="flex flex-col items-start gap-2 relative self-stretch w-full flex-[0_0_auto]">
+                        <div className="flex items-end gap-4 relative self-stretch w-full flex-[0_0_auto]">
+                          <div className="relative flex-1 mt-[-1.00px] font-bold text-[#181d27] text-5xl tracking-[0] leading-[38px] [direction:rtl]">
+                            ٦٣
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="inline-flex items-start gap-4 relative flex-[0_0_auto] mt-[-13.00px] mb-[-13.00px]">
+                    <div className="relative w-[120px] h-[120px]">
+                      <Doughnut
+                        data={createCircleChartData(25)}
+                        options={circleChartOptions}
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+            {/* Right side - 5/12 width */}
+            <div className="w-full md:w-9/12">
+              {/* Metrics Section */}
+              <section className="flex items-start gap-9 relative self-stretch w-full">
+                <div className="flex flex-col w-full items-start gap-6 relative">
+                  <div className="w-full border border-solid border-[#e9eaeb] rounded-xl bg-white p-6">
+                    <div className="flex flex-wrap items-center justify-center gap-[16px_42px]">
+                      {metricCards.map((card, index) => (
+                        <div
+                          key={index}
+                          className="flex flex-col items-center justify-center gap-3"
+                        >
+                          <div className="relative w-40 h-[88px]">
+                            <div className="relative w-36 h-36">
+                              <div className="absolute w-36 h-36">
+                                <Doughnut
+                                  data={createDoughnutData(
+                                    card.value,
+                                    card.color
+                                  )}
+                                  options={doughnutOptions}
+                                />
+                                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center">
+                                  <div className="text-xs text-[#535861] mb-2 mt-8">
+                                    {card.label}
+                                  </div>
+                                  <div className="text-2xl font-bold text-[#181d27]">
+                                    {card.value}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div
+                            className={`${
+                              card.description ===
+                                "القيمة الاقتصادية للمهارات" && index === 3
+                                ? "w-[152px]"
+                                : card.description ===
+                                    "القيمة الاقتصادية للمهارات" && index === 6
+                                ? "w-[126px]"
+                                : card.description ===
+                                  "الساعات التطوعية المحققة"
+                                ? "w-40"
+                                : "relative self-stretch"
+                            } font-medium text-[#181d27] text-sm text-center tracking-[0] leading-[14.2px] m-3 [direction:rtl]`}
+                          >
+                            {card.description}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </section>
             </div>
           </div>
-        </section>
+
+          {/* Regions Section */}
+          <section className="flex flex-col gap-6 w-full mt-[36px]">
+            <div className="flex flex-col gap-5 w-full">
+              <div className="flex items-start gap-4 w-full h-full">
+                <div className="flex flex-col gap-5 w-full">
+                  <div className="flex items-center w-full">
+                    {" "}
+                    {/* Changed to items-center for vertical alignment */}
+                    <div className="flex rounded-md border border-[#d5d6d9] overflow-hidden">
+                      {" "}
+                      {/* Added overflow-hidden */}
+                      <button className="px-4 py-2 border-r border-[#d5d6d9] bg-white hover:bg-neutral-50 transition-colors [direction:rtl]">
+                        <span className="font-bold text-[#414651] text-sm">
+                          المدارس
+                        </span>
+                      </button>
+                      <button className="px-4 py-2 border-r border-[#d5d6d9] bg-white hover:bg-neutral-50 transition-colors [direction:rtl]">
+                        <span className="font-bold text-[#414651] text-sm">
+                          الإدارات
+                        </span>
+                      </button>
+                      <button className="px-4 py-2 bg-neutral-50 [direction:rtl] flex items-center justify-center gap-2">
+                        {" "}
+                        {/* Removed border-right from last button */}
+                        <span className="font-bold text-[#414651] text-sm">
+                          المناطق
+                        </span>
+                        <div className="relative w-2.5 h-2.5 flex items-center justify-center">
+                          <div className="w-2 h-2 bg-[#17b169] rounded-full" />{" "}
+                          {/* Simplified green dot */}
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col items-end justify-center gap-0.5 flex-1">
+                  <h2 className=" font-bold text-[#181d27] text-lg leading-7 [direction:rtl]">
+                    المناطق
+                  </h2>
+                </div>
+              </div>
+            </div>
+
+            <div className="border border-[#e9eaeb] rounded-xl bg-white p-6">
+              <div className="h-[228px]">
+                <Bar data={barChartData} options={barChartOptions} />
+              </div>
+            </div>
+          </section>
+        </div>
       </div>
-    </div>
     </div>
   );
 };
