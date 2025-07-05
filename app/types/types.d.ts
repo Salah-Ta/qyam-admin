@@ -96,7 +96,10 @@ export type Region = {
 export type EduAdmin = {
   id?: string;
   name: string;
-  //users?: QUser[]; // Add users relation
+  regionId?: string;
+  region?: Region;
+  users?: QUser[]; // Add users relation
+  schools?: School[];
   createdAt?: Date;
   updatedAt?: Date;
 };
@@ -105,7 +108,9 @@ export type School = {
   id?: string;
   name: string;
   address: string;
-  //users?: QUser[]; // Add users relation
+  eduAdminId?: string;
+  eduAdmin?: EduAdmin;
+  users?: QUser[]; // Add users relation
   createdAt?: Date;
   updatedAt?: Date;
 };
