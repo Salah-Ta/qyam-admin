@@ -173,9 +173,12 @@ model Region {
 model EduAdmin {
   id        String   @id @default(cuid())
   name      String
+  regionId  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  //users     User[]
+  region    Region?   @relation(fields: [regionId], references: [id])
+  schools   School[]
+  users     User[]
 
   @@map("eduAdministration")
 }
@@ -184,11 +187,11 @@ model School {
   id         String   @id @default(cuid())
   name       String
   address    String
-  //eduAdminId String
+  eduAdminId String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-  //eduAdmin   EduAdmin @relation(fields: [eduAdminId], references: [id])
-  //users      User[]
+  eduAdmin   EduAdmin? @relation(fields: [eduAdminId], references: [id])
+  users      User[]
 
   @@map("school")
 }
