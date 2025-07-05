@@ -4,9 +4,8 @@ import { PlusIcon } from "lucide-react";
 import React, { useState } from "react";
 import { twMerge } from "tailwind-merge";
 import CertificatesPreview from "./certificatesPreview";
-import certificate01 from "../../../../assets/icons/certificate.svg";
-import filetypeicon from "../../../../assets/icons/file-type-blue.svg";
-import downloadcloud from "../../../../assets/icons/download-cloud.svg";
+import CertificateRow from "../../../../components/CertificateRow";
+import { CertificateData } from "../../../../utils/generateCertificate";
 // Utils function
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -89,56 +88,96 @@ const Card = React.forwardRef<
 ));
 Card.displayName = "Card";
 
-// Form field data
-const formFields = [
-  {
-    id: "fullName",
-    label: "الاسم الرباعي",
-    value: "",
-    required: true,
-  },
-  {
-    id: "administration",
-    label: "الإدارة",
-    value: "",
-    required: true,
-  },
-  {
-    id: "school",
-    label: "المدرسة",
-    value: "",
-    required: true,
-  },
-  {
-    id: "hours",
-    label: "الساعات",
-    value: "",
-    required: true,
-    width: "w-[106px]",
-  },
-];
-// create setSubmitted function
+// Certificate row interface
+interface CertificateRowData {
+  id: string;
+  data: Partial<CertificateData>;
+}
 
 // Main Component
 const Certificates = () => {
-  const [submitted, setSubmitted] = useState(false); // Proper state management
+  const [submitted, setSubmitted] = useState(false);
+  const [certificates, setCertificates] = useState<CertificateRowData[]>([
+    { id: "1", data: {} }
+  ]);
   const navigate = useNavigate();
 
-  const handleSetSubmitted = () => {
-    setSubmitted(true); // Update the state to true
-    console.log("Submitted:", true); // Debugging log
+  const handleAddCertificate = () => {
+    const newId = (certificates.length + 1).toString();
+    setCertificates([...certificates, { id: newId, data: {} }]);
   };
 
+  const handleDeleteCertificate = (id: string) => {
+    if (certificates.length > 1) {
+      setCertificates(certificates.filter(cert => cert.id !== id));
+    }
+  };
+
+  const handleDataChange = (id: string, data: Partial<CertificateData>) => {
+    setCertificates(certificates.map(cert => 
+      cert.id === id ? { ...cert, data } : cert
+    ));
+  };
+
+  const handleGenerateCertificates = () => {
+    // Check if all certificates have complete data
+    const allComplete = certificates.every(cert => 
+      cert.data.fullName && 
+      cert.data.administration && 
+      cert.data.school && 
+      cert.data.hours
+    );
+
+    if (allComplete) {
+      setSubmitted(true);
+    } else {
+      alert("يرجى إكمال جميع البيانات قبل تصدير الشهادات");
+    }
+  };
+
+  const isAllDataComplete = certificates.every(cert => 
+    cert.data.fullName && 
+    cert.data.administration && 
+    cert.data.school && 
+    cert.data.hours
+  );
+
   return submitted ? (
-    // Show CertificatesPreview when submitted is true
-    <CertificatesPreview />
+    // Show certificates with PDF generation when submitted is true
+    <Card className="flex flex-col w-full items-start gap-[46px] p-[18px] bg-white rounded-xl border border-solid border-[#d5d6d9] [direction:rtl]">
+      <div className="flex flex-col gap-5 w-full">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold text-[#414651]">الشهادات المولدة</h2>
+          <Button
+            variant="outline"
+            onClick={() => setSubmitted(false)}
+            className="text-sm"
+          >
+            العودة للتحرير
+          </Button>
+        </div>
+
+        {/* Show Certificate Rows with PDF Generation */}
+        {certificates.map((certificate) => (
+          <CertificateRow
+            key={certificate.id}
+            id={certificate.id}
+            onDelete={handleDeleteCertificate}
+            onDataChange={handleDataChange}
+            initialData={certificate.data}
+            showPDF={true}
+          />
+        ))}
+      </div>
+    </Card>
   ) : (
     <Card className="flex flex-col w-full items-start gap-[46px] p-[18px] bg-white rounded-xl border border-solid border-[#d5d6d9] [direction:rtl]">
       <div className="flex flex-col gap-5 w-full">
-        {/* New Certificate Button - Visible on all screens */}
+        {/* New Certificate Button */}
         <Button
           variant="outline"
           className="flex items-center justify-center gap-1 px-3 py-2 w-[154px] bg-white rounded-md border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs-skeuomorphic"
+          onClick={handleAddCertificate}
         >
           <PlusIcon className="w-5 h-5" />
           <span className="font-bold text-[#414651] text-sm tracking-[0] leading-5 whitespace-nowrap">
@@ -146,57 +185,32 @@ const Certificates = () => {
           </span>
         </Button>
 
-        {/* Form Fields - Hide middle two on mobile */}
-        {[...Array(1)].map((_, index) => (
-          <div
-            key={index}
-            className={`${
-              index >= 2 && index <= 3 ? "hidden md:flex" : "flex"
-            } items-start justify-start gap-[18px] w-full flex-col md:flex-row`}
-          >
-            {formFields.map((field) => (
-              <div
-                key={field.id}
-                className={`flex flex-col items-right gap-1.5 self-stretch ${
-                  field.width || "flex-1"
-                }`}
-              >
-                <div className="flex flex-col gap-1.5 self-stretch w-full">
-                  <div className="inline-flex items-start gap-0.5">
-                    {field.required && (
-                      <span className="text-[#1C81AC]">*</span>
-                    )}
-                    <Label
-                      htmlFor={field.id}
-                      className="font-medium text-[#414651] text-sm"
-                    >
-                      {field.label}
-                    </Label>
-                  </div>
-                  <div className="flex items-center justify-end gap-2 px-3.5 py-2.5 w-full bg-white rounded-md border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs">
-                    <div className="flex items-center justify-end gap-2 flex-1">
-                      <Input
-                        id={field.id}
-                        defaultValue={field.value}
-                        className="border-none shadow-none p-0 font-normal text-[#717680] text-base"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+        {/* Certificate Rows */}
+        {certificates.map((certificate) => (
+          <CertificateRow
+            key={certificate.id}
+            id={certificate.id}
+            onDelete={handleDeleteCertificate}
+            onDataChange={handleDataChange}
+            initialData={certificate.data}
+            showPDF={submitted}
+          />
         ))}
       </div>
 
-      {/* Export Certificates Button - Visible on all screens */}
+      {/* Generate Certificates Button */}
       <Button
-        className="w-full bg-[#006173] text-white hover:bg-[#1c81ac]/90 rounded-md"
-        onClick={handleSetSubmitted}
+        className={`w-full rounded-md ${
+          isAllDataComplete 
+            ? "bg-[#006173] text-white hover:bg-[#1c81ac]/90" 
+            : "bg-gray-300 text-gray-500 cursor-not-allowed"
+        }`}
+        onClick={handleGenerateCertificates}
+        disabled={!isAllDataComplete}
       >
         <span className="flex items-center justify-center gap-2">
           تصدير الشهادات
-          <img src={certificate01} alt="Export icon" className="w-5 h-5" />
+          <span className="text-lg">📄</span>
         </span>
       </Button>
     </Card>
