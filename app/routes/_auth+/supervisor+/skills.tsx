@@ -10,7 +10,7 @@ import skillDb from "../../../db/skill/skill.server";
 import testimonialDb from "../../../db/testimonial/testimonial.server";
 import ClientWordCloud from "../../../components/ClientWordCloud";
 import WordCloudErrorBoundary from "../../../components/WordCloudErrorBoundary";
-import OriginalColumnTestimonials from "../../../components/OriginalColumnTestimonials";
+import SmoothColumnTestimonials from "../../../components/SmoothColumnTestimonials";
 import { getAuthenticated } from "~/lib/get-authenticated.server";
 
 // Utility function
@@ -369,7 +369,7 @@ export const Skills = (): JSX.Element => {
 
       {/* Testimonial Section */}
       <section className="flex flex-col w-full items-center mt-24">
-        <div className="flex flex-col items-center gap-8 px-8 w-full max-w-screen-xl">
+        <div className="flex flex-col items-center gap-8 px-8 w-full max-w-screen-xl pb-12">
           <div className="flex flex-col max-w-screen-md items-center gap-5 w-full">
             <h2 className="w-full font-display-md-semibold text-[#181d27] text-[36px] text-center tracking-[-0.72px] leading-[44px] [direction:rtl]">
               انطباع الطالبات
@@ -379,7 +379,7 @@ export const Skills = (): JSX.Element => {
             </p>
           </div>
         </div>
-        <OriginalColumnTestimonials testimonials={loaderData.testimonials} />
+        <SmoothColumnTestimonials testimonials={loaderData.testimonials} />
       </section>
     </div>
   );

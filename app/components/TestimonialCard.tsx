@@ -5,71 +5,55 @@ interface TestimonialCardProps {
   comment: string;
   rating?: number;
   createdAt?: string;
+  title?: string;
 }
 
 const TestimonialCard: React.FC<TestimonialCardProps> = ({ 
   name, 
   comment, 
   rating = 5,
-  createdAt 
+  createdAt,
+  title = "متدربة"
 }) => {
-  const renderStars = (rating: number) => {
-    return Array.from({ length: 5 }, (_, index) => (
-      <span
-        key={index}
-        className={`text-lg ${
-          index < rating ? 'text-yellow-400' : 'text-gray-300'
-        }`}
-      >
-        ★
-      </span>
-    ));
-  };
-
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('ar-SA', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  };
-
   return (
-    <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100 min-w-[280px] max-w-[320px] mx-2 my-2 hover:shadow-xl hover:scale-105 transition-all duration-300 hover:border-[#17b169]/20">
-      <div className="flex flex-col gap-4">
-        {/* Rating */}
-        <div className="flex justify-center gap-1">
-          {renderStars(rating)}
-        </div>
-        
-        {/* Comment */}
+    <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100 min-w-[280px] max-w-[320px] mx-2 my-2 transition-all duration-300">
+      <div className="flex flex-col gap-6">
+        {/* Comment/Testimonial Text */}
         <div className="text-center">
           <p 
-            className="text-gray-700 text-sm sm:text-base leading-relaxed [direction:rtl] font-medium"
+            className="text-gray-800 text-base leading-relaxed [direction:rtl] font-normal"
             style={{
-              display: '-webkit-box',
-              WebkitLineClamp: 4,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis'
+              lineHeight: '1.8'
             }}
           >
             "{comment}"
           </p>
         </div>
         
-        {/* Name and Date */}
-        <div className="text-center border-t pt-4">
-          <h4 className="font-bold text-[#181d27] text-base sm:text-lg [direction:rtl]">
-            {name}
-          </h4>
-          {createdAt && (
-            <p className="text-gray-500 text-xs sm:text-sm mt-1 [direction:rtl]">
-              {formatDate(createdAt)}
-            </p>
-          )}
+        {/* Name, Title and Checkmark */}
+        <div className="text-center">
+          <div className="flex items-center justify-center gap-2 mb-1">
+            <h4 className="font-bold text-[#181d27] text-lg [direction:rtl]">
+              {name}
+            </h4>
+            {/* Blue checkmark */}
+            <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+              <svg 
+                className="w-3 h-3 text-white" 
+                fill="currentColor" 
+                viewBox="0 0 20 20"
+              >
+                <path 
+                  fillRule="evenodd" 
+                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" 
+                  clipRule="evenodd" 
+                />
+              </svg>
+            </div>
+          </div>
+          <p className="text-gray-500 text-sm [direction:rtl]">
+            {title}
+          </p>
         </div>
       </div>
     </div>
