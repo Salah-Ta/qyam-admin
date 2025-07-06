@@ -59,6 +59,7 @@ const getSchool = (id: string, dbUrl: string): Promise<StatusResponse<School>> =
   });
 };
 
+
 const createSchool = (name: string, address: string, eduAdminId: string, dbUrl: string): Promise<StatusResponse<null>> => {
   const db = client(dbUrl);
   return new Promise((resolve, reject) => {

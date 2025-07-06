@@ -26,6 +26,7 @@ const initDb = (dbUrl: string) => {
   }
 };
 
+
 const createEduAdmin = (name: string, regionId: string, dbUrl: string): Promise<StatusResponse<null>> => {
   const db = initDb(dbUrl);
   if (!db) {
