@@ -36,7 +36,6 @@ const getAllSchools = (dbUrl: string): Promise<StatusResponse<School[]>> => {
   return new Promise((resolve, reject) => {
     db.school
       .findMany({
-        // Remove eduAdmin and region includes
         orderBy: {
           name: 'asc'
         }
@@ -66,11 +65,11 @@ const getSchool = (id: string, dbUrl: string): Promise<StatusResponse<School>> =
   return new Promise((resolve, reject) => {
     db.school
       .findFirstOrThrow({
-        where: { id },
-        include: {
-          // Remove eduAdmin and region includes
-          users: true
-        }
+        where: { id }
+        // TODO: Add includes after migration
+        // include: {
+        //   users: true
+        // }
       })
       .then((res) => {
         resolve({ status: "success", data: res });
@@ -85,7 +84,7 @@ const getSchool = (id: string, dbUrl: string): Promise<StatusResponse<School>> =
   });
 };
 
-const createSchool = (name: string, address: string, dbUrl: string): Promise<StatusResponse<null>> => {
+const createSchool = (name: string, address: string, dbUrl: string, eduAdminId?: string): Promise<StatusResponse<null>> => {
   const db = initDb(dbUrl);
   if (!db) {
     return Promise.resolve({
@@ -99,8 +98,8 @@ const createSchool = (name: string, address: string, dbUrl: string): Promise<Sta
       .create({
         data: { 
           name,
-          address
-          // Remove eduAdminId
+          address,
+          eduAdminId: eduAdminId || null
         }
       })
       .then(() => {
@@ -119,7 +118,7 @@ const createSchool = (name: string, address: string, dbUrl: string): Promise<Sta
   });
 };
 
-const updateSchool = (id: string, name: string, address: string, dbUrl: string): Promise<StatusResponse<null>> => {
+const updateSchool = (id: string, name: string, address: string, dbUrl: string, eduAdminId?: string): Promise<StatusResponse<null>> => {
   const db = initDb(dbUrl);
   if (!db) {
     return Promise.resolve({
@@ -134,8 +133,8 @@ const updateSchool = (id: string, name: string, address: string, dbUrl: string):
         where: { id },
         data: { 
           name,
-          address
-          // Remove eduAdminId
+          address,
+          eduAdminId: eduAdminId || null
         }
       })
       .then(() => {

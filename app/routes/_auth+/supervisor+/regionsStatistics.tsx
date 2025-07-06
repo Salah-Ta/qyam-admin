@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { LoaderFunctionArgs } from "@remix-run/cloudflare";
 import { useLoaderData } from "@remix-run/react";
 import { MoreVerticalIcon } from "lucide-react";
@@ -22,6 +22,7 @@ import reportDB from "~/db/report/report.server";
 import regionDB from "~/db/region/region.server";
 import schoolDB from "~/db/school/school.server";
 import userDB from "~/db/user/user.server";
+import eduAdminDB from "~/db/eduAdmin/eduAdmin.server";
 import { getAuthenticated } from "~/lib/get-authenticated.server";
 import { ReportStatistics } from "~/types/types";
 
@@ -36,11 +37,12 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     const dbUrl = context.cloudflare.env.DATABASE_URL;
 
     // Fetch statistics and other data in parallel
-    const [statistics, regions, schools, users] = await Promise.all([
+    const [statistics, regions, schools, users, eduAdmins] = await Promise.all([
       reportDB.calculateStatistics(dbUrl),
       regionDB.getAllRegions(dbUrl),
       schoolDB.getAllSchools(dbUrl),
       userDB.getAllUsers(dbUrl),
+      eduAdminDB.getAllEduAdmins(dbUrl),
     ]);
 
     return Response.json({
@@ -48,6 +50,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
       regions: regions.data || [],
       schools: schools.data || [],
       users: users.data || [],
+      eduAdmins: eduAdmins.data || [],
     });
   } catch (error) {
     console.error("Error loading statistics:", error);
@@ -72,7 +75,13 @@ export const RegionsStatistics = (): JSX.Element => {
     regions: any[];
     schools: any[];
     users: any[];
+    eduAdmins: any[];
   }>();
+
+  // State for dropdown selections
+  const [selectedRegion, setSelectedRegion] = useState<string>("");
+  const [selectedEduAdmin, setSelectedEduAdmin] = useState<string>("");
+  const [selectedSchool, setSelectedSchool] = useState<string>("");
 
   // Handle potential error state
   if ('error' in loaderData) {
@@ -85,7 +94,33 @@ export const RegionsStatistics = (): JSX.Element => {
     );
   }
 
-  const { statistics, regions, schools, users } = loaderData;
+  const { statistics, regions, schools, users, eduAdmins } = loaderData;
+
+  // Filter eduAdmins based on selected region
+  const filteredEduAdmins = selectedRegion 
+    ? eduAdmins.filter(eduAdmin => eduAdmin.regionId === selectedRegion)
+    : eduAdmins;
+
+  // Filter schools based on selected eduAdmin and region
+  const filteredSchools = selectedEduAdmin 
+    ? schools.filter(school => school.eduAdminId === selectedEduAdmin)
+    : selectedRegion 
+      ? schools.filter(school => school.regionId === selectedRegion)
+      : [];
+
+  // Reset dependent dropdowns when parent changes
+  useEffect(() => {
+    if (selectedRegion) {
+      setSelectedEduAdmin("");
+      setSelectedSchool("");
+    }
+  }, [selectedRegion]);
+
+  useEffect(() => {
+    if (selectedEduAdmin) {
+      setSelectedSchool("");
+    }
+  }, [selectedEduAdmin]);
 
   // Calculate stats data from real data
   const statsData = [
@@ -434,8 +469,12 @@ export const RegionsStatistics = (): JSX.Element => {
           <div className="flex flex-col w-1/3  max-lg:w-full ">
             <div className="mb-2 text-start text-sm text-gray-500">المنطقة</div>
             <div className="relative">
-              <select className="appearance-none bg-white border border-gray-200 text-[#717680] text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 pl-10">
-                <option className=" ">الكل</option>
+              <select 
+                className="appearance-none bg-white border border-gray-200 text-[#717680] text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 pl-10"
+                value={selectedRegion}
+                onChange={(e) => setSelectedRegion(e.target.value)}
+              >
+                <option value="">الكل</option>
                 {regions.map((region) => (
                   <option key={region.id} value={region.id}>
                     {region.name}
@@ -456,11 +495,18 @@ export const RegionsStatistics = (): JSX.Element => {
               إدارة التعليم
             </div>
             <div className="relative">
-              <select className="appearance-none bg-white border border-gray-200 text-[#717680] text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 pl-10">
-                <option className="">الكل</option>
-                {statistics.eduAdminStats.map((eduAdmin) => (
-                  <option key={eduAdmin.eduAdminId} value={eduAdmin.eduAdminId}>
-                    {eduAdmin.eduAdminName}
+              <select 
+                className={`appearance-none bg-white border border-gray-200 text-[#717680] text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 pl-10 ${
+                  !selectedRegion ? "opacity-50 cursor-not-allowed" : ""
+                }`}
+                value={selectedEduAdmin}
+                onChange={(e) => setSelectedEduAdmin(e.target.value)}
+                disabled={!selectedRegion}
+              >
+                <option value="">الكل</option>
+                {filteredEduAdmins.map((eduAdmin) => (
+                  <option key={eduAdmin.id} value={eduAdmin.id}>
+                    {eduAdmin.name}
                   </option>
                 ))}
               </select>
@@ -476,9 +522,16 @@ export const RegionsStatistics = (): JSX.Element => {
           <div className="flex flex-col w-1/3  max-lg:w-full">
             <div className="mb-2 text-start text-sm text-gray-500">المدرسة</div>
             <div className="relative">
-              <select className="appearance-none bg-white border border-gray-200 text-[#717680] text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 pl-10">
-                <option className="">الكل</option>
-                {schools.map((school) => (
+              <select 
+                className={`appearance-none bg-white border border-gray-200 text-[#717680] text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 pl-10 ${
+                  !selectedEduAdmin ? "opacity-50 cursor-not-allowed" : ""
+                }`}
+                value={selectedSchool}
+                onChange={(e) => setSelectedSchool(e.target.value)}
+                disabled={!selectedEduAdmin}
+              >
+                <option value="">الكل</option>
+                {filteredSchools.map((school) => (
                   <option key={school.id} value={school.id}>
                     {school.name}
                   </option>

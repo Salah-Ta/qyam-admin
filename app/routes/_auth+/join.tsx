@@ -33,6 +33,16 @@ import registerLogo from "~/assets/images/new-design/logo-login.svg";
 import arrowLeft from "~/assets/icons/square-arrow-login.svg";
 import arrowregister from "~/assets/icons/arrow-White.svg";
 import regionDB from "~/db/region/region.server";
+import eduAdminDB from "~/db/eduAdmin/eduAdmin.server";
+import schoolDB from "~/db/school/school.server";
+
+// Define interfaces for the location data
+interface EntityItem {
+  id: string;
+  name: string;
+  regionId?: string; // For eduAdmin items
+  eduAdminId?: string; // For school items
+}
 
 // --- Helper: Validation ---
 function validateSignup({
@@ -80,22 +90,16 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   // await redirectIfAuthenticated(request, context);
 
   const dbUrl = context.cloudflare.env.DATABASE_URL;
-  const regionsRes = await regionDB.getAllRegions(dbUrl);
-  const allRegions = regionsRes.data || [];
-
-  // Helper to filter by prefix and strip it
-  const getSectionItems = (prefix: string) =>
-    allRegions
-      .filter((item: any) => item?.name?.startsWith(prefix + "_"))
-      .map((item: any) => ({
-        ...item,
-        name: item.name.replace(prefix + "_", ""),
-      }));
+  const [regions, eduAdmins, schools] = await Promise.all([
+    regionDB.getAllRegions(dbUrl),
+    eduAdminDB.getAllEduAdmins(dbUrl),
+    schoolDB.getAllSchools(dbUrl),
+  ]);
 
   return json({
-    regions: getSectionItems("region"),
-    eduAdmins: getSectionItems("eduAdmin"),
-    schools: getSectionItems("school"),
+    regions: regions.data || [],
+    eduAdmins: eduAdmins.data || [],
+    schools: schools.data || [],
   });
 }
 
@@ -137,9 +141,9 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
         email: fields.email,
         phone: Number(fields.phone),
         role: fields.role,
-        schoolId: fields.school,
+        schoolId: fields.school, // This will be the school name now
         region: fields.region,
-        eduAdminId: fields.eduAdmin,
+        eduAdminId: fields.eduAdmin, // This will be the eduAdmin name now
         emailVerified: false,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -172,7 +176,7 @@ export default function Signup() {
     name: "",
     phone: "",
     email: "",
-    role: "",
+    role: "user",
     password: "",
     passwordConfirmation: "",
     region: "",
@@ -188,6 +192,16 @@ export default function Signup() {
   const submit = useSubmit();
   const loaderData = useLoaderData<typeof loader>();
   const { regions, eduAdmins, schools } = loaderData;
+
+  // Filter eduAdmins based on selected region
+  const filteredEduAdmins = eduAdmins.filter(
+    (eduAdm: any) => eduAdm.regionId === form.region
+  );
+
+  // Filter schools based on selected eduAdmin
+  const filteredSchools = schools.filter(
+    (sch: any) => sch.eduAdminId === form.eduAdmin
+  );
 
   // Reset eduAdmin and school when region changes
   useEffect(() => {
@@ -222,7 +236,29 @@ export default function Signup() {
     e.preventDefault();
     setLoading(true);
     const formData = new FormData();
-    Object.entries(form).forEach(([key, value]) => formData.append(key, value));
+
+    // Get the selected region, eduAdmin, and school names
+    const selectedRegion = (regions as any[]).find(
+      (r: any) => r.id === form.region
+    );
+    const selectedEduAdmin = (filteredEduAdmins as any[]).find(
+      (ea: any) => ea.id === form.eduAdmin
+    );
+    const selectedSchool = (filteredSchools as any[]).find(
+      (s: any) => s.id === form.school
+    );
+
+    // Set form data with names instead of IDs
+    formData.append("name", form.name);
+    formData.append("email", form.email);
+    formData.append("phone", form.phone);
+    formData.append("role", form.role);
+    formData.append("region", selectedRegion?.name || "");
+    formData.append("eduAdmin", selectedEduAdmin?.name || "");
+    formData.append("school", selectedSchool?.name || "");
+    formData.append("password", form.password);
+    formData.append("passwordConfirmation", form.passwordConfirmation);
+
     submit(formData, {
       method: "post",
       encType: "multipart/form-data",
@@ -333,31 +369,39 @@ export default function Signup() {
                 </div>
 
                 {/* Role selection toggle */}
-                <ToggleGroup
-                  type="single"
-                  value={form.role}
-                  onValueChange={(value) =>
-                    value && handleChange("role", value)
-                  }
-                  className="flex h-11 items-center justify-center gap-0.5 bg-neutral-50 rounded-lg border border-solid border-[#e9e9eb]"
-                >
-                  <ToggleGroupItem
-                    value="user"
-                    className="flex h-11 items-center justify-center gap-2 px-3 py-2 relative flex-1 grow rounded-lg overflow-hidden data-[state=off]:bg-transparent data-[state=on]:bg-white data-[state=on]:border data-[state=on]:border-solid data-[state=on]:border-[#d5d6d9] data-[state=on]:shadow-shadows-shadow-xs"
-                  >
-                    <div className="w-fit font-bold text-[#717680] text-base text-left whitespace-nowrap [direction:rtl] relative tracking-[0] leading-6 data-[state=on]:text-[#414651]">
-                      مدرب
+                <div className="flex flex-col gap-1.5">
+                  <div className="inline-flex items-start gap-0.5">
+                    <div className="text-[#1C81AC]">*</div>
+                    <div className="font-medium text-[#414651] text-sm tracking-[0] leading-5">
+                      الدور
                     </div>
-                  </ToggleGroupItem>
-                  <ToggleGroupItem
-                    value="supervisor"
-                    className="flex h-11 items-center justify-center gap-2 px-3 py-2 relative flex-1 grow rounded-lg overflow-hidden data-[state=off]:bg-transparent data-[state=on]:bg-white data-[state=on]:border data-[state=on]:border-solid data-[state=on]:border-[#d5d6d9] data-[state=on]:shadow-shadows-shadow-xs"
+                  </div>
+                  <ToggleGroup
+                    type="single"
+                    value={form.role}
+                    onValueChange={(value) =>
+                      value && handleChange("role", value)
+                    }
+                    className="flex h-11 items-center justify-center gap-0.5 bg-neutral-50 rounded-lg border border-solid border-[#e9e9eb]"
                   >
-                    <div className="w-fit font-bold text-[#414651] text-base text-left whitespace-nowrap [direction:rtl] relative tracking-[0] leading-6">
-                      مشرف
-                    </div>
-                  </ToggleGroupItem>
-                </ToggleGroup>
+                    <ToggleGroupItem
+                      value="supervisor"
+                      className="flex h-11 items-center justify-center gap-2 px-3 py-2 relative flex-1 grow rounded-lg overflow-hidden data-[state=off]:bg-transparent data-[state=on]:bg-white data-[state=on]:border data-[state=on]:border-solid data-[state=on]:border-[#d5d6d9] data-[state=on]:shadow-shadows-shadow-xs"
+                    >
+                      <div className="w-fit font-bold text-[#414651] text-base text-left whitespace-nowrap [direction:rtl] relative tracking-[0] leading-6">
+                        مشرف
+                      </div>
+                    </ToggleGroupItem>
+                    <ToggleGroupItem
+                      value="user"
+                      className="flex h-11 items-center justify-center gap-2 px-3 py-2 relative flex-1 grow rounded-lg overflow-hidden data-[state=off]:bg-transparent data-[state=on]:bg-white data-[state=on]:border data-[state=on]:border-solid data-[state=on]:border-[#d5d6d9] data-[state=on]:shadow-shadows-shadow-xs"
+                    >
+                      <div className="w-fit font-bold text-[#717680] text-base text-left whitespace-nowrap [direction:rtl] relative tracking-[0] leading-6 data-[state=on]:text-[#414651]">
+                        مدرب
+                      </div>
+                    </ToggleGroupItem>
+                  </ToggleGroup>
+                </div>
               </div>
 
               {/* Left column */}
@@ -378,7 +422,11 @@ export default function Signup() {
                     <SelectTrigger className="justify-end gap-2 px-3.5 bg-white rounded-lg border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs [direction:rtl]">
                       {/* Fixed: Use selectedRegion instead of region */}
                       <div className="flex-1 text-start font-normal text-[#717680] text-base">
-                        {form.region || "اختر المنطقة"}
+                        {form.region
+                          ? (regions as any[]).find(
+                              (r: any) => r.id === form.region
+                            )?.name
+                          : "اختر المنطقة"}
                       </div>
                     </SelectTrigger>
                     <SelectContent>
@@ -387,9 +435,9 @@ export default function Signup() {
                           <SelectItem
                             key={reg.id}
                             className={`${
-                              form.region === reg.name ? "bg-gray-50" : ""
+                              form.region === reg.id ? "bg-gray-50" : ""
                             }`}
-                            value={reg.name}
+                            value={reg.id}
                           >
                             {reg.name}
                           </SelectItem>
@@ -415,18 +463,22 @@ export default function Signup() {
                   >
                     <SelectTrigger className="justify-end gap-2 px-3.5 bg-white rounded-lg border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs [direction:rtl]">
                       <div className="flex-1 text-start font-normal text-[#717680] text-base">
-                        {form.eduAdmin || "اختر الإدارة التعليمية"}
+                        {form.eduAdmin
+                          ? (filteredEduAdmins as any[]).find(
+                              (ea: any) => ea.id === form.eduAdmin
+                            )?.name
+                          : "اختر الإدارة التعليمية"}
                       </div>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectGroup>
-                        {eduAdmins.map((admin: any) => (
+                        {filteredEduAdmins.map((admin: any) => (
                           <SelectItem
                             key={admin.id}
                             className={`${
-                              form.eduAdmin === admin.name ? "bg-gray-50" : ""
+                              form.eduAdmin === admin.id ? "bg-gray-50" : ""
                             }`}
-                            value={admin.name}
+                            value={admin.id}
                           >
                             {admin.name}
                           </SelectItem>
@@ -452,21 +504,24 @@ export default function Signup() {
                   >
                     <SelectTrigger className="justify-end gap-2 px-3.5 bg-white rounded-lg border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs [direction:rtl]">
                       <div className="flex-1 text-start font-normal text-[#717680] text-base">
-                        {form.school ||
-                          (schools.length
-                            ? "اختر المدرسة"
-                            : "لا توجد مدارس متاحة")}
+                        {form.school
+                          ? (filteredSchools as any[]).find(
+                              (s: any) => s.id === form.school
+                            )?.name
+                          : filteredSchools.length
+                          ? "اختر المدرسة"
+                          : "لا توجد مدارس متاحة"}
                       </div>
                     </SelectTrigger>
                     <SelectContent className="max-h-64 [direction:rtl]">
                       <SelectGroup>
-                        {schools.map((s) => (
+                        {filteredSchools.map((s: any) => (
                           <SelectItem
                             key={s.id}
                             className={`${
-                              form.school === s.name ? "bg-gray-50" : ""
+                              form.school === s.id ? "bg-gray-50" : ""
                             }`}
-                            value={s.name}
+                            value={s.id}
                           >
                             <div className="flex items-center gap-2">
                               <span className="font-medium text-[#181d27] text-base">

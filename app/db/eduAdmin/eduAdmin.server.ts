@@ -26,7 +26,7 @@ const initDb = (dbUrl: string) => {
   }
 };
 
-const createEduAdmin = (name: string, dbUrl: string): Promise<StatusResponse<null>> => {
+const createEduAdmin = (name: string, dbUrl: string, regionId?: string): Promise<StatusResponse<null>> => {
   const db = initDb(dbUrl);
   if (!db) {
     return Promise.resolve({
@@ -35,10 +35,16 @@ const createEduAdmin = (name: string, dbUrl: string): Promise<StatusResponse<nul
     });
   }
 
+  console.log("Creating EduAdmin:", name, "with regionId:", regionId);
+
   return new Promise((resolve, reject) => {
     db.eduAdmin
       .create({
-        data: { name }
+        data: { 
+          name,
+          // Temporarily commented out until migration is complete
+          regionId: regionId || null
+        }
       })
       .then(() => {
         resolve({
@@ -67,7 +73,7 @@ const getAllEduAdmins = (dbUrl: string): Promise<StatusResponse<EduAdmin[]>> => 
 
   return new Promise((resolve, reject) => {
     db.eduAdmin
-      .findMany() // No includes - remove dependency on schools
+      .findMany()
       .then((res) => {
         resolve({ status: "success", data: res });
       })
@@ -109,7 +115,7 @@ const getEduAdmin = (id: string, dbUrl: string): Promise<StatusResponse<EduAdmin
   });
 };
 
-const updateEduAdmin = (id: string, data: { name: string }, dbUrl: string): Promise<StatusResponse<null>> => {
+const updateEduAdmin = (id: string, data: { name: string; regionId?: string }, dbUrl: string): Promise<StatusResponse<null>> => {
   const db = initDb(dbUrl);
   if (!db) {
     return Promise.resolve({
@@ -122,7 +128,10 @@ const updateEduAdmin = (id: string, data: { name: string }, dbUrl: string): Prom
     db.eduAdmin
       .update({
         where: { id },
-        data
+        data: {
+          name: data.name,
+          regionId: data.regionId || null
+        }
       })
       .then(() => {
         resolve({
