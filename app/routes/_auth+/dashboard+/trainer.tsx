@@ -32,7 +32,12 @@ export const Trainer = () => {
     {
       id: 3,
       title: "ركائز نجاح البرنامج",
-      path: "/dashboard/trainer/achievements",
+      path: "/dashboard/trainer/successpillars",
+    },
+    {
+      id: 3,
+      title: "تقرير إنجازاتي",
+      path: "/dashboard/trainer/myachievements",
     },
   ];
 

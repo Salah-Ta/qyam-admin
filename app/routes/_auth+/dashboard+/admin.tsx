@@ -19,24 +19,6 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
 }
 
 export const Trainer = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  // Data for sidebar menu items
-  const menuItems = [
-    {
-      id: 0,
-      title: "تقرير إنجازاتي",
-      path: "/dashboard/trainer/trainerProfile",
-    },
-    { id: 2, title: "شهاداتي", path: "/dashboard/trainer/certificates" },
-    {
-      id: 3,
-      title: "ركائز نجاح البرنامج",
-      path: "/dashboard/trainer/achievements",
-    },
-  ];
-
   return (
     <div className="flex flex-col w-full max-w-full overflow-hidden">
       <HorizontalTabs />
