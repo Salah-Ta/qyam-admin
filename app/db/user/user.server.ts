@@ -1,48 +1,58 @@
 import glossary from "~/lib/glossary";
 import { client } from "../db-client.server";
 import { StatusResponse, QUser, AcceptenceState } from "~/types/types";
+import { sendEmail } from "~/lib/send-email.server";
 
-/**
- * Initialize database client with error handling
- * @param dbUrl Database URL
- * @returns Database client or null if initialization fails
- */
-const initDb = (dbUrl: string) => {
-  if (!dbUrl) {
-    console.log("ERROR: Database URL is not provided");
-    return null;
+const initializeDatabase = (dbUrl?: string) => {
+  const db = dbUrl ? client(dbUrl) : client();
+  if (!db) {
+    throw new Error("فشل الاتصال بقاعدة البيانات");
   }
-
-  try {
-    const db = client(dbUrl);
-    if (!db || !db.user) {
-      console.log("ERROR: Failed to initialize database client");
-      return null;
-    }
-    return db;
-  } catch (error) {
-    console.log("ERROR [DB initialization]: ", error);
-    return null;
-  }
+  return db;
 };
-const editUserRegisteration = (userId: string, status: AcceptenceState, dbUrl: string) => {
-  const db = client(dbUrl)
+
+const editUserRegisteration = (userId: string, status: AcceptenceState, dbUrl?: string, emailConfig?: {
+  resendApi: string;
+  mainEmail: string;
+  userEmail: string;
+}) => {
+  
+  const db = initializeDatabase(dbUrl);
 
   return new Promise((resolve, reject) => {
     db.user.update({
       data: { acceptenceState: status },
       where: { id: userId }
+    }).then(async () => {
+      // Send email notification if status is accepted or denied
+      if ((status === "accepted" || status === "denied") && emailConfig) {
+        // Send email
+        await sendEmail({
+          to: emailConfig!.userEmail,
+          subject: glossary.email.program_status_subject,
+          template: "program-status",
+          props: { status, name: "" },
+          text: status === "accepted"
+            ? glossary.email.acceptence_message
+            : glossary.email.rejection_message,
+        },
+          emailConfig!.resendApi,
+          emailConfig!.mainEmail);
+
+        console.log("✅ Email sent successfully");
+      }
     }).then(() => {
       resolve({ status: "success", message: glossary.status_response.success[status === "accepted" ? "user_accepted" : "user_denied"] })
     }).catch((error: any) => {
-      // console.log("ERROR [toggleUserRegisterationAcceptence]: ", error);
+      console.log("ERROR [editUserRegisteration]: ", error);
       reject({ status: "error", message: glossary.status_response.error[status === "accepted" ? "user_accepted" : "user_denied"] })
     })
   });
 }
 
-const bulkEditUserRegisteration = (userIds: string[], status: "accepted" | "denied", dbUrl: string) => {
-  const db = client(dbUrl)
+const bulkEditUserRegisteration = (userIds: string[], status: "accepted" | "denied", dbUrl?: string) => {
+  
+  const db = initializeDatabase(dbUrl);
 
   return new Promise((resolve, reject) => {
     db.user.updateMany({
@@ -51,22 +61,19 @@ const bulkEditUserRegisteration = (userIds: string[], status: "accepted" | "deni
     }).then(() => {
       resolve({ status: "success", message: glossary.status_response.success[status === "accepted" ? "user_accepted" : "user_denied"] })
     }).catch((error: any) => {
-      // console.log("ERROR [toggleUserRegisterationAcceptence]: ", error);
+      console.log("ERROR [bulkEditUserRegisteration]: ", error);
       reject({ status: "error", message: glossary.status_response.error[status === "accepted" ? "user_accepted" : "user_denied"] })
     })
   });
 }
 
-const getAllUsers = (dbUrl: string): Promise<StatusResponse<QUser[]>> => {
-  const db = client(dbUrl);
+const getAllUsers = (dbUrl?: string): Promise<StatusResponse<QUser[]>> => {
+  
+  const db = initializeDatabase(dbUrl);
+
   return new Promise((resolve, reject) => {
     db.user
       .findMany({
-        include: {
-          userRegion: true,
-          userEduAdmin: true,
-          userSchool: true
-        },
         orderBy: {
           name: 'asc'
         }
@@ -84,17 +91,14 @@ const getAllUsers = (dbUrl: string): Promise<StatusResponse<QUser[]>> => {
   });
 };
 
-const getUser = (id: string, dbUrl: string): Promise<StatusResponse<QUser>> => {
-  const db = client(dbUrl);
+const getUser = (id: string, dbUrl?: string): Promise<StatusResponse<QUser>> => {
+  
+  const db = initializeDatabase(dbUrl);
+
   return new Promise((resolve, reject) => {
     db.user
       .findFirstOrThrow({
         where: { id },
-        include: {
-          userRegion: true,
-          userEduAdmin: true,
-          userSchool: true
-        }
       })
       .then((res) => {
         resolve({ status: "success", data: res });
@@ -118,8 +122,10 @@ const createUser = (userData: {
   regionId?: string,
   eduAdminId?: string,
   schoolId?: string
-}, dbUrl: string): Promise<StatusResponse<null>> => {
-  const db = client(dbUrl);
+}, dbUrl?: string): Promise<StatusResponse<null>> => {
+  
+  const db = initializeDatabase(dbUrl);
+  
   return new Promise((resolve, reject) => {
     db.user
       .create({
@@ -150,8 +156,10 @@ const updateUser = (id: string, userData: {
   regionId?: string | null,
   eduAdminId?: string | null,
   schoolId?: string | null
-}, dbUrl: string): Promise<StatusResponse<null>> => {
-  const db = client(dbUrl);
+}, dbUrl?: string): Promise<StatusResponse<null>> => {
+    
+const db = initializeDatabase(dbUrl);
+
   return new Promise((resolve, reject) => {
     db.user
       .update({
@@ -174,8 +182,10 @@ const updateUser = (id: string, userData: {
   });
 };
 
-const deleteUser = (id: string, dbUrl: string): Promise<StatusResponse<null>> => {
-  const db = client(dbUrl);
+const deleteUser = (id: string, dbUrl?: string): Promise<StatusResponse<null>> => {
+  
+  const db = initializeDatabase(dbUrl);
+
   return new Promise((resolve, reject) => {
     db.user
       .delete({
@@ -198,17 +208,14 @@ const deleteUser = (id: string, dbUrl: string): Promise<StatusResponse<null>> =>
 };
 
 // Function to get users by region
-const getUsersByRegion = (regionId: string, dbUrl: string): Promise<StatusResponse<QUser[]>> => {
-  const db = client(dbUrl);
+const getUsersByRegion = (regionId: string, dbUrl?: string): Promise<StatusResponse<QUser[]>> => {
+  
+  const db = initializeDatabase(dbUrl);
+  
   return new Promise((resolve, reject) => {
     db.user
       .findMany({
         where: { regionId },
-        include: {
-          userRegion: true,
-          userEduAdmin: true,
-          userSchool: true
-        },
         orderBy: {
           name: 'asc'
         }
@@ -227,17 +234,14 @@ const getUsersByRegion = (regionId: string, dbUrl: string): Promise<StatusRespon
 };
 
 // Function to get users by eduAdmin
-const getUsersByEduAdmin = (eduAdminId: string, dbUrl: string): Promise<StatusResponse<QUser[]>> => {
-  const db = client(dbUrl);
+const getUsersByEduAdmin = (eduAdminId: string, dbUrl?: string): Promise<StatusResponse<QUser[]>> => {
+  
+  const db = initializeDatabase(dbUrl);
+  
   return new Promise((resolve, reject) => {
     db.user
       .findMany({
         where: { eduAdminId },
-        include: {
-          userRegion: true,
-          userEduAdmin: true,
-          userSchool: true
-        },
         orderBy: {
           name: 'asc'
         }
@@ -256,17 +260,14 @@ const getUsersByEduAdmin = (eduAdminId: string, dbUrl: string): Promise<StatusRe
 };
 
 // Function to get users by school
-const getUsersBySchool = (schoolId: string, dbUrl: string): Promise<StatusResponse<QUser[]>> => {
-  const db = client(dbUrl);
+const getUsersBySchool = (schoolId: string, dbUrl?: string): Promise<StatusResponse<QUser[]>> => {
+  
+  const db = initializeDatabase(dbUrl);
+
   return new Promise((resolve, reject) => {
     db.user
       .findMany({
         where: { schoolId },
-        include: {
-          userRegion: true,
-          userEduAdmin: true,
-          userSchool: true
-        },
         orderBy: {
           name: 'asc'
         }
@@ -287,14 +288,9 @@ const getUsersBySchool = (schoolId: string, dbUrl: string): Promise<StatusRespon
 /**
  * Get user details including certificates
  */
-const getUserWithCertificates = (userId: string, dbUrl: string): Promise<StatusResponse<any>> => {
-  const db = initDb(dbUrl);
-  if (!db) {
-    return Promise.reject({
-      status: "error",
-      message: "فشل الاتصال بقاعدة البيانات",
-    });
-  }
+const getUserWithCertificates = (userId: string, dbUrl?: string): Promise<StatusResponse<any>> => {
+  
+  const db = initializeDatabase(dbUrl);
 
   return new Promise((resolve, reject) => {
     db.user
@@ -302,9 +298,6 @@ const getUserWithCertificates = (userId: string, dbUrl: string): Promise<StatusR
         where: { id: userId },
         include: {
           UserCertificate: true,
-          userRegion: true,
-          userEduAdmin: true,
-          userSchool: true
         }
       })
       .then((user) => {
@@ -315,13 +308,9 @@ const getUserWithCertificates = (userId: string, dbUrl: string): Promise<StatusR
           });
           return;
         }
-        
         resolve({
           status: "success",
-          data: {
-            ...user,
-            region: user.userRegion?.name || "غير محدد"
-          }
+          data: user
         });
       })
       .catch((error) => {
@@ -334,11 +323,7 @@ const getUserWithCertificates = (userId: string, dbUrl: string): Promise<StatusR
   });
 };
 
-/**
- * Add certificate to user
- * @param certificateData Certificate data
- * @param dbUrl Database URL
- */
+
 const addCertificateToUser = (
   certificateData: {
     userId: string;
@@ -347,16 +332,11 @@ const addCertificateToUser = (
     contentType: string;
     name: string;
   },
-  dbUrl: string
+  dbUrl?: string
 ): Promise<StatusResponse<null>> => {
-  const db = initDb(dbUrl);
-  if (!db) {
-    return Promise.reject({
-      status: "error",
-      message: "فشل الاتصال بقاعدة البيانات",
-    });
-  }
 
+  const db = initializeDatabase(dbUrl);
+  
   return new Promise((resolve, reject) => {
     db.userCertificate
       .create({

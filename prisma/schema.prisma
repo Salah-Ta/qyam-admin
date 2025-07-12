@@ -36,9 +36,6 @@ model User {
   receivedMessages Message[]         @relation("ReceivedMessages")
   reports          Report[]
   Session          Session[]
-  //userEduAdmin     EduAdmin?         @relation(fields: [eduAdminId], references: [id])
-  //userRegion       Region?           @relation(fields: [regionId], references: [id])
-  //userSchool       School?           @relation(fields: [schoolId], references: [id])
   UserCertificate  UserCertificate[]
 
   @@map("user")
@@ -164,8 +161,6 @@ model Region {
   name      String     @unique
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
-  //eduAdmins EduAdmin[]
-  //users     User[]
 
   @@map("region")
 }
@@ -176,9 +171,9 @@ model EduAdmin {
   regionId  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  region    Region?   @relation(fields: [regionId], references: [id])
+  //region    Region?   @relation(fields: [regionId], references: [id])
   schools   School[]
-  users     User[]
+  //users     User[]
 
   @@map("eduAdministration")
 }
@@ -191,7 +186,7 @@ model School {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   eduAdmin   EduAdmin? @relation(fields: [eduAdminId], references: [id])
-  users      User[]
+  //users      User[]
 
   @@map("school")
 }
