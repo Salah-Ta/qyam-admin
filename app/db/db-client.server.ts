@@ -6,54 +6,40 @@ import { AppLoadContext } from "@remix-run/cloudflare";
 import ws from "ws";
 neonConfig.webSocketConstructor = ws;
 
-/**
- * Creates a Prisma client connected to the database
- * Supports both direct database URL and Cloudflare environment
- */
-export const client = (db: string, context?: AppLoadContext) => {
-  // If db is empty/undefined but context is available, try to get DATABASE_URL from context
-  let connectionString = db;
+export const createPrismaClient = (dbUrl?: string, context?: AppLoadContext): PrismaClient => {
+  let connectionString = dbUrl || 
+                        context?.cloudflare?.env?.DATABASE_URL 
+                        process.env.DEV_DATABASE_URL;
   
-  if (!connectionString && context?.cloudflare?.env?.DATABASE_URL) {
-    connectionString = context.cloudflare.env.DATABASE_URL;
-    console.log("Using DATABASE_URL from Cloudflare environment");
-  }else{
-    console.log("Using provided database URL:", connectionString);
-  }
-  
-  // Check if we have a valid connection string
   if (!connectionString) {
-    console.error("No database connection string provided");
-    return null;
+    throw new Error("No database connection string found in any source");
   }
 
+  console.log("Using database connection:", connectionString + "...");
+
   try {
-    // Create connection pool
-    const pool = new Pool({ 
-      connectionString: connectionString,
-      // Add additional Cloudflare-optimized settings if needed
-      max: 10,
-      connectionTimeoutMillis: 5000
-    });
+
+      const pool = new Pool({ 
+        connectionString: connectionString,
+        max: 1,
+        connectionTimeoutMillis: 2000,
+        idleTimeoutMillis: 5000,
+        maxUses: 1,
+        allowExitOnIdle: true
+      });
+      
+      const adapter = new PrismaNeon(pool);
+      return new PrismaClient({ 
+        adapter,
+        log: ['error'],
+      });
     
-    // Create Prisma adapter using Neon
-    const adapter = new PrismaNeon(pool);
-    
-    // Create and return Prisma client
-    const prisma = new PrismaClient({ adapter });
-    return prisma;
-  }
-  catch(e) {
-    console.log("Error connecting to database:", e);
-    return null;
+  } catch (e) {
+    console.error("Error creating database client:", e);
+    throw e;
   }
 };
 
-
- 
-
-export async function getPrismaClient(dbUrl: string, context: any) {
-  return new PrismaClient({
-    datasources: { db: { url: dbUrl } },
-  });
-}
+// Aliases for backward compatibility
+export const client = createPrismaClient;
+export const getPrismaClient = createPrismaClient;

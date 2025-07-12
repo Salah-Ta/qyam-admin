@@ -1,5 +1,4 @@
 import glossary from "~/lib/glossary";
-import { PrismaClient } from '@prisma/client';
 import {
   StatusResponse,
   Report,
@@ -13,13 +12,22 @@ import {
   SchoolStat,
   ReportStatistics
 } from "~/types/types";
+import { client } from "../db-client.server";
+
+const initializeDatabase = (dbUrl?: string) => {
+  const db = dbUrl ? client(dbUrl) : client();
+  if (!db) {
+    throw new Error("فشل الاتصال بقاعدة البيانات");
+  }
+  return db;
+};
 
 // Get all reports with testimonials included
-async function getAllReports(dbUrl: string) {
-  const prisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
+async function getAllReports(dbUrl?: string) {
+  const db = initializeDatabase(dbUrl);
 
   try {
-    const reports = await prisma.report.findMany({
+    const reports = await db.report.findMany({
       // include: {
       //   user: true,
       //   skills: {
@@ -42,17 +50,15 @@ async function getAllReports(dbUrl: string) {
   } catch (error: any) {
     console.error("Error fetching reports:", error);
     return { success: false, error: error.message };
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
 // Get a report with testimonials included
-async function getReport(id: string, dbUrl: string) {
-  const prisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
+async function getReport(id: string, dbUrl?: string) {
+  const db = initializeDatabase(dbUrl);
 
   try {
-    const report = await prisma.report.findUnique({
+    const report = await db.report.findUnique({
       where: { id },
       include: {
         user: true,
@@ -73,18 +79,16 @@ async function getReport(id: string, dbUrl: string) {
   } catch (error: any) {
     console.error("Error fetching report:", error);
     return { success: false, error: error.message };
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
 // Create a new report with testimonials and skills
-async function createReport(data: CreateReportData, dbUrl: string) {
-  const prisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
+async function createReport(data: CreateReportData, dbUrl?: string) {
+  const db = initializeDatabase(dbUrl);
 
   try {
     // Create the report
-    const report = await prisma.report.create({
+    const report = await db.report.create({
       data: {
         userId: data.userId,
         volunteerHours: data.volunteerHours,
@@ -101,7 +105,7 @@ async function createReport(data: CreateReportData, dbUrl: string) {
     // Process skills connections if provided
     if (data.skillIds && data.skillIds.length > 0) {
       await Promise.all(data.skillIds.map(skillId =>
-        prisma.skillReport.create({
+        db.skillReport.create({
           data: {
             reportId: report.id,
             skillId: skillId
@@ -114,7 +118,7 @@ async function createReport(data: CreateReportData, dbUrl: string) {
     if (data.testimonials && data.testimonials.length > 0) {
       for (const testimonialData of data.testimonials) {
         // Create new testimonial
-        const testimonial = await prisma.testimonial.create({
+        const testimonial = await db.testimonial.create({
           data: {
             name: testimonialData.name,
             comment: testimonialData.comment
@@ -122,7 +126,7 @@ async function createReport(data: CreateReportData, dbUrl: string) {
         });
 
         // Connect testimonial to report
-        await prisma.testimonialReport.create({
+        await db.testimonialReport.create({
           data: {
             reportId: report.id,
             testimonialId: testimonial.id
@@ -132,7 +136,7 @@ async function createReport(data: CreateReportData, dbUrl: string) {
     }
 
     // Return the created report with related data
-    const reportWithRelations = await prisma.report.findUnique({
+    const reportWithRelations = await db.report.findUnique({
       where: { id: report.id },
       include: {
         user: true,
@@ -153,17 +157,15 @@ async function createReport(data: CreateReportData, dbUrl: string) {
   } catch (error: any) {
     console.error("Error creating report:", error);
     return { success: false, error: error.message };
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
 // Get all skills (to show in the skill selection UI)
-async function getAllSkills(dbUrl: string) {
-  const prisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
+async function getAllSkills(dbUrl?: string) {
+  const db = initializeDatabase(dbUrl);
 
   try {
-    const skills = await prisma.skill.findMany({
+    const skills = await db.skill.findMany({
       orderBy: {
         name: 'asc'
       }
@@ -173,32 +175,28 @@ async function getAllSkills(dbUrl: string) {
   } catch (error: any) {
     console.error("Error fetching skills:", error);
     return { success: false, error: error.message };
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
-const deleteReport = (id: string, dbUrl: string): Promise<StatusResponse<null>> => {
-  const prisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
-  return new Promise((resolve, reject) => {
-    prisma.report
-      .delete({
-        where: { id }
-      })
-      .then(() => {
-        resolve({
-          status: "success",
-          message: "تم حذف التقرير بنجاح",
-        });
-      })
-      .catch((error: any) => {
-        console.log("ERROR [deleteReport]: ", error);
-        reject({
-          status: "error",
-          message: "فشل حذف التقرير",
-        });
-      });
-  });
+const deleteReport = async (id: string, dbUrl?: string): Promise<StatusResponse<null>> => {
+  const db = initializeDatabase(dbUrl);
+  
+  try {
+    await db.report.delete({
+      where: { id }
+    });
+    
+    return {
+      status: "success",
+      message: "تم حذف التقرير بنجاح",
+    };
+  } catch (error: any) {
+    console.error("Error deleting report:", error);
+    return {
+      status: "error",
+      message: "فشل حذف التقرير",
+    };
+  }
 };
 
 /**
@@ -245,21 +243,22 @@ function sumReportFields(reports: Report[]): {
 /**
  * Calculate statistics based on reports, regions, eduAdmins, and schools
  */
-async function calculateStatistics(dbUrl: string): Promise<ReportStatistics> {
-  const prisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
+async function calculateStatistics(dbUrl?: string): Promise<ReportStatistics> {
+
+  const db = initializeDatabase(dbUrl);
 
   try {
     // Fetch all the necessary data
-    const reports = await prisma.report.findMany({
+    const reports = await db.report.findMany({
       include: {
         user: true
       }
     });
 
-    const regions = await prisma.region.findMany();
-    const eduAdmins = await prisma.eduAdmin.findMany();
-    const schools = await prisma.school.findMany();
-    const users = await prisma.user.findMany();
+    const regions = await db.region.findMany();
+    const eduAdmins = await db.eduAdmin.findMany();
+    const schools = await db.school.findMany();
+    const users = await db.user.findMany();
 
     // Create maps for quick lookups
     const regionMap = new Map(regions.map(r => [r.id, r.name]));
@@ -368,8 +367,6 @@ async function calculateStatistics(dbUrl: string): Promise<ReportStatistics> {
       eduAdminStats: [],
       schoolStats: []
     };
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
@@ -396,12 +393,12 @@ function getTotalStatsFromReports(reports: Report[]): {
 /**
  * Get total statistics for a specific user from their reports
  */
-async function getUserTotalStats(userId: string, dbUrl: string) {
-  const prisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
+async function getUserTotalStats(userId: string, dbUrl?: string) {
+  const db = initializeDatabase(dbUrl);
 
   try {
     // Fetch all reports for this specific user
-    const userReports = await prisma.report.findMany({
+    const userReports = await db.report.findMany({
       where: {
         userId: userId
       }
@@ -411,20 +408,18 @@ async function getUserTotalStats(userId: string, dbUrl: string) {
   } catch (error: any) {
     console.error("Error fetching user statistics:", error);
     return { success: false, error: error.message };
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
 /**
  * Get total statistics for a specific school from all its users' reports
  */
-async function getSchoolTotalStats(schoolId: string, dbUrl: string) {
-  const prisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
+async function getSchoolTotalStats(schoolId: string, dbUrl?: string) {
+  const db = initializeDatabase(dbUrl);
 
   try {
     // Fetch all reports for users in this school
-    const schoolReports = await prisma.report.findMany({
+    const schoolReports = await db.report.findMany({
       where: {
         user: {
           schoolId: schoolId
@@ -436,20 +431,18 @@ async function getSchoolTotalStats(schoolId: string, dbUrl: string) {
   } catch (error: any) {
     console.error("Error fetching school statistics:", error);
     return { success: false, error: error.message };
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
 /**
  * Get total statistics for a specific eduAdmin from all its users' reports
  */
-async function getEduAdminTotalStats(eduAdminId: string, dbUrl: string) {
-  const prisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
+async function getEduAdminTotalStats(eduAdminId: string, dbUrl?: string) {
+  const db = initializeDatabase(dbUrl);
 
   try {
     // Fetch all reports for users in this eduAdmin
-    const eduAdminReports = await prisma.report.findMany({
+    const eduAdminReports = await db.report.findMany({
       where: {
         user: { eduAdminId }
       }
@@ -459,20 +452,18 @@ async function getEduAdminTotalStats(eduAdminId: string, dbUrl: string) {
   } catch (error: any) {
     console.error("Error fetching eduAdmin statistics:", error);
     return { success: false, error: error.message };
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
 /**
  * Get total statistics for a specific region from all its users' reports
  */
-async function getRegionTotalStats(regionId: string, dbUrl: string) {
-  const prisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
+async function getRegionTotalStats(regionId: string, dbUrl?: string) {
+  const db = initializeDatabase(dbUrl);
 
   try {
     // Fetch all reports for users in this region
-    const regionReports = await prisma.report.findMany({
+    const regionReports = await db.report.findMany({
       where: {
         user: { regionId }
       }
@@ -482,8 +473,6 @@ async function getRegionTotalStats(regionId: string, dbUrl: string) {
   } catch (error: any) {
     console.error("Error fetching region statistics:", error);
     return { success: false, error: error.message };
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
