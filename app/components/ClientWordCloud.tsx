@@ -91,6 +91,19 @@ const ClientWordCloud: React.FC<ClientWordCloudProps> = ({
     scale: 'sqrt' as const,
     spiral: 'archimedean' as const,
     transitionDuration: 1000,
+    tooltipOptions: {
+      style: {
+        backgroundColor: '#333',
+        color: '#fff',
+        padding: '8px 12px',
+        borderRadius: '4px',
+        fontSize: '14px',
+        fontFamily: 'Arial, sans-serif',
+        direction: 'rtl',
+        textAlign: 'right',
+      }
+    },
+    getWordTooltip: (word: WordData) => `هذه المهارة ظهرت ${word.value} مرة`,
   };
 
   const callbacks = {
