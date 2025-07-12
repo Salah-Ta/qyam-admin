@@ -28,19 +28,19 @@ async function getAllReports(dbUrl?: string) {
 
   try {
     const reports = await db.report.findMany({
-      // include: {
-      //   user: true,
-      //   skills: {
-      //     include: {
-      //       skill: true
-      //     }
-      //   },
-      //   testimonials: {
-      //     include: {
-      //       testimonial: true
-      //     }
-      //   }
-      // },
+       include: {
+         user: true,
+         skills: {
+           include: {
+             skill: true
+           }
+         },
+         testimonials: {
+           include: {
+             testimonial: true
+           }
+         }
+       },
       orderBy: {
         createdAt: 'desc'
       }
