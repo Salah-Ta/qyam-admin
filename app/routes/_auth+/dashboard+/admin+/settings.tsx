@@ -8,7 +8,7 @@ import { Input } from "~/routes/_auth+/new-design/components/ui/input";
 import plusImg from "../../../../assets/icons/plus.svg";
 import UserIcon from "../../../../assets/icons/user-modified.svg";
 import { json } from "@remix-run/cloudflare";
-import { useLoaderData, useActionData, Form } from "@remix-run/react";
+import { useLoaderData, useActionData, Form, useRevalidator } from "@remix-run/react";
 import schoolDB from "~/db/school/school.server";
 import eduAdminDB from "~/db/eduAdmin/eduAdmin.server";
 import regionDB from "~/db/region/region.server";
@@ -18,17 +18,34 @@ import { MinusCircleIcon, ChevronRightIcon, ArrowLeftIcon } from "lucide-react";
 // --- Loader & Action ---
 export async function loader({ context }: LoaderFunctionArgs) {
   const dbUrl = context.cloudflare.env.DATABASE_URL;
-  const [regions, eduAdmins, schools] = await Promise.all([
-    regionDB.getAllRegions(dbUrl),
-    eduAdminDB.getAllEduAdmins(dbUrl),
-    schoolDB.getAllSchools(dbUrl)
-  ]);
-  return json({ 
-    regions: regions.data || [], 
-    eduAdmins: eduAdmins.data || [], 
-    schools: schools.data || [],
-    dbUrl 
-  });
+  
+  try {
+    // Add timeout to prevent worker from hanging
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Database operation timeout')), 15000)
+    );
+    
+    const dataPromise = Promise.all([
+      regionDB.getAllRegions(dbUrl),
+      eduAdminDB.getAllEduAdmins(dbUrl),
+      schoolDB.getAllSchools(dbUrl)
+    ]);
+    
+    const [regions, eduAdmins, schools] = await Promise.race([dataPromise, timeoutPromise]) as any[];
+    
+    return json({ 
+      regions: regions.data || [], 
+      eduAdmins: eduAdmins.data || [], 
+      schools: schools.data || []
+    });
+  } catch (error) {
+    console.error("Error loading settings data:", error);
+    return json({ 
+      regions: [], 
+      eduAdmins: [], 
+      schools: [] 
+    });
+  }
 }
 
 export const action = async ({ request, context }: LoaderFunctionArgs) => {
@@ -58,19 +75,7 @@ export const action = async ({ request, context }: LoaderFunctionArgs) => {
           return json({ status: "error", message: "Invalid entity type" }, { status: 400 });
       }
       
-      // Reload all data after deletion
-      const [regions, eduAdmins, schools] = await Promise.all([
-        regionDB.getAllRegions(dbUrl),
-        eduAdminDB.getAllEduAdmins(dbUrl),
-        schoolDB.getAllSchools(dbUrl)
-      ]);
-      
-      return json({ 
-        status: "success", 
-        regions: regions.data || [], 
-        eduAdmins: eduAdmins.data || [], 
-        schools: schools.data || []
-      });
+      return json({ status: "success", message: "تم الحذف بنجاح" });
     }
 
     // Handle create action
@@ -101,20 +106,7 @@ export const action = async ({ request, context }: LoaderFunctionArgs) => {
         }
       }
       
-      // Reload all data after creation
-      const [regions, eduAdmins, schools] = await Promise.all([
-        regionDB.getAllRegions(dbUrl),
-        eduAdminDB.getAllEduAdmins(dbUrl),
-        schoolDB.getAllSchools(dbUrl)
-      ]);
-      
-      return json({ 
-        status: "success", 
-        results,
-        regions: regions.data || [], 
-        eduAdmins: eduAdmins.data || [], 
-        schools: schools.data || []
-      });
+      return json({ status: "success", message: "تم الإنشاء بنجاح", results });
     }
 
     return json({ status: "error", message: "Invalid action" }, { status: 400 });
@@ -148,17 +140,16 @@ export const ManageData = (): JSX.Element => {
     regions: EntityItem[]; 
     eduAdmins: EntityItem[]; 
     schools: EntityItem[];
-    dbUrl: string;
   };
   console.log("Loader data:", data);
   
-  
   const actionData = useActionData() as {
     status: string;
-    regions?: EntityItem[];
-    eduAdmins?: EntityItem[];
-    schools?: EntityItem[];
+    message?: string;
+    results?: any[];
   } | undefined;
+  
+  const revalidator = useRevalidator();
   
   const [navigation, setNavigation] = useState<NavigationState>({
     currentView: 'regions',
@@ -167,37 +158,34 @@ export const ManageData = (): JSX.Element => {
   
   const [newItems, setNewItems] = useState<string[]>([""]);
 
-  // Update data when action returns new data
+  // Update data when action returns success - trigger revalidation to refresh data
   useEffect(() => {
     if (actionData?.status === 'success') {
       // Clear new items after successful submission
       setNewItems([""]);
+      // Revalidate to refresh data from server
+      revalidator.revalidate();
     }
-  }, [actionData]);
+  }, [actionData, revalidator]);
 
   const getCurrentItems = (): EntityItem[] => {
-    const currentData = actionData?.regions ? {
-      regions: actionData.regions,
-      eduAdmins: actionData.eduAdmins || [],
-      schools: actionData.schools || []
-    } : data;
-
+    // Always use the original loader data, since action no longer returns updated data
     switch (navigation.currentView) {
       case 'regions':
-        return currentData.regions || [];
+        return data.regions || [];
       case 'eduAdmins':
         // Filter eduAdmins by selected region
         console.log("Selected region:", navigation.selectedRegion);
-        console.log("All eduAdmins:", currentData.eduAdmins);
-        return currentData.eduAdmins.filter(eduAdmin => {
+        console.log("All eduAdmins:", data.eduAdmins);
+        return data.eduAdmins.filter((eduAdmin: any) => {
           console.log("EduAdmin:", eduAdmin.name, "regionId:", eduAdmin.regionId);
           return eduAdmin.regionId === navigation.selectedRegion?.id;
         }) || [];
       case 'schools':
         // Filter schools by selected eduAdmin
         console.log("Selected eduAdmin:", navigation.selectedEduAdmin);
-        console.log("All schools:", currentData.schools);
-        return currentData.schools.filter(school => {
+        console.log("All schools:", data.schools);
+        return data.schools.filter((school: any) => {
           console.log("School:", school.name, "eduAdminId:", school.eduAdminId);
           return school.eduAdminId === navigation.selectedEduAdmin?.id;
         }) || [];

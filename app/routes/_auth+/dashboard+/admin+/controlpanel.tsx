@@ -32,12 +32,20 @@ function cn(...inputs: ClassValue[]) {
 // --- Remix Loader & Action ---
 export async function loader({ context }: LoaderFunctionArgs) {
   try {
-    const res = await materialDB.getAllMaterials(
+    // Add timeout to prevent worker from hanging
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Database operation timeout')), 10000)
+    );
+    
+    const dataPromise = materialDB.getAllMaterials(
       context.cloudflare.env.DATABASE_URL
     );
-    return Response.json(res.data);
-  } catch {
-    return null;
+    
+    const res = await Promise.race([dataPromise, timeoutPromise]);
+    return Response.json((res as any).data);
+  } catch (error) {
+    console.error("Loader error:", error);
+    return Response.json([]);
   }
 }
 
@@ -80,14 +88,15 @@ export async function action({ request, context }: ActionFunctionArgs) {
           }),
         }
       );
-    } catch {
+    } catch (error) {
+      console.error("Upload error:", error);
       return Response.json(
-        { success: true },
+        { success: false },
         {
           headers: await createToastHeaders({
             description: "",
-            title: `تم رفع الملفات  بنجاح`,
-            type: "success",
+            title: `فشل رفع الملفات`,
+            type: "error",
           }),
         }
       );
@@ -293,14 +302,14 @@ export const ControlPanel = (): JSX.Element => {
             </div>
 
             {/* Status Messages */}
-            {fetcher.data && fetcher.data.success === false && (
+            {fetcher.data && typeof fetcher.data === 'object' && 'success' in fetcher.data && (fetcher.data as any).success === false && (
               <StatusBadge
                 text="تأكد من حجم أو نوع الملف"
                 status="خطأ"
                 color="error"
               />
             )}
-            {fetcher.data && fetcher.data.success === true && (
+            {fetcher.data && typeof fetcher.data === 'object' && 'success' in fetcher.data && (fetcher.data as any).success === true && (
               <StatusBadge
                 text="تم رفع الملفات بنجاح"
                 status="نجاح"

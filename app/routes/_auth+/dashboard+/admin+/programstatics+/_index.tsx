@@ -80,6 +80,15 @@ export default function ProgramStatisticsContent(): JSX.Element {
   const [selectedRegion, setSelectedRegion] = useState<string>("");
   const [selectedEduAdmin, setSelectedEduAdmin] = useState<string>("");
   const [selectedSchool, setSelectedSchool] = useState<string>("");
+  const [chartsLoaded, setChartsLoaded] = useState<boolean>(false);
+
+  // Set charts as loaded after component mounts
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setChartsLoaded(true);
+    }, 500); // Small delay to show loading state
+    return () => clearTimeout(timer);
+  }, []);
 
   // Handle potential error state
   if ("error" in loaderData) {
@@ -510,10 +519,16 @@ export default function ProgramStatisticsContent(): JSX.Element {
           >
             <div className="flex flex-col lg:flex-row items-center justify-center gap-6 p-0 w-full">
               <div className="relative w-[120px] h-[120px]">
-                <Doughnut
-                  data={getRadialChartDataTotal(stat.percentage, stat.color)}
-                  options={radialChartOptions}
-                />
+                {chartsLoaded ? (
+                  <Doughnut
+                    data={getRadialChartDataTotal(stat.percentage, stat.color)}
+                    options={radialChartOptions}
+                  />
+                ) : (
+                  <div className="w-[120px] h-[120px] bg-gray-100 rounded-full flex items-center justify-center animate-pulse">
+                    <div className="w-8 h-8 border-2 border-[#17b169] border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                )}
               </div>
 
               <div className="flex flex-col items-end md:items-end gap-6 relative flex-1 grow">
@@ -572,7 +587,13 @@ export default function ProgramStatisticsContent(): JSX.Element {
                 <div className="flex items-start justify-end gap-6 w-full">
                   <div className="inline-flex items-start gap-4">
                     <div className="relative w-[200px] h-[200px]">
-                      <Doughnut data={doughnutData} options={doughnutOptions} />
+                      {chartsLoaded ? (
+                        <Doughnut data={doughnutData} options={doughnutOptions} />
+                      ) : (
+                        <div className="w-[200px] h-[200px] bg-gray-100 rounded-full flex items-center justify-center animate-pulse">
+                          <div className="w-10 h-10 border-3 border-[#17b169] border-t-transparent rounded-full animate-spin"></div>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -623,21 +644,29 @@ export default function ProgramStatisticsContent(): JSX.Element {
                     className="flex flex-col items-center justify-center gap-3 w-[calc(50%-8px)] lg:w-auto"
                   >
                     <div className="relative w-32 lg:w-40 h-[70px] lg:h-[88px]">
-                      <Doughnut
-                        data={getRadialChartDataReports(
-                          metric.percentage,
-                          metric.color
-                        )}
-                        options={radialChartOptions}
-                      />
-                      <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center">
-                        <div className="text-[#535861] text-xs mb-1">
-                          {metric.unit}
+                      {chartsLoaded ? (
+                        <>
+                          <Doughnut
+                            data={getRadialChartDataReports(
+                              metric.percentage,
+                              metric.color
+                            )}
+                            options={radialChartOptions}
+                          />
+                          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center">
+                            <div className="text-[#535861] text-xs mb-1">
+                              {metric.unit}
+                            </div>
+                            <div className="text-[#181d27] text-xl lg:text-2xl font-bold">
+                              {metric.value}
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="w-32 lg:w-40 h-[70px] lg:h-[88px] bg-gray-100 rounded-full flex items-center justify-center animate-pulse">
+                          <div className="w-6 h-6 border-2 border-[#17b169] border-t-transparent rounded-full animate-spin"></div>
                         </div>
-                        <div className="text-[#181d27] text-xl lg:text-2xl font-bold">
-                          {metric.value}
-                        </div>
-                      </div>
+                      )}
                     </div>
                     <div className="w-full font-medium text-[#181d27] text-sm text-center tracking-[0] leading-[14.2px] [direction:rtl]">
                       {metric.title}
@@ -696,7 +725,16 @@ export default function ProgramStatisticsContent(): JSX.Element {
 
         <div className="border border-[#e9eaeb] rounded-xl bg-white p-6">
           <div className="h-[228px]">
-            <Bar data={barChartData} options={barChartOptions} />
+            {chartsLoaded ? (
+              <Bar data={barChartData} options={barChartOptions} />
+            ) : (
+              <div className="h-[228px] bg-gray-100 rounded-lg flex items-center justify-center animate-pulse">
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-12 h-12 border-4 border-[#17b169] border-t-transparent rounded-full animate-spin"></div>
+                  <p className="text-gray-600 text-sm">جاري تحميل الرسم البياني...</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </section>

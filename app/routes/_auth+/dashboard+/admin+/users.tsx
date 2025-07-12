@@ -394,10 +394,21 @@ const metricsData = {
 // Loader for Remix
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
   const DBurl = context.cloudflare.env.DATABASE_URL;
-  return userDB
-    .getAllUsers(DBurl)
-    .then((res: any) => Response.json(res.data))
-    .catch(() => null);
+  
+  try {
+    // Add timeout to prevent worker from hanging
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Database operation timeout')), 15000)
+    );
+    
+    const dataPromise = userDB.getAllUsers(DBurl);
+    
+    const res = await Promise.race([dataPromise, timeoutPromise]);
+    return Response.json((res as any).data);
+  } catch (error) {
+    console.error("Loader error:", error);
+    return Response.json([]);
+  }
 }
 
 export async function action({ request, context }: any) {
@@ -434,6 +445,8 @@ export const Users = (): React.JSX.Element => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const users = useLoaderData<QUser[]>() || [];
+  console.log("Users data:", users);
+  
 
   // Metrics calculation
   metricsData.students.value = users
@@ -447,11 +460,12 @@ export const Users = (): React.JSX.Element => {
     .length.toString();
 
   // Filtering
-  const filteredUsers = users
   const [search, setSearch] = useState("");
   const [acceptanceStateFilter, setAcceptanceStateFilter] = useState<
     string | null
   >(null);
+  
+  const filteredUsers = users;
   const filteredData = filteredUsers.filter((row) => {
     const matchesSearch =
       row.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -477,7 +491,7 @@ export const Users = (): React.JSX.Element => {
     setAcceptanceStateFilter((prev) => (prev === state ? null : state));
 
   // Pagination
-  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
   const getCurrentPageData = () => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
@@ -659,9 +673,12 @@ export const Users = (): React.JSX.Element => {
   return (
     <div className="w-full mx-auto py-6">
       {/* Confirmation Modal */}
-      {/* @ts-ignore */}
-      {confirmationModal.isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={hideConfirmation}>
+      {confirmationModal.isOpen ? 
+        <div 
+          key="confirmation-modal"
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" 
+          onClick={hideConfirmation}
+        >
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-4">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
@@ -699,7 +716,7 @@ export const Users = (): React.JSX.Element => {
             </div>
           </div>
         </div>
-      )}
+        : null}
       
       {/* Success/Error Messages */}
       {fetcher.data && typeof fetcher.data === 'object' && 'success' in fetcher.data && (
