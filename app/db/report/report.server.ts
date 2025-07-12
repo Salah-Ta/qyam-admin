@@ -371,6 +371,229 @@ async function calculateStatistics(dbUrl?: string): Promise<ReportStatistics> {
 }
 
 /**
+ * Calculate filtered statistics based on region, eduAdmin, or school
+ */
+async function calculateFilteredStatistics(
+  regionId?: string, 
+  eduAdminId?: string, 
+  schoolId?: string, 
+  dbUrl?: string
+): Promise<ReportStatistics> {
+  const db = initializeDatabase(dbUrl);
+
+  try {
+    // Build where clause based on provided filters
+    let userWhereClause: any = {};
+    if (schoolId) {
+      userWhereClause.schoolId = schoolId;
+    } else if (eduAdminId) {
+      userWhereClause.eduAdminId = eduAdminId;
+    } else if (regionId) {
+      userWhereClause.regionId = regionId;
+    }
+
+    // Fetch filtered data
+    const reports = await db.report.findMany({
+      where: Object.keys(userWhereClause).length > 0 ? {
+        user: userWhereClause
+      } : {},
+      include: {
+        user: true
+      }
+    });
+
+    // Fetch entities based on filters
+    let regions: any[] = [];
+    let eduAdmins: any[] = [];
+    let schools: any[] = [];
+    let users: any[] = [];
+    
+    if (schoolId) {
+      // If school is selected, get only that school and its related entities
+      const school = await db.school.findUnique({
+        where: { id: schoolId }
+      });
+      
+      schools = school ? [school] : [];
+      
+      // Get eduAdmin and region separately
+      if (school && school.eduAdminId) {
+        const eduAdmin = await db.eduAdmin.findUnique({
+          where: { id: school.eduAdminId }
+        });
+        eduAdmins = eduAdmin ? [eduAdmin] : [];
+        
+        if (eduAdmin && eduAdmin.regionId) {
+          const region = await db.region.findUnique({
+            where: { id: eduAdmin.regionId }
+          });
+          regions = region ? [region] : [];
+        }
+      }
+      
+      users = await db.user.findMany({
+        where: { schoolId }
+      });
+    } else if (eduAdminId) {
+      // If eduAdmin is selected, get schools in that eduAdmin
+      const eduAdmin = await db.eduAdmin.findUnique({
+        where: { id: eduAdminId }
+      });
+      
+      eduAdmins = eduAdmin ? [eduAdmin] : [];
+      
+      if (eduAdmin && eduAdmin.regionId) {
+        const region = await db.region.findUnique({
+          where: { id: eduAdmin.regionId }
+        });
+        regions = region ? [region] : [];
+        
+        schools = await db.school.findMany({
+          where: { eduAdminId }
+        });
+      }
+      
+      users = await db.user.findMany({
+        where: { eduAdminId }
+      });
+    } else if (regionId) {
+      // If region is selected, get eduAdmins and schools in that region
+      const region = await db.region.findUnique({
+        where: { id: regionId }
+      });
+      
+      regions = region ? [region] : [];
+      
+      eduAdmins = await db.eduAdmin.findMany({
+        where: { regionId }
+      });
+      
+      schools = await db.school.findMany({
+        where: { eduAdminId: { in: eduAdmins.map(ea => ea.id) } }
+      });
+      
+      users = await db.user.findMany({
+        where: { regionId }
+      });
+    } else {
+      // No filters - get all data
+      regions = await db.region.findMany();
+      eduAdmins = await db.eduAdmin.findMany();
+      schools = await db.school.findMany();
+      users = await db.user.findMany();
+    }
+
+    // Create maps for quick lookups
+    const regionMap = new Map(regions.map(r => [r.id, r.name]));
+    const eduAdminMap = new Map(eduAdmins.map(ea => [ea.id, ea.name]));
+    const schoolMap = new Map(schools.map(s => [s.id, s.name]));
+
+    // Calculate Global Totals from filtered reports
+    const globalTotalsData = sumReportFields(reports as unknown as Report[]);
+
+    const globalTotals: GlobalTotals = {
+      ...globalTotalsData,
+      schoolsCount: schools.length,
+      trainers: new Set(reports.map(r => r.userId)).size
+    };
+
+    // Calculate Region Stats - only for regions that have data
+    const regionStats: RegionStat[] = regions.map(region => {
+      const regionUsers = users.filter(user => user.regionId === region.id);
+      const regionReports = reports.filter(report => 
+        regionUsers.some(user => user.id === report.userId)
+      );
+      const regionTotals = sumReportFields(regionReports as unknown as Report[]);
+
+      return {
+        regionId: region.id,
+        regionName: region.name,
+        volunteerHoursPercentage: globalTotals.volunteerHours > 0 ? (regionTotals.volunteerHours / globalTotals.volunteerHours) * 100 : 0,
+        economicValuePercentage: globalTotals.economicValue > 0 ? (regionTotals.economicValue / globalTotals.economicValue) * 100 : 0,
+        volunteerOpportunitiesPercentage: globalTotals.volunteerOpportunities > 0 ? (regionTotals.volunteerOpportunities / globalTotals.volunteerOpportunities) * 100 : 0,
+        activitiesCountPercentage: globalTotals.activitiesCount > 0 ? (regionTotals.activitiesCount / globalTotals.activitiesCount) * 100 : 0,
+        volunteerCountPercentage: globalTotals.volunteerCount > 0 ? (regionTotals.volunteerCount / globalTotals.volunteerCount) * 100 : 0,
+      };
+    });
+
+    // Calculate EduAdmin Stats - only for eduAdmins that have data
+    const eduAdminStats: EduAdminStat[] = eduAdmins.map(eduAdmin => {
+      const eduAdminUsers = users.filter(user => user.eduAdminId === eduAdmin.id);
+      const eduAdminReports = reports.filter(report => 
+        eduAdminUsers.some(user => user.id === report.userId)
+      );
+      const eduAdminTotals = sumReportFields(eduAdminReports as unknown as Report[]);
+
+      // Find the region for this eduAdmin
+      const firstUser = eduAdminUsers[0];
+      const regionName = firstUser && firstUser.regionId ? regionMap.get(firstUser.regionId) || "غير محدد" : "غير محدد";
+
+      return {
+        eduAdminId: eduAdmin.id,
+        eduAdminName: eduAdmin.name,
+        regionName,
+        volunteerHoursPercentage: globalTotals.volunteerHours > 0 ? (eduAdminTotals.volunteerHours / globalTotals.volunteerHours) * 100 : 0,
+        economicValuePercentage: globalTotals.economicValue > 0 ? (eduAdminTotals.economicValue / globalTotals.economicValue) * 100 : 0,
+        volunteerOpportunitiesPercentage: globalTotals.volunteerOpportunities > 0 ? (eduAdminTotals.volunteerOpportunities / globalTotals.volunteerOpportunities) * 100 : 0,
+        activitiesCountPercentage: globalTotals.activitiesCount > 0 ? (eduAdminTotals.activitiesCount / globalTotals.activitiesCount) * 100 : 0,
+        volunteerCountPercentage: globalTotals.volunteerCount > 0 ? (eduAdminTotals.volunteerCount / globalTotals.volunteerCount) * 100 : 0,
+      };
+    });
+
+    // Calculate School Stats - only for schools that have data
+    const schoolStats: SchoolStat[] = schools.map(school => {
+      const schoolUsers = users.filter(user => user.schoolId === school.id);
+      const schoolReports = reports.filter(report => 
+        schoolUsers.some(user => user.id === report.userId)
+      );
+      const schoolTotals = sumReportFields(schoolReports as unknown as Report[]);
+
+      // Find eduAdmin and region for this school
+      const firstUser = schoolUsers[0];
+      const eduAdminName = firstUser && firstUser.eduAdminId ? eduAdminMap.get(firstUser.eduAdminId) || "غير محدد" : "غير محدد";
+      const regionName = firstUser && firstUser.regionId ? regionMap.get(firstUser.regionId) || "غير محدد" : "غير محدد";
+
+      return {
+        schoolId: school.id,
+        schoolName: school.name,
+        eduAdminName,
+        regionName,
+        volunteerHoursPercentage: globalTotals.volunteerHours > 0 ? (schoolTotals.volunteerHours / globalTotals.volunteerHours) * 100 : 0,
+        economicValuePercentage: globalTotals.economicValue > 0 ? (schoolTotals.economicValue / globalTotals.economicValue) * 100 : 0,
+        volunteerOpportunitiesPercentage: globalTotals.volunteerOpportunities > 0 ? (schoolTotals.volunteerOpportunities / globalTotals.volunteerOpportunities) * 100 : 0,
+        activitiesCountPercentage: globalTotals.activitiesCount > 0 ? (schoolTotals.activitiesCount / globalTotals.activitiesCount) * 100 : 0,
+        volunteerCountPercentage: globalTotals.volunteerCount > 0 ? (schoolTotals.volunteerCount / globalTotals.volunteerCount) * 100 : 0,
+      };
+    });
+
+    return {
+      globalTotals,
+      regionStats,
+      eduAdminStats,
+      schoolStats
+    };
+  } catch (error) {
+    console.error("Error calculating filtered statistics:", error);
+    return {
+      globalTotals: {
+        volunteerHours: 0,
+        economicValue: 0,
+        volunteerOpportunities: 0,
+        activitiesCount: 0,
+        volunteerCount: 0,
+        skillsEconomicValue: 0,
+        skillsTrainedCount: 0,
+        schoolsCount: 0,
+        trainers: 0
+      },
+      regionStats: [],
+      eduAdminStats: [],
+      schoolStats: []
+    };
+  }
+}
+
+/**
  *  Helper function to get total statistics from reports
  */
 function getTotalStatsFromReports(reports: Report[]): {
@@ -486,5 +709,6 @@ export default {
   getUserTotalStats,
   getSchoolTotalStats,
   getEduAdminTotalStats,
-  getRegionTotalStats
+  getRegionTotalStats,
+  calculateFilteredStatistics
 };

@@ -23,22 +23,28 @@ export const Trainer = () => {
   const navigation = useNavigation();
   const location = useLocation();
   const [isLoading, setIsLoading] = useState(false);
+  const [previousPathname, setPreviousPathname] = useState(location.pathname);
 
   // Track navigation state
   const isNavigating = navigation.state === "loading";
 
-  // Show loading when navigating between admin routes
+  // Show loading only when navigating between different routes, not query parameter changes
   useEffect(() => {
     if (isNavigating) {
-      setIsLoading(true);
+      // Check if the pathname actually changed (not just query params)
+      if (location.pathname !== previousPathname) {
+        setIsLoading(true);
+      }
     } else {
+      // Update the previous pathname when navigation completes
+      setPreviousPathname(location.pathname);
       // Add a small delay to show loading even for fast transitions
       const timer = setTimeout(() => {
         setIsLoading(false);
       }, 300);
       return () => clearTimeout(timer);
     }
-  }, [isNavigating]);
+  }, [isNavigating, location.pathname, previousPathname]);
 
   return (
     <div className="flex flex-col w-full max-w-full overflow-hidden">
