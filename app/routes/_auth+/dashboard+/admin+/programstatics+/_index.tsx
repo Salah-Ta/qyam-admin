@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { LoaderFunctionArgs } from "@remix-run/cloudflare";
-import { useLoaderData, useNavigate, useSearchParams } from "@remix-run/react";
+import { useLoaderData } from "@remix-run/react";
 import { MoreVerticalIcon } from "lucide-react";
 import {
   Chart as ChartJS,
@@ -34,16 +34,10 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     }
 
     const dbUrl = context.cloudflare.env.DATABASE_URL;
-    const url = new URL(request.url);
-    
-    // Get filter parameters from query string
-    const regionId = url.searchParams.get('regionId') || undefined;
-    const eduAdminId = url.searchParams.get('eduAdminId') || undefined;
-    const schoolId = url.searchParams.get('schoolId') || undefined;
 
     // Fetch statistics and other data in parallel
     const [statistics, regions, schools, users, eduAdmins] = await Promise.all([
-      reportDB.calculateFilteredStatistics(regionId, eduAdminId, schoolId, dbUrl),
+      reportDB.calculateStatistics(dbUrl),
       regionDB.getAllRegions(dbUrl),
       schoolDB.getAllSchools(dbUrl),
       userDB.getAllUsers(dbUrl),
@@ -56,7 +50,6 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
       schools: schools.data || [],
       users: users.data || [],
       eduAdmins: eduAdmins.data || [],
-      filters: { regionId, eduAdminId, schoolId }
     });
   } catch (error) {
     console.error("Error loading statistics:", error);
@@ -75,39 +68,40 @@ ChartJS.register(
 );
 
 export default function ProgramStatisticsContent(): JSX.Element {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  
   const loaderData = useLoaderData<{
     statistics: ReportStatistics;
     regions: any[];
     schools: any[];
     users: any[];
     eduAdmins: any[];
-    filters: {
-      regionId?: string;
-      eduAdminId?: string;
-      schoolId?: string;
-    };
   }>();
 
-  // Get filter values from URL parameters
-  const selectedRegion = searchParams.get('regionId') || "";
-  const selectedEduAdmin = searchParams.get('eduAdminId') || "";
-  const selectedSchool = searchParams.get('schoolId') || "";
-  
-  const { statistics, regions, schools, users, eduAdmins } = loaderData;
-
+  // State for dropdown selections
+  const [selectedRegion, setSelectedRegion] = useState<string>("");
+  const [selectedEduAdmin, setSelectedEduAdmin] = useState<string>("");
+  const [selectedSchool, setSelectedSchool] = useState<string>("");
   const [chartsLoaded, setChartsLoaded] = useState<boolean>(false);
 
-  // Set charts as loaded after component mounts and when data changes
+  // Set charts as loaded after component mounts
   useEffect(() => {
-    setChartsLoaded(false);
     const timer = setTimeout(() => {
       setChartsLoaded(true);
-    }, 300); // Reduced delay for better UX
+    }, 500); // Small delay to show loading state
     return () => clearTimeout(timer);
-  }, [statistics]); // Re-run when statistics change
+  }, []);
+
+  // Handle potential error state
+  if ("error" in loaderData) {
+    return (
+      <div className="bg-[#f9f9f9] p-6">
+        <div className="text-center text-red-500">
+          فشل في تحميل البيانات. يرجى المحاولة مرة أخرى.
+        </div>
+      </div>
+    );
+  }
+
+  const { statistics, regions, schools, users, eduAdmins } = loaderData;
 
   // Filter eduAdmins based on selected region
   const filteredEduAdmins = selectedRegion
@@ -122,41 +116,18 @@ export default function ProgramStatisticsContent(): JSX.Element {
     : [];
 
   // Reset dependent dropdowns when parent changes
-  // Note: This is now handled by URL parameter changes instead of local state
-
-  // Handle filter changes
-  const handleRegionChange = (regionId: string) => {
-    const params = new URLSearchParams();
-    if (regionId) {
-      params.set('regionId', regionId);
-    }
-    navigate(`?${params.toString()}`, { replace: true });
-  };
-
-  const handleEduAdminChange = (eduAdminId: string) => {
-    const params = new URLSearchParams();
+  useEffect(() => {
     if (selectedRegion) {
-      params.set('regionId', selectedRegion);
+      setSelectedEduAdmin("");
+      setSelectedSchool("");
     }
-    if (eduAdminId) {
-      params.set('eduAdminId', eduAdminId);
-    }
-    navigate(`?${params.toString()}`, { replace: true });
-  };
+  }, [selectedRegion]);
 
-  const handleSchoolChange = (schoolId: string) => {
-    const params = new URLSearchParams();
-    if (selectedRegion) {
-      params.set('regionId', selectedRegion);
-    }
+  useEffect(() => {
     if (selectedEduAdmin) {
-      params.set('eduAdminId', selectedEduAdmin);
+      setSelectedSchool("");
     }
-    if (schoolId) {
-      params.set('schoolId', schoolId);
-    }
-    navigate(`?${params.toString()}`, { replace: true });
-  };
+  }, [selectedEduAdmin]);
 
   // Calculate stats data from real data
   const statsData = [
@@ -456,7 +427,7 @@ export default function ProgramStatisticsContent(): JSX.Element {
   };
 
   return (
-    <main className="flex flex-col mx-auto gap-9 max-lg:px-[10px] lg:px-[112px] relative">
+    <main className="flex flex-col mx-auto gap-9 max-lg:px-[10px] lg:px-[112px]">
       <div className="flex flex-col items-baseline gap-6 [direction:rtl] md:flex-row lg:mt-[76px]">
         {/* المنطقة (Area) */}
         <div className="flex flex-col w-1/3 max-lg:w-full">
@@ -465,7 +436,7 @@ export default function ProgramStatisticsContent(): JSX.Element {
             <select
               className="appearance-none bg-white border border-gray-200 text-[#717680] text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 pl-10"
               value={selectedRegion}
-              onChange={(e) => handleRegionChange(e.target.value)}
+              onChange={(e) => setSelectedRegion(e.target.value)}
             >
               <option value="">الكل</option>
               {regions.map((region) => (
@@ -493,7 +464,7 @@ export default function ProgramStatisticsContent(): JSX.Element {
                 !selectedRegion ? "opacity-50 cursor-not-allowed" : ""
               }`}
               value={selectedEduAdmin}
-              onChange={(e) => handleEduAdminChange(e.target.value)}
+              onChange={(e) => setSelectedEduAdmin(e.target.value)}
               disabled={!selectedRegion}
             >
               <option value="">الكل</option>
@@ -520,7 +491,7 @@ export default function ProgramStatisticsContent(): JSX.Element {
                 !selectedEduAdmin ? "opacity-50 cursor-not-allowed" : ""
               }`}
               value={selectedSchool}
-              onChange={(e) => handleSchoolChange(e.target.value)}
+              onChange={(e) => setSelectedSchool(e.target.value)}
               disabled={!selectedEduAdmin}
             >
               <option value="">الكل</option>
@@ -538,34 +509,6 @@ export default function ProgramStatisticsContent(): JSX.Element {
           </div>
         </div>
       </div>
-
-      {/* Active filters indicator */}
-      {(selectedRegion || selectedEduAdmin || selectedSchool) && (
-        <div className="flex flex-wrap items-center gap-2 p-4 bg-blue-50 border border-blue-200 rounded-lg [direction:rtl]">
-          <span className="text-sm text-blue-800 font-medium">المرشحات النشطة:</span>
-          {selectedRegion && (
-            <span className="px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
-              المنطقة: {regions.find(r => r.id === selectedRegion)?.name}
-            </span>
-          )}
-          {selectedEduAdmin && (
-            <span className="px-3 py-1 bg-green-100 text-green-800 text-sm rounded-full">
-              إدارة التعليم: {eduAdmins.find(ea => ea.id === selectedEduAdmin)?.name}
-            </span>
-          )}
-          {selectedSchool && (
-            <span className="px-3 py-1 bg-purple-100 text-purple-800 text-sm rounded-full">
-              المدرسة: {schools.find(s => s.id === selectedSchool)?.name}
-            </span>
-          )}
-          <button
-            onClick={() => navigate('', { replace: true })}
-            className="px-3 py-1 bg-red-100 text-red-800 text-sm rounded-full hover:bg-red-200 transition-colors"
-          >
-            إزالة جميع المرشحات
-          </button>
-        </div>
-      )}
 
       {/* Stats Section */}
       <div className="flex flex-col lg:flex-row items-center gap-[27px] relative self-stretch w-full flex-[0_0_auto] [direction:rtl] mt-[108px]">
