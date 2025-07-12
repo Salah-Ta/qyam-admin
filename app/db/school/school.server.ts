@@ -17,6 +17,15 @@ const getAllSchools = (dbUrl?: string): Promise<StatusResponse<School[]>> => {
   return new Promise((resolve, reject) => {
     db.school
       .findMany({
+        include: {
+          eduAdmin: {
+            select: {
+              id: true,
+              name: true,
+              regionId: true,
+            }
+          }
+        },
         orderBy: {
           name: 'asc'
         }
