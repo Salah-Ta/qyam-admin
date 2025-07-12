@@ -279,6 +279,96 @@ const TableCell = React.forwardRef<
 ));
 TableCell.displayName = "TableCell";
 
+// Confirmation Modal Component
+interface ConfirmationModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  title: string;
+  message: string;
+  confirmText: string;
+  cancelText: string;
+  type: "danger" | "warning" | "info";
+}
+
+const ConfirmationModal = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  title,
+  message,
+  confirmText,
+  cancelText,
+  type
+}: ConfirmationModalProps): React.ReactElement | null => {
+  if (!isOpen) return null;
+
+  const getTypeStyles = () => {
+    switch (type) {
+      case "danger":
+        return {
+          buttonClass: "bg-red-600 hover:bg-red-700 text-white",
+          iconColor: "text-red-600"
+        };
+      case "warning":
+        return {
+          buttonClass: "bg-orange-600 hover:bg-orange-700 text-white",
+          iconColor: "text-orange-600"
+        };
+      default:
+        return {
+          buttonClass: "bg-blue-600 hover:bg-blue-700 text-white",
+          iconColor: "text-blue-600"
+        };
+    }
+  };
+
+  const { buttonClass, iconColor } = getTypeStyles();
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
+      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-3 mb-4">
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${iconColor}`}>
+            {type === "danger" && (
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+            )}
+            {type === "warning" && (
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+            )}
+            {type === "info" && (
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+            )}
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 [direction:rtl]">{title}</h3>
+        </div>
+        <p className="text-gray-600 mb-6 [direction:rtl]">{message}</p>
+        <div className="flex gap-3 justify-end [direction:rtl]">
+          <Button
+            variant="outline"
+            onClick={onClose}
+            className="px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50"
+          >
+            {cancelText}
+          </Button>
+          <Button
+            onClick={onConfirm}
+            className={`px-4 py-2 ${buttonClass}`}
+          >
+            {confirmText}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Metrics data
 const metricsData = {
   students: {
@@ -312,20 +402,34 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
 
 export async function action({ request, context }: any) {
   const formData = await request.formData();
-  if (formData.get("id")) {
-    // Only handle acceptenceState update for now
-    const userDB = (await import("~/db/user/user.server")).default;
-    await userDB.editUserRegisteration(
-      formData.get("id"),
-      formData.get("status"),
-      context.cloudflare.env.DATABASE_URL
-    );
-    return new Response(JSON.stringify({ success: true }), { status: 200 });
+  const actionType = formData.get("actionType");
+  const userId = formData.get("id");
+  
+  if (!userId) {
+    return new Response(JSON.stringify({ success: false, message: "معرف المستخدم مطلوب" }), { status: 400 });
   }
-  return new Response(JSON.stringify({ success: false }), { status: 400 });
+
+  const userDB = (await import("~/db/user/user.server")).default;
+  const DBurl = context.cloudflare.env.DATABASE_URL;
+
+  try {
+    if (actionType === "delete") {
+      await userDB.deleteUser(userId, DBurl);
+      return new Response(JSON.stringify({ success: true, message: "تم حذف المستخدم بنجاح" }), { status: 200 });
+    } else if (actionType === "updateStatus") {
+      const status = formData.get("status");
+      await userDB.editUserRegisteration(userId, status, DBurl);
+      return new Response(JSON.stringify({ success: true, message: "تم تحديث حالة المستخدم بنجاح" }), { status: 200 });
+    }
+    
+    return new Response(JSON.stringify({ success: false, message: "نوع العملية غير صالح" }), { status: 400 });
+  } catch (error) {
+    console.error("Action error:", error);
+    return new Response(JSON.stringify({ success: false, message: "حدث خطأ أثناء العملية" }), { status: 500 });
+  }
 }
 
-export const Users = (): JSX.Element => {
+export const Users = (): React.JSX.Element => {
   // State and data
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -343,7 +447,7 @@ export const Users = (): JSX.Element => {
     .length.toString();
 
   // Filtering
-  const filteredUsers = users.filter((user) => user?.role === "user");
+  const filteredUsers = users
   const [search, setSearch] = useState("");
   const [acceptanceStateFilter, setAcceptanceStateFilter] = useState<
     string | null
@@ -391,6 +495,43 @@ export const Users = (): JSX.Element => {
   };
   const selectedRows = checkedRows.length;
 
+  // Confirmation modal state
+  type ConfirmationModalState = {
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmText: string;
+    cancelText: string;
+    type: "danger" | "warning" | "info";
+    onConfirm: () => void;
+  };
+
+  const [confirmationModal, setConfirmationModal] = useState<ConfirmationModalState>({
+    isOpen: false,
+    title: "",
+    message: "",
+    confirmText: "",
+    cancelText: "إلغاء",
+    type: "info",
+    onConfirm: () => {},
+  });
+
+  const showConfirmation = (config: Partial<ConfirmationModalState>) => {
+    setConfirmationModal(prev => ({
+      ...prev,
+      ...config,
+      isOpen: true,
+      onConfirm: config.onConfirm || (() => {}),
+    }));
+  };
+
+  const hideConfirmation = () => {
+    setConfirmationModal({
+      ...confirmationModal,
+      isOpen: false,
+    });
+  };
+
   // Action badges
   const actionBadges = [
     {
@@ -435,6 +576,7 @@ export const Users = (): JSX.Element => {
 
   // Action handlers for admin actions (accept, deny, disable/reactivate, delete)
   const fetcher = useFetcher();
+  
   const handleAdminAction = (
     action: "accepted" | "denied" | "idle",
     user: any,
@@ -442,25 +584,130 @@ export const Users = (): JSX.Element => {
   ) => {
     e.preventDefault();
     e.stopPropagation();
-    // Update acceptenceState using fetcher
-    fetcher.submit(
-      {
-        status: action,
-        id: user.id,
-        email: user.email,
-      },
-      { method: "POST" }
-    );
+    
+    const actionTexts = {
+      accepted: { title: "تأكيد قبول المستخدم", message: `هل أنت متأكد من قبول المستخدم "${user.name}"؟`, confirm: "قبول", type: "info" as const },
+      denied: { title: "تأكيد رفض المستخدم", message: `هل أنت متأكد من رفض المستخدم "${user.name}"؟`, confirm: "رفض", type: "warning" as const },
+      idle: { title: "تأكيد تعطيل المستخدم", message: `هل أنت متأكد من تعطيل المستخدم "${user.name}"؟`, confirm: "تعطيل", type: "warning" as const }
+    };
+    
+    const actionText = actionTexts[action];
+    
+    showConfirmation({
+      title: actionText.title,
+      message: actionText.message,
+      confirmText: actionText.confirm,
+      type: actionText.type,
+      onConfirm: () => {
+        fetcher.submit(
+          {
+            actionType: "updateStatus",
+            status: action,
+            id: user.id,
+            email: user.email,
+          },
+          { method: "POST" }
+        );
+      }
+    });
   };
+
   const handleDeleteUser = (user: any, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    // TODO: Implement your delete logic here (e.g., open dialog, call API, etc.)
-    console.log("Delete user:", user);
+    
+    showConfirmation({
+      title: "تأكيد حذف المستخدم",
+      message: `هل أنت متأكد من حذف المستخدم "${user.name}"؟ هذا الإجراء لا يمكن التراجع عنه.`,
+      confirmText: "حذف",
+      type: "danger",
+      onConfirm: () => {
+        fetcher.submit(
+          {
+            actionType: "delete",
+            id: user.id,
+          },
+          { method: "POST" }
+        );
+      }
+    });
+  };
+
+  const handleReactivateUser = (user: any, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    showConfirmation({
+      title: "تأكيد إعادة تنشيط المستخدم",
+      message: `هل أنت متأكد من إعادة تنشيط المستخدم "${user.name}"؟`,
+      confirmText: "إعادة تنشيط",
+      type: "info",
+      onConfirm: () => {
+        fetcher.submit(
+          {
+            actionType: "updateStatus",
+            status: "accepted",
+            id: user.id,
+            email: user.email,
+          },
+          { method: "POST" }
+        );
+      }
+    });
   };
 
   return (
     <div className="w-full mx-auto py-6">
+      {/* Confirmation Modal */}
+      {/* @ts-ignore */}
+      {confirmationModal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={hideConfirmation}>
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                confirmationModal.type === "danger" ? "text-red-600" : 
+                confirmationModal.type === "warning" ? "text-orange-600" : "text-blue-600"
+              }`}>
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 [direction:rtl]">{confirmationModal.title}</h3>
+            </div>
+            <p className="text-gray-600 mb-6 [direction:rtl]">{confirmationModal.message}</p>
+            <div className="flex gap-3 justify-end [direction:rtl]">
+              <Button
+                variant="outline"
+                onClick={hideConfirmation}
+                className="px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50"
+              >
+                {confirmationModal.cancelText}
+              </Button>
+              <Button
+                onClick={() => {
+                  confirmationModal.onConfirm();
+                  hideConfirmation();
+                }}
+                className={`px-4 py-2 ${
+                  confirmationModal.type === "danger" ? "bg-red-600 hover:bg-red-700 text-white" :
+                  confirmationModal.type === "warning" ? "bg-orange-600 hover:bg-orange-700 text-white" : 
+                  "bg-blue-600 hover:bg-blue-700 text-white"
+                }`}
+              >
+                {confirmationModal.confirmText}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Success/Error Messages */}
+      {fetcher.data && typeof fetcher.data === 'object' && 'success' in fetcher.data && (
+        <div className={`mb-4 p-4 rounded-lg ${(fetcher.data as any).success ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
+          {(fetcher.data as any).message || ((fetcher.data as any).success ? 'تمت العملية بنجاح' : 'حدث خطأ')}
+        </div>
+      )}
+
       <Card className="w-full rounded-2xl border border-gray-300 overflow-hidden">
         <div className="flex flex-col w-full p-6">
           {/* Metrics Overview Section */}
@@ -643,7 +890,7 @@ export const Users = (): JSX.Element => {
                               ) : (
                                 <button
                                   onClick={(e) =>
-                                    handleAdminAction("accepted", row, e)
+                                    handleReactivateUser(row, e)
                                   }
                                   className="button p-2 rounded-lg text-[#e16f4cf7] border border-[#e16f4cf7] disabled:border-gray-300  disabled:text-gray-300 disabled:cursor-not-allowed hover:opacity-80 hover:bg-[#e16f4cf7]/10 transition-all"
                                 >
