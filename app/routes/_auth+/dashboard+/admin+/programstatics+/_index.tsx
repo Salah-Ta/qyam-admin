@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { LoaderFunctionArgs } from "@remix-run/cloudflare";
-import { useLoaderData } from "@remix-run/react";
+import { useLoaderData, useNavigate, useSearchParams } from "@remix-run/react";
 import { MoreVerticalIcon } from "lucide-react";
 import {
   Chart as ChartJS,
@@ -14,7 +14,7 @@ import {
 } from "chart.js";
 import { Doughnut, Bar } from "react-chartjs-2";
 import arrowDown from "../../../../../assets/icons/arrow-down-gray.svg";
-import School from "../../../../../assets/icons/schools.svg";
+import SchoolIcon from "../../../../../assets/icons/schools.svg";
 import students from "../../../../../assets/icons/students.svg";
 import teacher from "../../../../../assets/icons/teachers.svg";
 import reportDB from "~/db/report/report.server";
@@ -23,7 +23,7 @@ import schoolDB from "~/db/school/school.server";
 import userDB from "~/db/user/user.server";
 import eduAdminDB from "~/db/eduAdmin/eduAdmin.server";
 import { getAuthenticated } from "~/lib/get-authenticated.server";
-import { ReportStatistics } from "~/types/types";
+import { ReportStatistics, School, QUser } from "~/types/types";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
   try {
@@ -34,26 +34,156 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     }
 
     const dbUrl = context.cloudflare.env.DATABASE_URL;
+    const url = new URL(request.url);
+    
+    // Get filter parameters from query string
+    const regionId = url.searchParams.get('regionId') || undefined;
+    const eduAdminId = url.searchParams.get('eduAdminId') || undefined;
+    const schoolId = url.searchParams.get('schoolId') || undefined;
 
-    // Fetch statistics and other data in parallel
-    const [statistics, regions, schools, users, eduAdmins] = await Promise.all([
-      reportDB.calculateStatistics(dbUrl),
+    console.log('Loading statistics with filters:', { regionId, eduAdminId, schoolId });
+
+    let statistics;
+    
+    // Use appropriate statistics function based on filter level
+    try {
+      if (schoolId) {
+        // Most specific: get school-specific statistics
+        console.log('Loading school statistics for:', schoolId);
+        const schoolStats = await reportDB.getSchoolTotalStats(schoolId, dbUrl);
+        if (schoolStats.success) {
+          // Convert school stats to ReportStatistics format
+          statistics = {
+            globalTotals: {
+              ...schoolStats.data,
+              schoolsCount: 1, // Only one school
+              trainers: 1 // Simplified for single school
+            },
+            regionStats: [],
+            eduAdminStats: [],
+            schoolStats: []
+          };
+        } else {
+          throw new Error(schoolStats.error);
+        }
+      } else if (eduAdminId) {
+        // Medium specific: get eduAdmin-specific statistics
+        console.log('Loading eduAdmin statistics for:', eduAdminId);
+        const eduAdminStats = await reportDB.getEduAdminTotalStats(eduAdminId, dbUrl);
+        if (eduAdminStats.success) {
+          // Convert eduAdmin stats to ReportStatistics format
+          statistics = {
+            globalTotals: {
+              ...eduAdminStats.data,
+              schoolsCount: 0, // Will be calculated below
+              trainers: 0 // Will be calculated below
+            },
+            regionStats: [],
+            eduAdminStats: [],
+            schoolStats: []
+          };
+        } else {
+          throw new Error(eduAdminStats.error);
+        }
+      } else if (regionId) {
+        // Less specific: get region-specific statistics
+        console.log('Loading region statistics for:', regionId);
+        const regionStats = await reportDB.getRegionTotalStats(regionId, dbUrl);
+        if (regionStats.success) {
+          // Convert region stats to ReportStatistics format
+          statistics = {
+            globalTotals: {
+              ...regionStats.data,
+              schoolsCount: 0, // Will be calculated below
+              trainers: 0 // Will be calculated below
+            },
+            regionStats: [],
+            eduAdminStats: [],
+            schoolStats: []
+          };
+        } else {
+          throw new Error(regionStats.error);
+        }
+      } else {
+        // No filters: get all statistics
+        console.log('Loading all statistics');
+        statistics = await reportDB.calculateStatistics(dbUrl);
+      }
+      
+      console.log('Statistics loaded successfully');
+    } catch (statsError) {
+      console.error('Error loading statistics:', statsError);
+      return Response.json({ 
+        error: "Statistics calculation failed", 
+        details: statsError instanceof Error ? statsError.message : 'Unknown error' 
+      }, { status: 500 });
+    }
+
+    // Fetch other data for dropdowns and filtering
+    const [regions, schools, users, eduAdmins] = await Promise.all([
       regionDB.getAllRegions(dbUrl),
       schoolDB.getAllSchools(dbUrl),
       userDB.getAllUsers(dbUrl),
       eduAdminDB.getAllEduAdmins(dbUrl),
     ]);
 
+    // If we have specific filters, we need to calculate additional metadata
+    if (schoolId || eduAdminId || regionId) {
+      // Get filtered entities for proper counts - flatten arrays if needed
+      const allSchools = Array.isArray(schools.data) 
+        ? schools.data.flat().filter((s): s is School => s && typeof s === 'object' && 'id' in s)
+        : [];
+      const allUsers = Array.isArray(users.data) 
+        ? users.data.flat().filter((u): u is QUser => u && typeof u === 'object' && 'id' in u)
+        : [];
+      
+      let filteredSchools = allSchools;
+      let filteredUsers = allUsers;
+      
+      if (schoolId) {
+        filteredSchools = allSchools.filter(s => s.id === schoolId);
+        filteredUsers = allUsers.filter(u => 'schoolId' in u && u.schoolId === schoolId);
+      } else if (eduAdminId) {
+        filteredSchools = allSchools.filter(s => 'eduAdminId' in s && s.eduAdminId === eduAdminId);
+        filteredUsers = allUsers.filter(u => 'eduAdminId' in u && u.eduAdminId === eduAdminId);
+      } else if (regionId) {
+        filteredSchools = allSchools.filter(s => 'regionId' in s && s.regionId === regionId);
+        filteredUsers = allUsers.filter(u => 'regionId' in u && u.regionId === regionId);
+      }
+      
+      // Update statistics with correct counts
+      if (statistics && statistics.globalTotals) {
+        statistics.globalTotals.schoolsCount = filteredSchools.length;
+        statistics.globalTotals.trainers = new Set(filteredUsers.map(u => u.id)).size;
+      }
+    }
+
     return Response.json({
-      statistics,
+      statistics: statistics || {
+        globalTotals: {
+          schoolsCount: 0,
+          trainers: 0,
+          skillsTrainedCount: 0,
+          volunteerHours: 0,
+          activitiesCount: 0,
+          skillsEconomicValue: 0,
+          economicValue: 0
+        },
+        regionStats: [],
+        eduAdminStats: []
+      },
       regions: regions.data || [],
       schools: schools.data || [],
       users: users.data || [],
       eduAdmins: eduAdmins.data || [],
+      filters: { regionId, eduAdminId, schoolId }
     });
   } catch (error) {
     console.error("Error loading statistics:", error);
-    return Response.json({ error: "Failed to load data" }, { status: 500 });
+    return Response.json({ 
+      error: "Failed to load data", 
+      details: error instanceof Error ? error.message : 'Unknown error' 
+    }, { status: 500 });
   }
 }
 
@@ -68,18 +198,27 @@ ChartJS.register(
 );
 
 export default function ProgramStatisticsContent(): JSX.Element {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  
   const loaderData = useLoaderData<{
     statistics: ReportStatistics;
     regions: any[];
     schools: any[];
     users: any[];
     eduAdmins: any[];
+    filters?: {
+      regionId?: string;
+      eduAdminId?: string;
+      schoolId?: string;
+    };
   }>();
 
-  // State for dropdown selections
-  const [selectedRegion, setSelectedRegion] = useState<string>("");
-  const [selectedEduAdmin, setSelectedEduAdmin] = useState<string>("");
-  const [selectedSchool, setSelectedSchool] = useState<string>("");
+  // Get filter values from URL parameters
+  const selectedRegion = searchParams.get('regionId') || "";
+  const selectedEduAdmin = searchParams.get('eduAdminId') || "";
+  const selectedSchool = searchParams.get('schoolId') || "";
+
   const [chartsLoaded, setChartsLoaded] = useState<boolean>(false);
 
   // Set charts as loaded after component mounts
@@ -103,45 +242,86 @@ export default function ProgramStatisticsContent(): JSX.Element {
 
   const { statistics, regions, schools, users, eduAdmins } = loaderData;
 
+  // Safety checks for data arrays and statistics structure
+  const safeRegions = regions || [];
+  const safeSchools = schools || [];
+  const safeUsers = users || [];
+  const safeEduAdmins = eduAdmins || [];
+  
+  // Ensure statistics has the proper structure
+  const safeStatistics = statistics || {
+    globalTotals: {
+      schoolsCount: 0,
+      trainers: 0,
+      skillsTrainedCount: 0,
+      volunteerHours: 0,
+      activitiesCount: 0,
+      skillsEconomicValue: 0,
+      economicValue: 0
+    },
+    regionStats: [],
+    eduAdminStats: []
+  };
+
+  // Handle filter changes
+  const handleRegionChange = (regionId: string) => {
+    const params = new URLSearchParams();
+    if (regionId) {
+      params.set('regionId', regionId);
+    }
+    navigate(`?${params.toString()}`, { replace: true });
+  };
+
+  const handleEduAdminChange = (eduAdminId: string) => {
+    const params = new URLSearchParams();
+    if (selectedRegion) {
+      params.set('regionId', selectedRegion);
+    }
+    if (eduAdminId) {
+      params.set('eduAdminId', eduAdminId);
+    }
+    navigate(`?${params.toString()}`, { replace: true });
+  };
+
+  const handleSchoolChange = (schoolId: string) => {
+    const params = new URLSearchParams();
+    if (selectedRegion) {
+      params.set('regionId', selectedRegion);
+    }
+    if (selectedEduAdmin) {
+      params.set('eduAdminId', selectedEduAdmin);
+    }
+    if (schoolId) {
+      params.set('schoolId', schoolId);
+    }
+    navigate(`?${params.toString()}`, { replace: true });
+  };
+
   // Filter eduAdmins based on selected region
   const filteredEduAdmins = selectedRegion
-    ? eduAdmins.filter((eduAdmin) => eduAdmin.regionId === selectedRegion)
-    : eduAdmins;
+    ? safeEduAdmins.filter((eduAdmin) => eduAdmin.regionId === selectedRegion)
+    : safeEduAdmins;
 
   // Filter schools based on selected eduAdmin and region
   const filteredSchools = selectedEduAdmin
-    ? schools.filter((school) => school.eduAdminId === selectedEduAdmin)
+    ? safeSchools.filter((school) => school.eduAdminId === selectedEduAdmin)
     : selectedRegion
-    ? schools.filter((school) => school.regionId === selectedRegion)
+    ? safeSchools.filter((school) => school.regionId === selectedRegion)
     : [];
-
-  // Reset dependent dropdowns when parent changes
-  useEffect(() => {
-    if (selectedRegion) {
-      setSelectedEduAdmin("");
-      setSelectedSchool("");
-    }
-  }, [selectedRegion]);
-
-  useEffect(() => {
-    if (selectedEduAdmin) {
-      setSelectedSchool("");
-    }
-  }, [selectedEduAdmin]);
 
   // Calculate stats data from real data
   const statsData = [
     {
       id: 1,
-      icon: School,
+      icon: SchoolIcon,
       iconAlt: "School",
       title: "عدد المدارس",
-      value: statistics.globalTotals.schoolsCount.toString(),
+      value: safeStatistics.globalTotals.schoolsCount.toString(),
       max: "100",
       color: "#539c4a",
       percentage: Math.min(
         100,
-        (statistics.globalTotals.schoolsCount / 100) * 100
+        (safeStatistics.globalTotals.schoolsCount / 100) * 100
       ),
     },
     {
@@ -149,31 +329,31 @@ export default function ProgramStatisticsContent(): JSX.Element {
       icon: teacher,
       iconAlt: "Teacher",
       title: "عدد المعلمات",
-      value: statistics.globalTotals.trainers.toString(),
+      value: safeStatistics.globalTotals.trainers.toString(),
       max: "200",
       color: "#199491",
-      percentage: Math.min(100, (statistics.globalTotals.trainers / 200) * 100),
+      percentage: Math.min(100, (safeStatistics.globalTotals.trainers / 200) * 100),
     },
     {
       id: 3,
       icon: students,
       iconAlt: "Students",
       title: "عدد الطالبات",
-      value: users
+      value: safeUsers
         .reduce((acc, user) => acc + (user.noStudents || 0), 0)
         .toString(),
       max: "5000",
       color: "#004E5C",
       percentage: Math.min(
         100,
-        (users.reduce((acc, user) => acc + (user.noStudents || 0), 0) / 5000) *
+        (safeUsers.reduce((acc, user) => acc + (user.noStudents || 0), 0) / 5000) *
           100
       ),
     },
   ];
 
   // Create education departments data from regional statistics
-  const educationDepartments = statistics.eduAdminStats
+  const educationDepartments = (safeStatistics.eduAdminStats || [])
     .slice(0, 8)
     .map((stat, index) => ({
       name: stat.eduAdminName,
@@ -187,84 +367,84 @@ export default function ProgramStatisticsContent(): JSX.Element {
         "#E9EAEB",
         "#006173",
       ][index % 8],
-      value: Math.round(stat.volunteerHoursPercentage),
+      value: Math.round(stat.volunteerHoursPercentage || 0),
     }));
 
   // Create reports metrics data from global totals
   const reportMetrics = [
     {
-      value: statistics.globalTotals.skillsTrainedCount.toString(),
+      value: safeStatistics.globalTotals.skillsTrainedCount.toString(),
       unit: "مهارة",
       title: "المهارات المدرب عليها",
       color: "#68C35C",
       percentage: Math.min(
         100,
-        (statistics.globalTotals.skillsTrainedCount / 100) * 100
+        (safeStatistics.globalTotals.skillsTrainedCount / 100) * 100
       ),
     },
     {
-      value: Math.round(statistics.globalTotals.volunteerHours).toString(),
+      value: Math.round(safeStatistics.globalTotals.volunteerHours).toString(),
       unit: "ساعة",
       title: "الساعات التطوعية",
       color: "#68C35C",
       percentage: Math.min(
         100,
-        (statistics.globalTotals.volunteerHours / 1000) * 100
+        (safeStatistics.globalTotals.volunteerHours / 1000) * 100
       ),
     },
     {
-      value: statistics.globalTotals.activitiesCount.toString(),
+      value: safeStatistics.globalTotals.activitiesCount.toString(),
       unit: "نشاط",
       title: "الأنشطة المنفذة",
       color: "#68C35C",
       percentage: Math.min(
         100,
-        (statistics.globalTotals.activitiesCount / 100) * 100
+        (safeStatistics.globalTotals.activitiesCount / 100) * 100
       ),
     },
     {
-      value: Math.round(statistics.globalTotals.skillsEconomicValue).toString(),
+      value: Math.round(safeStatistics.globalTotals.skillsEconomicValue).toString(),
       unit: "مهارة",
       title: "القيمة الاقتصادية للمهارات",
       color: "#68C35C",
       percentage: Math.min(
         100,
-        (statistics.globalTotals.skillsEconomicValue / 1000) * 100
+        (safeStatistics.globalTotals.skillsEconomicValue / 1000) * 100
       ),
     },
     {
-      value: Math.round(statistics.globalTotals.volunteerHours).toString(),
+      value: Math.round(safeStatistics.globalTotals.volunteerHours).toString(),
       unit: "ساعة تطوعية",
       title: "الساعات التطوعية المحققة",
       color: "#68C35C",
       percentage: Math.min(
         100,
-        (statistics.globalTotals.volunteerHours / 10000) * 100
+        (safeStatistics.globalTotals.volunteerHours / 10000) * 100
       ),
     },
     {
-      value: Math.round(statistics.globalTotals.economicValue).toString(),
+      value: Math.round(safeStatistics.globalTotals.economicValue).toString(),
       unit: "قيمة",
       title: "القيمية الاقتصادية من التطوع",
       color: "#68C35C",
       percentage: Math.min(
         100,
-        (statistics.globalTotals.economicValue / 1000) * 100
+        (safeStatistics.globalTotals.economicValue / 1000) * 100
       ),
     },
     {
-      value: statistics.globalTotals.trainers.toString(),
+      value: safeStatistics.globalTotals.trainers.toString(),
       unit: "مدربة نشطة",
       title: "المدربات النشطات",
       color: "#68C35C",
-      percentage: Math.min(100, (statistics.globalTotals.trainers / 100) * 100),
+      percentage: Math.min(100, (safeStatistics.globalTotals.trainers / 100) * 100),
     },
   ];
 
   // Create regions data from regional statistics
-  const regionsData = statistics.regionStats.map((regionStat) => ({
+  const regionsData = (safeStatistics.regionStats || []).map((regionStat) => ({
     name: regionStat.regionName,
-    value: Math.round(regionStat.volunteerHoursPercentage),
+    value: Math.round(regionStat.volunteerHoursPercentage || 0),
   }));
 
   const barColors = [
@@ -436,10 +616,10 @@ export default function ProgramStatisticsContent(): JSX.Element {
             <select
               className="appearance-none bg-white border border-gray-200 text-[#717680] text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 pl-10"
               value={selectedRegion}
-              onChange={(e) => setSelectedRegion(e.target.value)}
+              onChange={(e) => handleRegionChange(e.target.value)}
             >
               <option value="">الكل</option>
-              {regions.map((region) => (
+              {safeRegions.map((region) => (
                 <option key={region.id} value={region.id}>
                   {region.name}
                 </option>
@@ -464,7 +644,7 @@ export default function ProgramStatisticsContent(): JSX.Element {
                 !selectedRegion ? "opacity-50 cursor-not-allowed" : ""
               }`}
               value={selectedEduAdmin}
-              onChange={(e) => setSelectedEduAdmin(e.target.value)}
+              onChange={(e) => handleEduAdminChange(e.target.value)}
               disabled={!selectedRegion}
             >
               <option value="">الكل</option>
@@ -491,7 +671,7 @@ export default function ProgramStatisticsContent(): JSX.Element {
                 !selectedEduAdmin ? "opacity-50 cursor-not-allowed" : ""
               }`}
               value={selectedSchool}
-              onChange={(e) => setSelectedSchool(e.target.value)}
+              onChange={(e) => handleSchoolChange(e.target.value)}
               disabled={!selectedEduAdmin}
             >
               <option value="">الكل</option>
@@ -509,6 +689,98 @@ export default function ProgramStatisticsContent(): JSX.Element {
           </div>
         </div>
       </div>
+
+      {/* Active Filters Indicator */}
+      {(selectedRegion || selectedEduAdmin || selectedSchool) && (
+        <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200 shadow-sm [direction:rtl]">
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => navigate('', { replace: true })}
+                className="text-blue-600 hover:text-blue-800 text-xs font-medium hover:underline transition-colors"
+              >
+                إزالة جميع الفلاتر
+              </button>
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-blue-800 text-sm">الفلاتر المطبقة</span>
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+              </div>
+            </div>
+            
+            <div className="flex flex-wrap gap-2 justify-end">
+              {selectedRegion && (
+                <div className="flex items-center gap-1 px-3 py-1.5 bg-white rounded-lg border border-blue-200 shadow-sm">
+                  <button
+                    onClick={() => {
+                      const params = new URLSearchParams();
+                      if (selectedEduAdmin) params.set('eduAdminId', selectedEduAdmin);
+                      if (selectedSchool) params.set('schoolId', selectedSchool);
+                      navigate(`?${params.toString()}`, { replace: true });
+                    }}
+                    className="mr-1 text-blue-500 hover:text-blue-700 hover:bg-blue-100 rounded-full p-0.5 transition-colors"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                  <span className="text-blue-900 text-xs font-semibold">
+                    {safeRegions.find(r => r.id === selectedRegion)?.name || 'غير معروف'}
+                  </span>
+                  <span className="text-blue-700 text-xs font-medium">:المنطقة</span>
+                </div>
+              )}
+              
+              {selectedEduAdmin && (
+                <div className="flex items-center gap-1 px-3 py-1.5 bg-white rounded-lg border border-blue-200 shadow-sm">
+                  <button
+                    onClick={() => {
+                      const params = new URLSearchParams();
+                      if (selectedRegion) params.set('regionId', selectedRegion);
+                      if (selectedSchool) params.set('schoolId', selectedSchool);
+                      navigate(`?${params.toString()}`, { replace: true });
+                    }}
+                    className="mr-1 text-blue-500 hover:text-blue-700 hover:bg-blue-100 rounded-full p-0.5 transition-colors"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                  <span className="text-blue-900 text-xs font-semibold">
+                    {safeEduAdmins.find(e => e.id === selectedEduAdmin)?.name || 'غير معروف'}
+                  </span>
+                  <span className="text-blue-700 text-xs font-medium">:الإدارة</span>
+                </div>
+              )}
+              
+              {selectedSchool && (
+                <div className="flex items-center gap-1 px-3 py-1.5 bg-white rounded-lg border border-blue-200 shadow-sm">
+                  <button
+                    onClick={() => {
+                      const params = new URLSearchParams();
+                      if (selectedRegion) params.set('regionId', selectedRegion);
+                      if (selectedEduAdmin) params.set('eduAdminId', selectedEduAdmin);
+                      navigate(`?${params.toString()}`, { replace: true });
+                    }}
+                    className="mr-1 text-blue-500 hover:text-blue-700 hover:bg-blue-100 rounded-full p-0.5 transition-colors"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                  <span className="text-blue-900 text-xs font-semibold">
+                    {filteredSchools.find(s => s.id === selectedSchool)?.name || 'غير معروف'}
+                  </span>
+                  <span className="text-blue-700 text-xs font-medium">:المدرسة</span>
+                </div>
+              )}
+            </div>
+            
+            <div className="text-xs text-blue-600 text-right">
+              عرض البيانات المفلترة حسب الاختيارات أعلاه
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stats Section */}
       <div className="flex flex-col lg:flex-row items-center gap-[27px] relative self-stretch w-full flex-[0_0_auto] [direction:rtl] mt-[108px]">

@@ -269,7 +269,8 @@ export default function Login() {
                 <div className="flex items-center justify-between w-full pt-2">
                   <button
                     type="button"
-                    className="font-medium text-[#414651] text-sm leading-5 [direction:rtl]"
+                    onClick={() => navigate("/forgot-password")}
+                    className="font-medium text-[#414651] text-sm leading-5 [direction:rtl] hover:text-[#006A61] transition-colors"
                   >
                     نسيت كلمة المرور
                   </button>

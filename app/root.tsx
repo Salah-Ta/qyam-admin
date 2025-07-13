@@ -126,7 +126,7 @@ export default function App() {
   // console.log("qrcode:::",generatedQRCode);
 
 
- const noNavbarRoutes = ["/login", "/join"];
+ const noNavbarRoutes = ["/login", "/join", "/register", "/forgot-password", "/reset-password"];
 
   const showNavbar = !noNavbarRoutes.includes(location.pathname);
 

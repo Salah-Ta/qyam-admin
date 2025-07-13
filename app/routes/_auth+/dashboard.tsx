@@ -4,6 +4,7 @@ import {
   useActionData,
   useFetcher,
   useSubmit,
+  useLoaderData,
 } from "@remix-run/react";
 import {
   ActionFunctionArgs,
@@ -90,6 +91,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
 }
 
 export default function Signup() {
+  const user = useLoaderData<QUser | null>();
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   // const [password, setPassword] = useState("");
@@ -211,11 +213,11 @@ export default function Signup() {
               email,
               password: createId(),
               name,
-              bio,
               cvKey: actionData.key,
               phone: Number(phone),
               region,
               acceptenceState: "pending",
+              role: "USER",
             },
             {
               onRequest: (ctx) => {
@@ -372,10 +374,14 @@ export default function Signup() {
               <div className="flex items-center gap-4 z-10">
                 <div className="flex flex-col items-end gap-1.5 mr-4 max-md:items-center max-md:mr-0">
                   <div className="font-bold text-base text-white mt-2">
-                    نورة علي
+                    {user?.name || "المستخدم"}
                   </div>
                   <div className="[font-family:'Ping_AR_+_LT-Regular',Helvetica] font-normal text-sm text-white">
-                    مدربة
+                    {user?.role?.toLocaleUpperCase() === "ADMIN"
+                      ? "مدير"
+                      : user?.role?.toLocaleUpperCase() === "SUPERVISOR"
+                      ? "مشرف"
+                      : "مدرب"}
                   </div>
                 </div>
                 <div className="max-md:mb-4">
