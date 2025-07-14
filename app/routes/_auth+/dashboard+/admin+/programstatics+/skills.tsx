@@ -166,7 +166,7 @@ export const Skills = (): JSX.Element => {
   ];
 
   const finalWordCloudData =
-    wordCloudData.length > 0 ? wordCloudData : sampleData;
+    wordCloudData?.length > 0 ? wordCloudData : sampleData;
 
   return (
     <div>
@@ -262,7 +262,7 @@ export const Skills = (): JSX.Element => {
           </div>
 
           <div className="relative w-full h-[600px] flex justify-center items-center">
-            {finalWordCloudData.length > 0 ? (
+            {finalWordCloudData?.length > 0 ? (
               <WordCloudErrorBoundary>
                 <ClientWordCloud
                   words={finalWordCloudData}
