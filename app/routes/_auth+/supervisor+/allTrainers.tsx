@@ -14,7 +14,10 @@ import {
   UserIcon,
 } from "lucide-react";
 import { twMerge } from "tailwind-merge";
-import { useNavigate, useNavigation } from "@remix-run/react";
+import { useNavigate, useNavigation, useLoaderData, useRouteLoaderData } from "@remix-run/react";
+import { LoaderFunctionArgs } from "@remix-run/cloudflare";
+import userDB from "~/db/user/user.server";
+import { QUser } from "~/types/types";
 import squareArrow from "../../../assets/icons/square-arrow-right.svg";
 // Utility function
 const cn = (...inputs: ClassValue[]) => {
@@ -281,84 +284,181 @@ const TableCell = React.forwardRef<
 TableCell.displayName = "TableCell";
 
 // Data for the metrics cards
-const metricsData = [
-  {
+const metricsData = {
+  students: {
     id: 1,
     title: "عدد المتدربات",
-    value: "5000",
+    value: "",
     icon: <UserIcon className="h-5 w-5" />,
   },
-  {
+  supervisors: {
     id: 2,
     title: "عدد المشرفين",
-    value: "4",
+    value: "",
     icon: <UserIcon className="h-5 w-5" />,
   },
-  {
+  teachers: {
     id: 3,
     title: "عدد المدربين",
-    value: "200",
+    value: "",
     icon: <UserIcon className="h-5 w-5" />,
   },
-];
+};
+
+// Loader for Remix
+export async function loader({ request, context, params }: LoaderFunctionArgs) {
+  const DBurl = context.cloudflare.env.DATABASE_URL;
+  
+  try {
+    // Add timeout to prevent worker from hanging
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Database operation timeout')), 15000)
+    );
+    
+    const dataPromise = userDB.getAllUsers(DBurl);
+    
+    const res = await Promise.race([dataPromise, timeoutPromise]);
+    return Response.json((res as any).data);
+  } catch (error) {
+    console.error("Loader error:", error);
+    return Response.json([]);
+  }
+}
 
 export const AllTrainers = (): JSX.Element => {
   const navigate = useNavigate();
   const navigation = useNavigation();
 
+  // State and data
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  const users = useLoaderData<QUser[]>() || [];
+  console.log("Trainers data:", users);
 
-  // Data for table rows
-  const allTableData = Array(100)
-    .fill(null)
-    .map((_, index) => ({
-      name: `محمد منصور ${index + 1}`,
-      mobile: "96655186620",
-      email: `Hasf${index + 1}@gmail.com`,
-      account: "مشرف",
-      region: "الرياض",
-      department: "الزلفي",
-      school: "خالد بن الوليد",
-      status: "عرض",
-      isChecked: index === 0,
-    }));
+  // Filter only users with role "user" (trainers)
+  const trainers = users.filter((user) => user.role === "user");
 
-  const totalPages = Math.ceil(allTableData.length / itemsPerPage);
+  // Metrics calculation
+  metricsData.students.value = trainers
+    .reduce((acc, user) => acc + (user.noStudents || 0), 0)
+    .toString();
+  metricsData.teachers.value = trainers.length.toString();
+  metricsData.supervisors.value = users
+    .filter((user) => ["مشرف", "supervisor", "SUPERVISOR"].includes(user.role))
+    .length.toString();
+
+  // Filtering
+  const [search, setSearch] = useState("");
+  const [acceptanceStateFilter, setAcceptanceStateFilter] = useState<string | null>(null);
+  
+  const filteredData = trainers.filter((row) => {
+    const matchesSearch =
+      row.name.toLowerCase().includes(search.toLowerCase()) ||
+      row?.phone?.toString().includes(search) ||
+      row.email.toLowerCase().includes(search.toLowerCase());
+    const matchesAcceptance =
+      !acceptanceStateFilter || row.acceptenceState === acceptanceStateFilter;
+    return matchesSearch && matchesAcceptance;
+  });
+
+  // Badge styles
+  const selectedBadgeStyle = {
+    background: "#22c55e",
+    color: "#fff",
+    border: "1px solid #22c55e",
+  };
+  const unselectedBadgeStyle = {
+    background: "#fff",
+    color: "#22c55e", 
+    border: "1px solid #22c55e",
+  };
+  const handleBadgeClick = (state: string) =>
+    setAcceptanceStateFilter((prev) => (prev === state ? null : state));
+
+  // Pagination
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
 
   // Get current page data
   const getCurrentPageData = () => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
-    return allTableData.slice(startIndex, endIndex);
+    return filteredData.slice(startIndex, endIndex);
   };
 
-  // SearchIcon tags data
-  const searchTags = Array(3).fill({ label: "label" });
+  // Checkbox selection
+  const [checkedRows, setCheckedRows] = useState<any[]>([]);
+  const handleCheckboxChange = (rowId: any) => {
+    setCheckedRows((prev) =>
+      prev.includes(rowId)
+        ? prev.filter((id) => id !== rowId)
+        : [...prev, rowId]
+    );
+  };
+  const selectedRows = checkedRows.length;
+
+  // Action badges
+  const actionBadges = [
+    {
+      label: "مقبول",
+      color: "#1a7f37",
+      borderColor: "#1a7f37",
+      value: "accepted",
+    },
+    {
+      label: "مرفوض",
+      color: "#bc4c00",
+      borderColor: "#bc4c00",
+      value: "denied",
+    },
+    {
+      label: "غير نشط",
+      color: "#9a6700",
+      borderColor: "#bf8700",
+      value: "pending",
+    },
+  ];
+
+  // Translations
+  const statusTranslation = {
+    accepted: "مقبول",
+    denied: "مرفوض",
+    pending: "غير نشط",
+  };
+  const roleTranslation = {
+    user: "مدربة",
+    supervisor: "مشرف",
+    SUPERVISOR: "مشرف",
+    مشرف: "مشرف",
+    teacher: "مدربة",
+    admin: "مدير",
+  };
+
+  // TODO: Replace this with your actual logic to get the logged-in user's role
+  // For example, from context, loader, or props
+  const { user } = useRouteLoaderData<any>("root");
+  const currentUserRole = user?.role || "supervisor"; // <-- Replace with real logic
 
   return (
-    <div className="bg-[#f8f9fa]">
-      <div className="w-full  max-w-full max-xl:px-[22px]  xl:px-[112px] mx-auto py-6 mb-[76px]">
-        <div className="flex   justify-between items-baseline w-full   mx-auto py-6  rounded-xl  [direction:rtl] ">
+    <div className="w-full mx-auto py-6">
+      <Card className="w-full rounded-2xl border border-gray-300 overflow-hidden">
+        <div className="flex flex-col w-full p-6">
           {/* Header Section */}
-          <div className="flex flex-col items-start mb-6  pb-4 max-md:m-5">
-            <h1 className="text-2xl font-bold text-gray-800 mb-2">
-              إحصاءات المدربين
-            </h1>
-            <p className="text-lg font-normal text-[#535862]">
-              اختر مدرب لعرض الإحصاءات
-            </p>
+          <div className="flex   justify-between items-baseline w-full   mx-auto py-6  rounded-xl  [direction:rtl] ">
+            <div className="flex flex-col items-start mb-6  pb-4 max-md:m-5">
+              <h1 className="text-2xl font-bold text-gray-800 mb-2">
+                إحصاءات المدربين
+              </h1>
+              <p className="text-lg font-normal text-[#535862]">
+                اختر مدرب لعرض الإحصاءات
+              </p>
+            </div>
+            <button onClick={() => navigate("/")}>
+              <img className="" alt="Group" src={squareArrow} />
+            </button>
           </div>
-          <button onClick={() => navigate("/")}>
-            <img className="" alt="Group" src={squareArrow} />
-          </button>
-        </div>
-
-        <Card className="w-full rounded-2xl border border-gray-300 overflow-hidden mb-[140px]">
-          <div className="flex flex-col w-full p-12">
             {/* Metrics Overview Section */}
             <section className="flex flex-wrap gap-5 w-full">
-              {metricsData.map((metric) => (
+              {Object.values(metricsData).map((metric) => (
                 <Card
                   key={metric.id}
                   className="flex-1 min-w-[232px] border border-[#e9e9eb] shadow-shadows-shadow-xs"
@@ -385,48 +485,86 @@ export const AllTrainers = (): JSX.Element => {
             <section className="flex flex-col w-full mt-20 ">
               <div className="relative w-full  ">
                 {/* Top controls */}
-                <div className="flex justify-end items-end mb-6 [direction:rtl]  ">
-                  <div className="w-full max-w-[544px]">
+                <div className="flex flex-col md:flex-row justify-between items-center mb-6 [direction:rtl] gap-4">
+                  <div className="flex flex-col sm:flex-row items-center gap-4 ml-4 [direction:rtl] w-full md:w-auto">
+                    <div className="text-gray-700 text-sm font-bold whitespace-nowrap">
+                      تم تحديد : {selectedRows}
+                    </div>
+                  </div>
+                  {/* Search section */}
+                  <div className="w-full md:max-w-[544px]">
                     <div className="flex flex-col w-full gap-1.5">
                       <div className="flex items-center gap-2 px-3.5 py-2.5 bg-white rounded-lg border border-solid border-[#cfd4dc] shadow-shadow-xs">
-                        <div className="flex items-center  gap-2 flex-1">
-                          <SearchIcon className="w-5 h-5 text-[#475467] " />
-                          <span className="text-gray-500 text-base  ">بحث</span>
+                        <div className="flex items-center gap-2 flex-1">
+                          <SearchIcon className="w-5 h-5 text-[#475467]" />
+                          <input
+                            type="text"
+                            placeholder="بحث"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            style={{
+                              marginLeft: "8px",
+                              background: "white",
+                              border: "1px solid lightgray",
+                              borderRadius: "4px",
+                              padding: "4px",
+                              width: "100%",
+                            }}
+                          />
+                        </div>
+                        <div className="hidden sm:flex gap-2">
+                          {actionBadges.map((tag, index) => (
+                            <Badge
+                              key={index}
+                              style={
+                                acceptanceStateFilter === tag.value
+                                  ? selectedBadgeStyle
+                                  : unselectedBadgeStyle
+                              }
+                              className="px-2.5 py-[3px] rounded-lg border border-solid border-[#e5e7ea] font-body-small-bold text-[#475467]"
+                              onClick={() => handleBadgeClick(tag.value)}
+                            >
+                              {tag.label}
+                            </Badge>
+                          ))}
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
+                <img
+                  className="w-full h-px object-cover mt-6 mb-3"
+                  alt="Divider"
+                  src="https://c.animaapp.com/m9qfyf0iFAAeZK/img/vector-9.svg"
+                />
 
                 {/* Table */}
                 <div className="w-full">
                   <Table>
                     <TableHeader>
-                      <TableRow className="mb-4 border-b border-[#E4E7EC]  ">
-                        {/* <TableHead className="text-right pr-2">
-                        <span className="sr-only">Select</span>
-                      </TableHead> */}
-
+                      <TableRow className="mb-4 border-[#e4e7ec]  ">
                         <TableHead className="text-center   font-medium text-gray-700 text-[15px] ">
                           الإجراء
                         </TableHead>
-
-                        <TableHead className="text-right [direction:rtl] font-medium text-gray-700 text-[15px]">
+                        <TableHead className="text-right [direction:rtl] font-medium text-gray-700 text-[15px] max-md:hidden ">
+                          حالة التسجيل
+                        </TableHead>
+                        <TableHead className="text-right [direction:rtl] font-medium text-gray-700 text-[15px] max-md:hidden ">
                           المدرسة
                         </TableHead>
-                        <TableHead className="text-right [direction:rtl] font-medium text-gray-700 text-[15px]">
+                        <TableHead className="text-right [direction:rtl] font-medium text-gray-700 text-[15px] max-md:hidden ">
                           الإدارة
                         </TableHead>
-                        <TableHead className="text-right [direction:rtl] font-medium text-gray-700 text-[15px]">
+                        <TableHead className="text-right [direction:rtl] font-medium text-gray-700 text-[15px] max-md:hidden ">
                           المنطقة
                         </TableHead>
-                        <TableHead className="text-right [direction:rtl] font-medium text-gray-700 text-[15px]">
+                        <TableHead className="text-right [direction:rtl] font-medium text-gray-700 text-[15px] max-md:hidden ">
                           الحساب
                         </TableHead>
-                        <TableHead className="text-right [direction:rtl] font-medium text-gray-700 text-[15px]">
+                        <TableHead className="text-right [direction:rtl] font-medium text-gray-700 text-[15px] max-md:hidden ">
                           البريد الإلكتروني
                         </TableHead>
-                        <TableHead className="text-right [direction:rtl] font-medium text-gray-700 text-[15px]">
+                        <TableHead className="text-right [direction:rtl] font-medium text-gray-700 text-[15px] max-md:hidden ">
                           الجوال
                         </TableHead>
                         <TableHead className="text-right [direction:rtl] font-medium text-gray-700 text-[15px]">
@@ -439,62 +577,74 @@ export const AllTrainers = (): JSX.Element => {
                       {getCurrentPageData().map((row, index) => (
                         <TableRow
                           key={index}
-                          className="border-b-[2px] border-[#e4e7ec] "
+                          className="border-b border-[#e4e7ec] cursor-pointer hover:bg-gray-50 transition-colors"
+                          onClick={() => window.location.href = `/supervisor/skills/${row.id}`}
                         >
-                          <TableCell className="  ">
-                            <button
-                              className="  h-[40px] w-[117px] rounded-md border border-solid border-gray-300 bg-transparent"
-                              onClick={() => navigate("/supervisor/skills")}
-                            >
-                              <span className=" text-center font-bold text-[#1a7f37] text-xs [direction:rtl]">
-                                {row.status}
+                          <TableCell className="py-1 px-2 mt-4">
+                            <div className="flex justify-center gap-3.5" onClick={(e) => e.stopPropagation()}>
+                              <Button
+                                variant="outline"
+                                className="px-4 py-2 rounded-lg border border-solid border-[#cfd4dc] font-bold text-[#027163]"
+                                onClick={() => navigate(`/supervisor/supervisorStatics/${row.id}`)}
+                              >
+                                عرض
+                              </Button>
+                            </div>
+                          </TableCell>
+                          <TableCell className="py-1 px-2 text-right max-md:hidden ">
+                            <Badge className="px-2.5 py-[3px] rounded-[100px] border border-solid border-[#1a7f37] bg-transparent">
+                              <span className=" font-bold text-[#1a7f37] text-xs [direction:rtl] text-nowrap">
+                                {statusTranslation[row.acceptenceState as keyof typeof statusTranslation] || row.acceptenceState}
                               </span>
-                            </button>
+                            </Badge>
                           </TableCell>
-                          <TableCell className="py-1 px-2 text-right">
-                            <span className="  font-medium text-[#027163] text-base [direction:rtl]">
-                              {row.school}
-                            </span>
-                          </TableCell>
-                          <TableCell className="py-1 px-2 text-right">
+                          <TableCell className="py-1 px-2 text-right max-md:hidden ">
                             <span className=" font-medium text-[#027163] text-base [direction:rtl]">
-                              {row.department}
+                              {row?.schoolId}
                             </span>
                           </TableCell>
-                          <TableCell className="py-1 px-2 text-right">
+                          <TableCell className="py-1 px-2 text-right max-md:hidden ">
+                            <span className=" font-medium text-[#027163] text-base [direction:rtl]">
+                              {row?.eduAdminId}
+                            </span>
+                          </TableCell>
+                          <TableCell className="py-1 px-2 text-right max-md:hidden ">
                             <span className=" font-medium text-[#027163] text-base [direction:rtl]">
                               {row.region}
                             </span>
                           </TableCell>
-                          <TableCell className="py-1 px-2 text-right">
+                          <TableCell className="py-1 px-2 text-right max-md:hidden ">
                             <span className=" font-medium text-[#027163] text-base [direction:rtl]">
-                              {row.account}
+                              {roleTranslation[row.role as keyof typeof roleTranslation] || row.role}
                             </span>
                           </TableCell>
-                          <TableCell className="py-1 px-2 text-right">
+                          <TableCell className="py-1 px-2 text-right max-md:hidden ">
                             <span className="font-medium text-[#027163] text-base">
                               {row.email}
                             </span>
                           </TableCell>
-                          <TableCell className="py-1 px-2 text-right">
+                          <TableCell className="py-1 px-2 text-right max-md:hidden ">
                             <span className="font-medium text-[#027163] text-base">
-                              {row.mobile}
+                              {row.phone}
                             </span>
                           </TableCell>
                           <TableCell className="py-1 px-2 text-right">
-                            <span className=" font-medium text-[#027163] text-base [direction:rtl]">
+                            <span className=" font-medium text-[#027163] text-base [direction:rtl] mr-[23px]">
                               {row.name}
                             </span>
                           </TableCell>
-                          <TableCell className="py-1   text-right ">
-                            <Checkbox
-                              checked={row.isChecked}
-                              className={
-                                row.isChecked
-                                  ? "w-4 h-4 bg-[#0969da] rounded-[3px]"
-                                  : "w-4 h-4 bg-[#ffffff] rounded-[3px] border border-solid border-[#868f99]"
-                              }
-                            />
+                          <TableCell className="">
+                            <div onClick={(e) => e.stopPropagation()}>
+                              <Checkbox
+                                checked={checkedRows.includes(row.id)}
+                                onCheckedChange={() => handleCheckboxChange(row.id)}
+                                className={
+                                  checkedRows.includes(row.id)
+                                    ? "w-4 h-4 bg-[#0969da] rounded-[3px]"
+                                    : "w-4 h-4 bg-[#ffffff] rounded-[3px] border border-solid border-[#868f99]"
+                                }
+                              />
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -503,21 +653,19 @@ export const AllTrainers = (): JSX.Element => {
                 </div>
 
                 {/* Pagination */}
-                <div className="flex justify-center items-center pt-3 pb-4 px-6     mt-4">
-                  <Pagination>
-                    <PaginationContent className="shadow-shadow-xs">
+                <div className="flex justify-center items-center pt-3 pb-4 px-6 border-t border-[#e4e7ec] mt-4">
+                  <Pagination className="w-full [direction:rtl]">
+                    <PaginationContent className="shadow-shadow-xs [direction:rtl]">
                       <Button
                         variant="outline"
-                        className="flex items-center gap-2 px-4 py-2.5 rounded-[8px_0px_0px_8px] border border-solid border-[#cfd4dc]"
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-[0px_8px_8px_0px] border border-solid border-[#cfd4dc]"
                         onClick={() =>
                           setCurrentPage(Math.max(1, currentPage - 1))
                         }
                         disabled={currentPage === 1}
                       >
-                        <ArrowLeftIcon className="w-5 h-5" />
-                        <span className=" font-bold text-sm [direction:rtl]">
-                          السابق
-                        </span>
+                        <span className=" font-bold text-sm">السابق</span>
+                        <ArrowRightIcon className="w-5 h-5" />
                       </Button>
 
                       {[...Array(totalPages)].map((_, index) => {
@@ -560,7 +708,7 @@ export const AllTrainers = (): JSX.Element => {
 
                       <Button
                         variant="outline"
-                        className="flex items-center gap-2 px-4 py-2.5 rounded-[0px_8px_8px_0px] border border-solid border-[#cfd4dc]"
+                        className="flex items-center gap-2 px-4 py-2.5 [direction:rtl] rounded-[8px_0px_0px_8px] border border-solid border-[#cfd4dc]"
                         onClick={() =>
                           setCurrentPage(Math.min(totalPages, currentPage + 1))
                         }
@@ -569,7 +717,7 @@ export const AllTrainers = (): JSX.Element => {
                         <span className=" font-bold  text-sm [direction:rtl]">
                           التالي
                         </span>
-                        <ArrowRightIcon className="w-5 h-5" />
+                        <ArrowLeftIcon className="w-5 h-5 " />
                       </Button>
                     </PaginationContent>
                   </Pagination>
@@ -579,7 +727,6 @@ export const AllTrainers = (): JSX.Element => {
           </div>
         </Card>
       </div>
-    </div>
-  );
-};
-export default AllTrainers;
+    );
+  };
+  export default AllTrainers;
