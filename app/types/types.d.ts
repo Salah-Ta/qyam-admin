@@ -229,6 +229,47 @@ export type GlobalTotals = {
   skillsTrainedCount: number;
   schoolsCount: number;
   trainers: number; // Users who have schools
+  reportCount: number; // Add this
+};
+
+export type RegionTotals = {
+  volunteerHours: number;
+  economicValue: number;
+  volunteerOpportunities: number;
+  activitiesCount: number;
+  volunteerCount: number;
+  skillsEconomicValue: number;
+  skillsTrainedCount: number;
+  schoolsCount: number;     // Schools in this region
+  eduAdminsCount: number;   // EduAdmins in this region
+  trainers: number;         // Users in schools in this region
+  reportCount: number;      // Reports from this region
+};
+
+export type EduAdminTotals = {
+  volunteerHours: number;
+  economicValue: number;
+  volunteerOpportunities: number;
+  activitiesCount: number;
+  volunteerCount: number;
+  skillsEconomicValue: number;
+  skillsTrainedCount: number;
+  schoolsCount: number;     // Schools under this eduAdmin
+  trainers: number;         // Users in schools under this eduAdmin
+  reportCount: number;      // Reports from this eduAdmin
+};
+
+export type SchoolTotals = {
+  volunteerHours: number;
+  economicValue: number;
+  volunteerOpportunities: number;
+  activitiesCount: number;
+  volunteerCount: number;
+  skillsEconomicValue: number;
+  skillsTrainedCount: number;
+  schoolsCount: number;     // Always 1 for single school
+  trainers: number;         // Users in this school
+  reportCount: number;      // Reports from this school
 };
 
 export type ReportStatistics = {
@@ -236,6 +277,33 @@ export type ReportStatistics = {
   regionStats: RegionStat[];
   eduAdminStats: EduAdminStat[];
   schoolStats: SchoolStat[];
+};
+
+export type DashStatistics = {
+  regionsTotal: number = 0;
+  regionsFiltered: number = 0;
+  eduAdminsTotal: number = 0;
+  eduAdminsFiltered: number = 0;
+  schoolsTotal: number = 0;
+  schoolsFiltered: number = 0;
+  reportsTotal: number = 0;
+  reportsFiltered: number = 0;
+  trainersTotal: number = 0; // Users who have schools
+  trainersFiltered: number = 0; // Users who have schools in the filtered region
+  volunteerHoursTotal: number = 0;
+  volunteerHoursFiltered: number = 0;
+  economicValueTotal: number = 0;
+  economicValueFiltered: number = 0;
+  volunteerOpportunitiesTotal: number = 0;
+  volunteerOpportunitiesFiltered: number = 0;
+  activitiesCountTotal: number = 0;
+  activitiesCountFiltered: number = 0;
+  volunteerCountTotal: number = 0;
+  volunteerCountFiltered: number = 0;
+  skillsEconomicValueTotal: number = 0;
+  skillsEconomicValueFiltered: number = 0;
+  skillsTrainedCountTotal: number = 0;
+  skillsTrainedCountFiltered: number = 0;
 };
 
 export type Message = {

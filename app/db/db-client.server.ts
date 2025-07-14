@@ -8,7 +8,7 @@ neonConfig.webSocketConstructor = ws;
 
 export const createPrismaClient = (dbUrl?: string, context?: AppLoadContext): PrismaClient => {
   let connectionString = dbUrl || 
-                        context?.cloudflare?.env?.DATABASE_URL 
+                        context?.cloudflare?.env?.DATABASE_URL ||
                         process.env.DEV_DATABASE_URL;
   
   if (!connectionString) {
@@ -22,8 +22,8 @@ export const createPrismaClient = (dbUrl?: string, context?: AppLoadContext): Pr
       const pool = new Pool({ 
         connectionString: connectionString,
         max: 1,
-        connectionTimeoutMillis: 2000,
-        idleTimeoutMillis: 5000,
+        connectionTimeoutMillis: 10000,
+        idleTimeoutMillis: 30000,
         maxUses: 1,
         allowExitOnIdle: true
       });

@@ -1,16 +1,6 @@
-import glossary from "~/lib/glossary";
 import {
   StatusResponse,
-  Report,
-  CreateReportData,
-  Region,
-  EduAdmin,
-  School,
-  GlobalTotals,
-  RegionStat,
-  EduAdminStat,
-  SchoolStat,
-  ReportStatistics
+  CreateReportData
 } from "~/types/types";
 import { client } from "../db-client.server";
 
@@ -200,278 +190,73 @@ const deleteReport = async (id: string, dbUrl?: string): Promise<StatusResponse<
 };
 
 /**
- * Helper function to sum report fields
+ * Get all reports for a specific region
  */
-function sumReportFields(reports: Report[]): {
-  volunteerHours: number;
-  economicValue: number;
-  volunteerOpportunities: number;
-  activitiesCount: number;
-  volunteerCount: number;
-  skillsEconomicValue: number;
-  skillsTrainedCount: number;
-} {
-  let volunteerHours = 0;
-  let economicValue = 0;
-  let volunteerOpportunities = 0;
-  let activitiesCount = 0;
-  let volunteerCount = 0;
-  let skillsEconomicValue = 0;
-  let skillsTrainedCount = 0;
-
-  reports.forEach(report => {
-    volunteerHours += report.volunteerHours || 0;
-    economicValue += report.economicValue || 0;
-    volunteerOpportunities += report.volunteerOpportunities || 0;
-    activitiesCount += report.activitiesCount || 0;
-    volunteerCount += report.volunteerCount || 0;
-    skillsEconomicValue += report.skillsEconomicValue || 0;
-    skillsTrainedCount += report.skillsTrainedCount || 0;
-  });
-
-  return {
-    volunteerHours,
-    economicValue,
-    volunteerOpportunities,
-    activitiesCount,
-    volunteerCount,
-    skillsEconomicValue,
-    skillsTrainedCount
-  };
-}
-
-/**
- * Calculate statistics based on reports, regions, eduAdmins, and schools
- */
-async function calculateStatistics(dbUrl?: string): Promise<ReportStatistics> {
-
+async function getRegionReports(regionId: string, dbUrl?: string) {
   const db = initializeDatabase(dbUrl);
 
   try {
-    // Fetch all the necessary data
-    const reports = await db.report.findMany({
-      include: {
-        user: true
-      }
-    });
-
-    const regions = await db.region.findMany();
-    const eduAdmins = await db.eduAdmin.findMany();
-    const schools = await db.school.findMany();
-    const users = await db.user.findMany();
-
-    // Create maps for quick lookups
-    const regionMap = new Map(regions.map(r => [r.id, r.name]));
-    const eduAdminMap = new Map(eduAdmins.map(ea => [ea.id, ea.name]));
-    const schoolMap = new Map(schools.map(s => [s.id, s.name]));
-
-    // Calculate Global Totals
-    const globalTotalsData = sumReportFields(reports as unknown as Report[]);
-
-    const globalTotals: GlobalTotals = {
-      ...globalTotalsData,
-      schoolsCount: schools.length,
-      trainers: new Set(reports.map(r => r.userId)).size
-    };
-
-    // Calculate Region Stats - using regionId directly from users
-    const regionStats: RegionStat[] = regions.map(region => {
-      const regionUsers = users.filter(user => user.regionId === region.id);
-      const regionReports = reports.filter(report => 
-        regionUsers.some(user => user.id === report.userId)
-      );
-      const regionTotals = sumReportFields(regionReports as unknown as Report[]);
-
-      return {
-        regionId: region.id,
-        regionName: region.name,
-        volunteerHoursPercentage: globalTotals.volunteerHours > 0 ? (regionTotals.volunteerHours / globalTotals.volunteerHours) * 100 : 0,
-        economicValuePercentage: globalTotals.economicValue > 0 ? (regionTotals.economicValue / globalTotals.economicValue) * 100 : 0,
-        volunteerOpportunitiesPercentage: globalTotals.volunteerOpportunities > 0 ? (regionTotals.volunteerOpportunities / globalTotals.volunteerOpportunities) * 100 : 0,
-        activitiesCountPercentage: globalTotals.activitiesCount > 0 ? (regionTotals.activitiesCount / globalTotals.activitiesCount) * 100 : 0,
-        volunteerCountPercentage: globalTotals.volunteerCount > 0 ? (regionTotals.volunteerCount / globalTotals.volunteerCount) * 100 : 0,
-      };
-    });
-
-    // Calculate EduAdmin Stats - using eduAdminId directly from users
-    const eduAdminStats: EduAdminStat[] = eduAdmins.map(eduAdmin => {
-      const eduAdminUsers = users.filter(user => user.eduAdminId === eduAdmin.id);
-      const eduAdminReports = reports.filter(report => 
-        eduAdminUsers.some(user => user.id === report.userId)
-      );
-      const eduAdminTotals = sumReportFields(eduAdminReports as unknown as Report[]);
-
-      // Find the region for this eduAdmin (if any user belongs to this eduAdmin, use their regionId)
-      const firstUser = eduAdminUsers[0];
-      const regionName = firstUser && firstUser.regionId ? regionMap.get(firstUser.regionId) || "غير محدد" : "غير محدد";
-
-      return {
-        eduAdminId: eduAdmin.id,
-        eduAdminName: eduAdmin.name,
-        regionName,
-        volunteerHoursPercentage: globalTotals.volunteerHours > 0 ? (eduAdminTotals.volunteerHours / globalTotals.volunteerHours) * 100 : 0,
-        economicValuePercentage: globalTotals.economicValue > 0 ? (eduAdminTotals.economicValue / globalTotals.economicValue) * 100 : 0,
-        volunteerOpportunitiesPercentage: globalTotals.volunteerOpportunities > 0 ? (eduAdminTotals.volunteerOpportunities / globalTotals.volunteerOpportunities) * 100 : 0,
-        activitiesCountPercentage: globalTotals.activitiesCount > 0 ? (eduAdminTotals.activitiesCount / globalTotals.activitiesCount) * 100 : 0,
-        volunteerCountPercentage: globalTotals.volunteerCount > 0 ? (eduAdminTotals.volunteerCount / globalTotals.volunteerCount) * 100 : 0,
-      };
-    });
-
-    // Calculate School Stats - using schoolId directly from users
-    const schoolStats: SchoolStat[] = schools.map(school => {
-      const schoolUsers = users.filter(user => user.schoolId === school.id);
-      const schoolReports = reports.filter(report => 
-        schoolUsers.some(user => user.id === report.userId)
-      );
-      const schoolTotals = sumReportFields(schoolReports as unknown as Report[]);
-
-      // Find eduAdmin and region for this school
-      const firstUser = schoolUsers[0];
-      const eduAdminName = firstUser && firstUser.eduAdminId ? eduAdminMap.get(firstUser.eduAdminId) || "غير محدد" : "غير محدد";
-      const regionName = firstUser && firstUser.regionId ? regionMap.get(firstUser.regionId) || "غير محدد" : "غير محدد";
-
-      return {
-        schoolId: school.id,
-        schoolName: school.name,
-        eduAdminName,
-        regionName,
-        volunteerHoursPercentage: globalTotals.volunteerHours > 0 ? (schoolTotals.volunteerHours / globalTotals.volunteerHours) * 100 : 0,
-        economicValuePercentage: globalTotals.economicValue > 0 ? (schoolTotals.economicValue / globalTotals.economicValue) * 100 : 0,
-        volunteerOpportunitiesPercentage: globalTotals.volunteerOpportunities > 0 ? (schoolTotals.volunteerOpportunities / globalTotals.volunteerOpportunities) * 100 : 0,
-        activitiesCountPercentage: globalTotals.activitiesCount > 0 ? (schoolTotals.activitiesCount / globalTotals.activitiesCount) * 100 : 0,
-        volunteerCountPercentage: globalTotals.volunteerCount > 0 ? (schoolTotals.volunteerCount / globalTotals.volunteerCount) * 100 : 0,
-      };
-    });
-
-    return {
-      globalTotals,
-      regionStats,
-      eduAdminStats,
-      schoolStats
-    };
-  } catch (error) {
-    console.error("Error calculating statistics:", error);
-    return {
-      globalTotals: {
-        volunteerHours: 0,
-        economicValue: 0,
-        volunteerOpportunities: 0,
-        activitiesCount: 0,
-        volunteerCount: 0,
-        skillsEconomicValue: 0,
-        skillsTrainedCount: 0,
-        schoolsCount: 0,
-        trainers: 0
-      },
-      regionStats: [],
-      eduAdminStats: [],
-      schoolStats: []
-    };
-  }
-}
-
-/**
- *  Helper function to get total statistics from reports
- */
-function getTotalStatsFromReports(reports: Report[]): {
-  reportCount: number;
-  volunteerHours: number;
-  economicValue: number;
-  volunteerOpportunities: number;
-  activitiesCount: number;
-  volunteerCount: number;
-  skillsEconomicValue: number;
-  skillsTrainedCount: number;
-} {
-  const totals = sumReportFields(reports);
-  return {
-    reportCount: reports.length,
-    ...totals
-  };
-}
-
-/**
- * Get total statistics for a specific user from their reports
- */
-async function getUserTotalStats(userId: string, dbUrl?: string) {
-  const db = initializeDatabase(dbUrl);
-
-  try {
-    // Fetch all reports for this specific user
-    const userReports = await db.report.findMany({
-      where: {
-        userId: userId
-      }
-    });
-
-    return { success: true, data: getTotalStatsFromReports(userReports) };
-  } catch (error: any) {
-    console.error("Error fetching user statistics:", error);
-    return { success: false, error: error.message };
-  }
-}
-
-/**
- * Get total statistics for a specific school from all its users' reports
- */
-async function getSchoolTotalStats(schoolId: string, dbUrl?: string) {
-  const db = initializeDatabase(dbUrl);
-
-  try {
-    // Fetch all reports for users in this school
-    const schoolReports = await db.report.findMany({
-      where: {
-        user: {
-          schoolId: schoolId
-        }
-      }
-    });
-
-    return { success: true, data: getTotalStatsFromReports(schoolReports) };
-  } catch (error: any) {
-    console.error("Error fetching school statistics:", error);
-    return { success: false, error: error.message };
-  }
-}
-
-/**
- * Get total statistics for a specific eduAdmin from all its users' reports
- */
-async function getEduAdminTotalStats(eduAdminId: string, dbUrl?: string) {
-  const db = initializeDatabase(dbUrl);
-
-  try {
-    // Fetch all reports for users in this eduAdmin
-    const eduAdminReports = await db.report.findMany({
-      where: {
-        user: { eduAdminId }
-      }
-    });
-
-    return { success: true, data: getTotalStatsFromReports(eduAdminReports) };
-  } catch (error: any) {
-    console.error("Error fetching eduAdmin statistics:", error);
-    return { success: false, error: error.message };
-  }
-}
-
-/**
- * Get total statistics for a specific region from all its users' reports
- */
-async function getRegionTotalStats(regionId: string, dbUrl?: string) {
-  const db = initializeDatabase(dbUrl);
-
-  try {
-    // Fetch all reports for users in this region
     const regionReports = await db.report.findMany({
-      where: {
-        user: { regionId }
-      }
+      where: { user: { regionId } },
+      include: {
+        user: true,
+        skills: { include: { skill: true } },
+        testimonials: { include: { testimonial: true } }
+      },
+      orderBy: { createdAt: 'desc' }
     });
 
-    return { success: true, data: getTotalStatsFromReports(regionReports) };
+    return { success: true, data: regionReports };
   } catch (error: any) {
-    console.error("Error fetching region statistics:", error);
+    console.error("Error fetching region reports:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Get all reports for a specific eduAdmin
+ */
+async function getEduAdminReports(eduAdminId: string, dbUrl?: string) {
+  const db = initializeDatabase(dbUrl);
+
+  try {
+    const eduAdminReports = await db.report.findMany({
+      where: { user: { eduAdminId } },
+      include: {
+        user: true,
+        skills: { include: { skill: true } },
+        testimonials: { include: { testimonial: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    return { success: true, data: eduAdminReports };
+  } catch (error: any) {
+    console.error("Error fetching eduAdmin reports:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Get all reports for a specific school
+ */
+async function getSchoolReports(schoolId: string, dbUrl?: string) {
+  const db = initializeDatabase(dbUrl);
+
+  try {
+    const schoolReports = await db.report.findMany({
+      where: { user: { schoolId } },
+      include: {
+        user: true,
+        skills: { include: { skill: true } },
+        testimonials: { include: { testimonial: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    return { success: true, data: schoolReports };
+  } catch (error: any) {
+    console.error("Error fetching school reports:", error);
     return { success: false, error: error.message };
   }
 }
@@ -482,9 +267,7 @@ export default {
   createReport,
   getAllSkills,
   deleteReport,
-  calculateStatistics,
-  getUserTotalStats,
-  getSchoolTotalStats,
-  getEduAdminTotalStats,
-  getRegionTotalStats
+  getEduAdminReports,
+  getSchoolReports,
+  getRegionReports
 };
