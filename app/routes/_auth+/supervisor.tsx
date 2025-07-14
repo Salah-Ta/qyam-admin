@@ -19,16 +19,16 @@ export const Trainer = () => {
   const location = useLocation();
 
   return (
-<div className="flex flex-col w-full max-w-full overflow-hidden">
-  {/* Full-width rectangle with fixed 40px height on mobile, original on web */}
-  <img 
-    alt="Rectangle" 
-    src={rectangle22099} 
-    className="mt-16 w-full h-40 md:h-auto object-cover"
-  />
+    <div className="flex flex-col w-full max-w-full overflow-hidden">
+      {/* Full-width rectangle with fixed 40px height on mobile, original on web */}
+      <img
+        alt="Rectangle"
+        src={rectangle22099}
+        className="mt-16 w-full h-40 md:h-auto object-cover"
+      />
 
-  <Outlet />
-</div>
+      <Outlet />
+    </div>
   );
 };
 

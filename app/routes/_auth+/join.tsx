@@ -13,7 +13,6 @@ import {
   redirect,
 } from "@remix-run/cloudflare";
 import { useEffect, useState } from "react";
-import { toast as showToast } from "sonner";
 import { ChevronDownIcon, MailIcon } from "lucide-react";
 import bcrypt from "bcryptjs";
 import { Button } from "~/components/ui/button";
@@ -28,6 +27,7 @@ import {
 import { ToggleGroup, ToggleGroupItem } from "~/components/ui/toggle-group";
 import { v4 as uuidv4 } from "uuid";
 import { getSession, commitSession } from "../../utils/session.server";
+import { redirectWithToast } from "~/lib/toast.server";
 import { getPrismaClient } from "../../db/db-client.server";
 import registerLogo from "~/assets/images/new-design/logo-login.svg";
 import arrowLeft from "~/assets/icons/square-arrow-login.svg";
@@ -35,6 +35,7 @@ import arrowregister from "~/assets/icons/arrow-White.svg";
 import regionDB from "~/db/region/region.server";
 import eduAdminDB from "~/db/eduAdmin/eduAdmin.server";
 import schoolDB from "~/db/school/school.server";
+import section from "../../assets/images/new-design/section.png";
 
 // Define interfaces for the location data
 interface EntityItem {
@@ -153,7 +154,12 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
     });
     const session = await getSession(request.headers.get("Cookie"));
     session.set("userId", user.id);
-    return redirect("/login", {
+    
+    return redirectWithToast("/login", {
+      type: "success",
+      title: "تم التسجيل بنجاح!",
+      description: "يرجى تسجيل الدخول الآن"
+    }, {
       headers: {
         "Set-Cookie": await commitSession(session),
       },
@@ -220,9 +226,7 @@ export default function Signup() {
   useEffect(() => {
     if (actionData?.error) {
       setLoading(false);
-      showToast.error("Registration Failed", {
-        description: actionData.error,
-      });
+      // Error handling - the toast will be shown by the error response
     }
   }, [actionData]);
 
@@ -606,9 +610,10 @@ export default function Signup() {
       <div
         className=" lg:block w-5/12  max-lg:hidden h-full bg-no-repeat bg-cover"
         style={{
-          backgroundImage: "url(app/assets/images/new-design/section.png)",
-        }}
+            backgroundImage: `url(${section})`,
+          }}
       />
     </div>
+    
   );
 }

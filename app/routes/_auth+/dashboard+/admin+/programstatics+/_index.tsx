@@ -607,10 +607,10 @@ export default function ProgramStatisticsContent(): JSX.Element {
   };
 
   return (
-    <main className="flex flex-col mx-auto gap-9 max-lg:px-[10px] lg:px-[112px]">
-      <div className="flex flex-col items-baseline gap-6 [direction:rtl] md:flex-row lg:mt-[76px]">
+    <main className="flex flex-col mx-auto gap-6 sm:gap-9 px-4 sm:px-6 md:px-8 lg:px-[60px]">
+      <div className="flex flex-col items-baseline gap-4 sm:gap-6 [direction:rtl] md:flex-row mt-8 sm:mt-12">
         {/* المنطقة (Area) */}
-        <div className="flex flex-col w-1/3 max-lg:w-full">
+        <div className="flex flex-col w-full md:w-1/3">
           <div className="mb-2 text-start text-sm text-gray-500">المنطقة</div>
           <div className="relative">
             <select
@@ -634,7 +634,7 @@ export default function ProgramStatisticsContent(): JSX.Element {
         </div>
 
         {/* إدارة التعليم (Education Management) */}
-        <div className="flex flex-col w-1/3 max-lg:w-full">
+        <div className="flex flex-col w-full md:w-1/3">
           <div className="mb-2 text-start text-sm text-gray-500">
             إدارة التعليم
           </div>
@@ -663,7 +663,7 @@ export default function ProgramStatisticsContent(): JSX.Element {
         </div>
 
         {/* المدرسة (School) */}
-        <div className="flex flex-col w-1/3 max-lg:w-full">
+        <div className="flex flex-col w-full md:w-1/3">
           <div className="mb-2 text-start text-sm text-gray-500">المدرسة</div>
           <div className="relative">
             <select
@@ -690,134 +690,43 @@ export default function ProgramStatisticsContent(): JSX.Element {
         </div>
       </div>
 
-      {/* Active Filters Indicator */}
-      {(selectedRegion || selectedEduAdmin || selectedSchool) && (
-        <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200 shadow-sm [direction:rtl]">
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <button
-                onClick={() => navigate('', { replace: true })}
-                className="text-blue-600 hover:text-blue-800 text-xs font-medium hover:underline transition-colors"
-              >
-                إزالة جميع الفلاتر
-              </button>
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-blue-800 text-sm">الفلاتر المطبقة</span>
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-              </div>
-            </div>
-            
-            <div className="flex flex-wrap gap-2 justify-end">
-              {selectedRegion && (
-                <div className="flex items-center gap-1 px-3 py-1.5 bg-white rounded-lg border border-blue-200 shadow-sm">
-                  <button
-                    onClick={() => {
-                      const params = new URLSearchParams();
-                      if (selectedEduAdmin) params.set('eduAdminId', selectedEduAdmin);
-                      if (selectedSchool) params.set('schoolId', selectedSchool);
-                      navigate(`?${params.toString()}`, { replace: true });
-                    }}
-                    className="mr-1 text-blue-500 hover:text-blue-700 hover:bg-blue-100 rounded-full p-0.5 transition-colors"
-                  >
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                  <span className="text-blue-900 text-xs font-semibold">
-                    {safeRegions.find(r => r.id === selectedRegion)?.name || 'غير معروف'}
-                  </span>
-                  <span className="text-blue-700 text-xs font-medium">:المنطقة</span>
-                </div>
-              )}
-              
-              {selectedEduAdmin && (
-                <div className="flex items-center gap-1 px-3 py-1.5 bg-white rounded-lg border border-blue-200 shadow-sm">
-                  <button
-                    onClick={() => {
-                      const params = new URLSearchParams();
-                      if (selectedRegion) params.set('regionId', selectedRegion);
-                      if (selectedSchool) params.set('schoolId', selectedSchool);
-                      navigate(`?${params.toString()}`, { replace: true });
-                    }}
-                    className="mr-1 text-blue-500 hover:text-blue-700 hover:bg-blue-100 rounded-full p-0.5 transition-colors"
-                  >
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                  <span className="text-blue-900 text-xs font-semibold">
-                    {safeEduAdmins.find(e => e.id === selectedEduAdmin)?.name || 'غير معروف'}
-                  </span>
-                  <span className="text-blue-700 text-xs font-medium">:الإدارة</span>
-                </div>
-              )}
-              
-              {selectedSchool && (
-                <div className="flex items-center gap-1 px-3 py-1.5 bg-white rounded-lg border border-blue-200 shadow-sm">
-                  <button
-                    onClick={() => {
-                      const params = new URLSearchParams();
-                      if (selectedRegion) params.set('regionId', selectedRegion);
-                      if (selectedEduAdmin) params.set('eduAdminId', selectedEduAdmin);
-                      navigate(`?${params.toString()}`, { replace: true });
-                    }}
-                    className="mr-1 text-blue-500 hover:text-blue-700 hover:bg-blue-100 rounded-full p-0.5 transition-colors"
-                  >
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                  <span className="text-blue-900 text-xs font-semibold">
-                    {filteredSchools.find(s => s.id === selectedSchool)?.name || 'غير معروف'}
-                  </span>
-                  <span className="text-blue-700 text-xs font-medium">:المدرسة</span>
-                </div>
-              )}
-            </div>
-            
-            <div className="text-xs text-blue-600 text-right">
-              عرض البيانات المفلترة حسب الاختيارات أعلاه
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Stats Section */}
-      <div className="flex flex-col lg:flex-row items-center gap-[27px] relative self-stretch w-full flex-[0_0_auto] [direction:rtl] mt-[108px]">
+      <div className="flex flex-col lg:flex-row items-center gap-4 sm:gap-6 lg:gap-[27px] relative self-stretch w-full flex-[0_0_auto] [direction:rtl] mt-12 sm:mt-16">
         {statsData.map((stat) => (
           <div
             key={stat.id}
-            className="flex h-[142px] max-lg:w-full lg:w-auto items-center justify-center gap-6 p-6 relative flex-1 grow bg-white rounded-xl border border-solid border-[#e9e9eb] shadow-shadows-shadow-xs mb-4 lg:mb-0"
+            className="flex min-h-[120px] sm:h-[142px] w-full lg:w-auto items-center justify-center gap-3 sm:gap-6 p-4 sm:p-6 relative flex-1 grow bg-white rounded-xl border border-solid border-[#e9e9eb] shadow-shadows-shadow-xs mb-2 lg:mb-0"
           >
-            <div className="flex flex-col lg:flex-row items-center justify-center gap-6 p-0 w-full">
-              <div className="relative w-[120px] h-[120px]">
+            <div className="flex flex-col sm:flex-row lg:flex-row items-center justify-center gap-3 sm:gap-6 p-0 w-full">
+              <div className="relative w-[80px] h-[80px] sm:w-[100px] sm:h-[100px] lg:w-[120px] lg:h-[120px]">
                 {chartsLoaded ? (
                   <Doughnut
                     data={getRadialChartDataTotal(stat.percentage, stat.color)}
                     options={radialChartOptions}
                   />
                 ) : (
-                  <div className="w-[120px] h-[120px] bg-gray-100 rounded-full flex items-center justify-center animate-pulse">
-                    <div className="w-8 h-8 border-2 border-[#17b169] border-t-transparent rounded-full animate-spin"></div>
+                  <div className="w-[80px] h-[80px] sm:w-[100px] sm:h-[100px] lg:w-[120px] lg:h-[120px] bg-gray-100 rounded-full flex items-center justify-center animate-pulse">
+                    <div className="w-6 h-6 sm:w-8 sm:h-8 border-2 border-[#17b169] border-t-transparent rounded-full animate-spin"></div>
                   </div>
                 )}
               </div>
 
-              <div className="flex flex-col items-end md:items-end gap-6 relative flex-1 grow">
-                <div className="self-stretch mt-[-1.00px] font-bold text-base leading-6 relative text-[#181d27] tracking-[0] [direction:rtl] text-center md:text-right">
+              <div className="flex flex-col items-center sm:items-end md:items-end gap-3 sm:gap-6 relative flex-1 grow">
+                <div className="self-stretch mt-[-1.00px] font-bold text-sm sm:text-base leading-5 sm:leading-6 relative text-[#181d27] tracking-[0] [direction:rtl] text-center sm:text-right">
                   {stat.title}
                 </div>
 
                 <div className="flex flex-col items-start gap-2 relative self-stretch w-full flex-[0_0_auto]">
-                  <div className="flex items-end justify-center md:justify-end gap-4 relative self-stretch w-full flex-[0_0_auto]">
-                    <div className="relative flex-1 mt-[-1.00px] font-bold text-[#181d27] text-5xl text-center md:text-right tracking-[0] leading-[38px]">
+                  <div className="flex items-end justify-center sm:justify-center md:justify-end gap-4 relative self-stretch w-full flex-[0_0_auto]">
+                    <div className="relative flex-1 mt-[-1.00px] font-bold text-[#181d27] text-2xl sm:text-4xl lg:text-5xl text-center sm:text-center md:text-right tracking-[0] leading-8 sm:leading-9 lg:leading-[38px]">
                       {stat.value}
                     </div>
                   </div>
                 </div>
               </div>
               <img
-                className="relative w-[54px] h-[54px]"
+                className="relative w-[40px] h-[40px] sm:w-[48px] sm:h-[48px] lg:w-[54px] lg:h-[54px]"
                 alt={stat.iconAlt}
                 src={stat.icon}
               />
@@ -826,61 +735,61 @@ export default function ProgramStatisticsContent(): JSX.Element {
         ))}
       </div>
 
-      <div className="flex lg:flex-row max-lg:flex-col max-lg:items-center items-start justify-end gap-9">
+      <div className="flex flex-col xl:flex-row items-start gap-4 sm:gap-6 lg:gap-8">
         {/* Education Departments Card */}
-        <div className="flex flex-col gap-6 max-lg:w-full">
+        <div className="flex flex-col gap-4 sm:gap-6 w-full xl:w-auto xl:min-w-[350px] xl:max-w-[400px]">
           <div className="flex flex-col items-start gap-5 w-full">
             <div className="flex items-start gap-4 w-full">
               <div className="flex flex-col items-end justify-center gap-0.5 flex-1">
-                <h2 className="self-stretch font-bold text-[#181d27] text-lg tracking-[0] leading-7 [direction:rtl]">
+                <h2 className="self-stretch font-bold text-[#181d27] text-base sm:text-lg tracking-[0] leading-6 sm:leading-7 [direction:rtl]">
                   إدارات التعليم
                 </h2>
               </div>
             </div>
           </div>
 
-          <div className="h-[321px] w-full overflow-hidden border-[#e9e9eb] shadow-shadows-shadow-xs bg-white rounded-xl">
+          <div className="h-[280px] sm:h-[321px] w-full overflow-hidden border-[#e9e9eb] shadow-shadows-shadow-xs bg-white rounded-xl">
             <div className="p-0">
-              <div className="flex flex-col items-end gap-6 p-6 w-full">
+              <div className="flex flex-col items-end gap-4 sm:gap-6 p-4 sm:p-6 w-full">
                 <div className="flex flex-col items-start gap-5 w-full">
                   <div className="flex items-start gap-4 w-full">
                     <div className="inline-flex flex-col items-start">
-                      <MoreVerticalIcon className="w-5 h-5" />
+                      <MoreVerticalIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                     </div>
 
                     <div className="flex flex-col items-end justify-center gap-0.5 flex-1">
-                      <div className="self-stretch font-bold text-[#181d27] text-base leading-6 tracking-[0] [direction:rtl]">
+                      <div className="self-stretch font-bold text-[#181d27] text-sm sm:text-base leading-5 sm:leading-6 tracking-[0] [direction:rtl]">
                         إدارات التعليم
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-start justify-end gap-6 w-full">
+                <div className="flex flex-col sm:flex-row items-center sm:items-start justify-center sm:justify-end gap-4 sm:gap-6 w-full">
                   <div className="inline-flex items-start gap-4">
-                    <div className="relative w-[200px] h-[200px]">
+                    <div className="relative w-[140px] h-[140px] sm:w-[160px] sm:h-[160px] lg:w-[180px] lg:h-[180px]">
                       {chartsLoaded ? (
                         <Doughnut data={doughnutData} options={doughnutOptions} />
                       ) : (
-                        <div className="w-[200px] h-[200px] bg-gray-100 rounded-full flex items-center justify-center animate-pulse">
-                          <div className="w-10 h-10 border-3 border-[#17b169] border-t-transparent rounded-full animate-spin"></div>
+                        <div className="w-[140px] h-[140px] sm:w-[160px] sm:h-[160px] lg:w-[180px] lg:h-[180px] bg-gray-100 rounded-full flex items-center justify-center animate-pulse">
+                          <div className="w-8 h-8 sm:w-10 sm:h-10 border-3 border-[#17b169] border-t-transparent rounded-full animate-spin"></div>
                         </div>
                       )}
                     </div>
                   </div>
 
-                  <div className="flex flex-col items-end gap-1 flex-1">
+                  <div className="flex flex-col items-center sm:items-end gap-1 flex-1 min-w-0">
                     {educationDepartments.map((department, index) => (
                       <div
                         key={index}
-                        className="flex items-start justify-end gap-2 w-full"
+                        className="flex items-start justify-center sm:justify-end gap-2 w-full"
                       >
-                        <div className="w-fit mt-[-1.00px] font-normal text-[#535861] text-sm text-left leading-5 whitespace-nowrap tracking-[0] [direction:rtl]">
+                        <div className="w-fit mt-[-1.00px] font-normal text-[#535861] text-xs sm:text-sm text-center sm:text-left leading-4 sm:leading-5 whitespace-nowrap tracking-[0] [direction:rtl] truncate">
                           {department.name}
                         </div>
                         <div className="inline-flex items-start gap-2.5 pt-1.5 pb-0 px-0">
                           <div
-                            className="relative w-2 h-2 rounded"
+                            className="relative w-2 h-2 rounded flex-shrink-0"
                             style={{ backgroundColor: department.color }}
                           />
                         </div>
@@ -894,28 +803,28 @@ export default function ProgramStatisticsContent(): JSX.Element {
         </div>
 
         {/* Reports Section */}
-        <div className="flex flex-col w-full items-start gap-6">
+        <div className="flex flex-col w-full items-start gap-4 sm:gap-6">
           {/* Header section - unchanged */}
           <div className="flex flex-col items-start gap-5 w-full">
             <div className="flex items-start gap-4 w-full">
               <div className="flex flex-col items-end justify-center gap-0.5 flex-1">
-                <h2 className="self-stretch font-bold text-[#181d27] text-lg tracking-[0] leading-7 [direction:rtl]">
+                <h2 className="self-stretch font-bold text-[#181d27] text-base sm:text-lg tracking-[0] leading-6 sm:leading-7 [direction:rtl]">
                   التقارير
                 </h2>
               </div>
             </div>
           </div>
 
-          {/* Metrics section - modified for mobile */}
+          {/* Metrics section - optimized for all screen sizes */}
           <div className="w-full border-[#e9eaeb] bg-white rounded-xl">
-            <div className="p-6 flex justify-center lg:justify-end">
-              <div className="flex flex-wrap justify-center lg:justify-end w-full lg:w-[774px] gap-y-6 gap-x-4 lg:gap-[16px_42px]">
+            <div className="p-3 sm:p-4 lg:p-6 flex justify-center lg:justify-end xl:min-h-[320px]">
+              <div className="flex flex-wrap justify-center w-full max-w-full gap-y-3 sm:gap-y-4 lg:gap-y-5 gap-x-2 sm:gap-x-3 lg:gap-x-4 xl:gap-x-6">
                 {reportMetrics.map((metric, index) => (
                   <div
                     key={index}
-                    className="flex flex-col items-center justify-center gap-3 w-[calc(50%-8px)] lg:w-auto"
+                    className="flex flex-col items-center justify-center gap-1.5 sm:gap-2 lg:gap-3 w-[calc(50%-4px)] sm:w-[calc(33.333%-8px)] lg:w-[calc(25%-12px)] xl:w-[calc(20%-20px)] min-w-[120px] max-w-[160px]"
                   >
-                    <div className="relative w-32 lg:w-40 h-[70px] lg:h-[88px]">
+                    <div className="relative w-20 sm:w-24 md:w-28 lg:w-32 xl:w-36 h-[50px] sm:h-[60px] md:h-[65px] lg:h-[70px] xl:h-[80px]">
                       {chartsLoaded ? (
                         <>
                           <Doughnut
@@ -926,21 +835,21 @@ export default function ProgramStatisticsContent(): JSX.Element {
                             options={radialChartOptions}
                           />
                           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center">
-                            <div className="text-[#535861] text-xs mb-1">
+                            <div className="text-[#535861] text-[9px] sm:text-[10px] lg:text-xs mb-0.5">
                               {metric.unit}
                             </div>
-                            <div className="text-[#181d27] text-xl lg:text-2xl font-bold">
+                            <div className="text-[#181d27] text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl font-bold">
                               {metric.value}
                             </div>
                           </div>
                         </>
                       ) : (
-                        <div className="w-32 lg:w-40 h-[70px] lg:h-[88px] bg-gray-100 rounded-full flex items-center justify-center animate-pulse">
-                          <div className="w-6 h-6 border-2 border-[#17b169] border-t-transparent rounded-full animate-spin"></div>
+                        <div className="w-20 sm:w-24 md:w-28 lg:w-32 xl:w-36 h-[50px] sm:h-[60px] md:h-[65px] lg:h-[70px] xl:h-[80px] bg-gray-100 rounded-full flex items-center justify-center animate-pulse">
+                          <div className="w-3 h-3 sm:w-4 sm:h-4 lg:w-6 lg:h-6 border-2 border-[#17b169] border-t-transparent rounded-full animate-spin"></div>
                         </div>
                       )}
                     </div>
-                    <div className="w-full font-medium text-[#181d27] text-sm text-center tracking-[0] leading-[14.2px] [direction:rtl]">
+                    <div className="w-full font-medium text-[#181d27] text-[10px] sm:text-xs lg:text-sm text-center tracking-[0] leading-[11px] sm:leading-[12px] lg:leading-[14px] [direction:rtl] px-0.5 sm:px-1">
                       {metric.title}
                     </div>
                   </div>
@@ -952,58 +861,26 @@ export default function ProgramStatisticsContent(): JSX.Element {
       </div>
 
       {/* Regions Section */}
-      <section className="flex flex-col gap-6 w-full">
+      <section className="flex flex-col gap-4 sm:gap-6 w-full">
         <div className="flex flex-col gap-5 w-full">
           <div className="flex items-start gap-4 w-full h-full">
-            <div className="flex flex-col gap-5 w-full">
-              <div className="flex items-center w-full">
-                {" "}
-                {/* Changed to items-center for vertical alignment */}
-                <div className="flex rounded-md border border-[#d5d6d9] overflow-hidden">
-                  {" "}
-                  {/* Added overflow-hidden */}
-                  <button className="px-4 py-2 border-r border-[#d5d6d9] bg-white hover:bg-neutral-50 transition-colors [direction:rtl]">
-                    <span className="font-bold text-[#414651] text-sm">
-                      المدارس
-                    </span>
-                  </button>
-                  <button className="px-4 py-2 border-r border-[#d5d6d9] bg-white hover:bg-neutral-50 transition-colors [direction:rtl]">
-                    <span className="font-bold text-[#414651] text-sm">
-                      الإدارات
-                    </span>
-                  </button>
-                  <button className="px-4 py-2 bg-neutral-50 [direction:rtl] flex items-center justify-center gap-2">
-                    {" "}
-                    {/* Removed border-right from last button */}
-                    <span className="font-bold text-[#414651] text-sm">
-                      المناطق
-                    </span>
-                    <div className="relative w-2.5 h-2.5 flex items-center justify-center">
-                      <div className="w-2 h-2 bg-[#17b169] rounded-full" />{" "}
-                      {/* Simplified green dot */}
-                    </div>
-                  </button>
-                </div>
-              </div>
-            </div>
-
             <div className="flex flex-col items-end justify-center gap-0.5 flex-1">
-              <h2 className="font-bold text-[#181d27] text-lg leading-7 [direction:rtl]">
+              <h2 className="font-bold text-[#181d27] text-base sm:text-lg leading-6 sm:leading-7 [direction:rtl]">
                 المناطق
               </h2>
             </div>
           </div>
         </div>
 
-        <div className="border border-[#e9eaeb] rounded-xl bg-white p-6">
-          <div className="h-[228px]">
+        <div className="border border-[#e9eaeb] rounded-xl bg-white p-4 sm:p-6">
+          <div className="h-[180px] sm:h-[200px] lg:h-[228px]">
             {chartsLoaded ? (
               <Bar data={barChartData} options={barChartOptions} />
             ) : (
-              <div className="h-[228px] bg-gray-100 rounded-lg flex items-center justify-center animate-pulse">
-                <div className="flex flex-col items-center gap-3">
-                  <div className="w-12 h-12 border-4 border-[#17b169] border-t-transparent rounded-full animate-spin"></div>
-                  <p className="text-gray-600 text-sm">جاري تحميل الرسم البياني...</p>
+              <div className="h-[180px] sm:h-[200px] lg:h-[228px] bg-gray-100 rounded-lg flex items-center justify-center animate-pulse">
+                <div className="flex flex-col items-center gap-2 sm:gap-3">
+                  <div className="w-8 h-8 sm:w-12 sm:h-12 border-3 sm:border-4 border-[#17b169] border-t-transparent rounded-full animate-spin"></div>
+                  <p className="text-gray-600 text-xs sm:text-sm">جاري تحميل الرسم البياني...</p>
                 </div>
               </div>
             )}

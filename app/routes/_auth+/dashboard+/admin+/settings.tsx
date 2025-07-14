@@ -511,7 +511,7 @@ export const ManageData = (): JSX.Element => {
                         />
 
                         <div className="bg-[#f8f9fa] p-3 rounded-lg border border-[#e9ecef]">
-                          <div className="flex items-center gap-2 mb-3">
+                          <div className="flex items-center flex-row-reverse gap-2 mb-3">
                             <span className="text-sm font-medium text-[#495057] [direction:rtl]">
                               إضافة إدارة تعليمية
                             </span>
@@ -571,7 +571,7 @@ export const ManageData = (): JSX.Element => {
                       </Form>
                     ) : (
                       <div className="bg-[#f8f9fa] p-3 rounded-lg border border-[#e9ecef]">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center flex-row-reverse gap-2">
                           <span className="text-sm font-medium text-[#495057] [direction:rtl]">
                             إضافة إدارة تعليمية
                           </span>
@@ -580,7 +580,7 @@ export const ManageData = (): JSX.Element => {
                             variant="outline"
                             size="sm"
                             onClick={() => handleAddEduAdminInput(region.id)}
-                            className="ml-auto"
+                            className="mr-auto"
                           >
                             <img src={plusImg} alt="plus" className="w-3 h-3" />
                           </Button>

@@ -104,7 +104,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     // Fetch skills with usage counts and testimonials in parallel
     const [skillsResult, testimonialsResult] = await Promise.all([
       skillDb.getSkillsWithUsageCount(dbUrl),
-      testimonialDb.getAllTestimonials(dbUrl)
+      testimonialDb.getAllTestimonials(dbUrl),
     ]);
 
     if (!skillsResult.success) {
@@ -116,7 +116,9 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
     return Response.json({
       skills: skillsResult.data || [],
-      testimonials: testimonialsResult.success ? testimonialsResult.data || [] : [],
+      testimonials: testimonialsResult.success
+        ? testimonialsResult.data || []
+        : [],
     });
   } catch (error) {
     console.error("Error in skills loader:", error);
@@ -146,7 +148,7 @@ export const Skills = (): JSX.Element => {
   }>();
 
   // Transform skills data for the word cloud
-  const wordCloudData = loaderData.skills.map((skill) => ({
+  const wordCloudData = loaderData?.skills?.map((skill) => ({
     text: skill.name,
     value: skill.usageCount || 1, // Ensure minimum value of 1
   }));
@@ -165,8 +167,6 @@ export const Skills = (): JSX.Element => {
 
   const finalWordCloudData =
     wordCloudData.length > 0 ? wordCloudData : sampleData;
-
-
 
   return (
     <div>

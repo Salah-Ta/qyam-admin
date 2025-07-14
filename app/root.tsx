@@ -10,7 +10,8 @@ import {
   useLoaderData,
   useLocation,
 } from "@remix-run/react";
-import  QrCode from "qrcode"
+import QrCode from "qrcode";
+import yaniaLogo from "./assets/images/new-design/header-icon.svg";
 
 import "./tailwind.css";
 import { getAuth } from "./lib/auth.server";
@@ -33,17 +34,18 @@ export const links: LinksFunction = () => [
   },
   {
     rel: "stylesheet",
-    href: "https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap"
+    href: "https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap",
   },
 
   {
-    rel:"stylesheet",
-    href:"https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@100..900&family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap"
-  }
-
-
-
-
+    rel: "stylesheet",
+    href: "https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@100..900&family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap",
+  },
+  {
+    rel: "icon",
+    href: yaniaLogo,
+    type: "image/svg+xml",
+  },
 ];
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
@@ -55,41 +57,37 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
       getToast(request),
     ]);
 
-    const user = sessionResponse?.user 
-      ? (sessionResponse.user as User) 
-      : null;
+    const user = sessionResponse?.user ? (sessionResponse.user as User) : null;
 
     return Response.json(
-      { 
-        toast: toastResponse.toast, 
+      {
+        toast: toastResponse.toast,
         user,
-        phoneNumber:context.cloudflare.env ,
-      }, 
-      { 
-        headers: toastResponse.headers || undefined 
+        phoneNumber: context.cloudflare.env,
+      },
+      {
+        headers: toastResponse.headers || undefined,
       }
     );
   } catch (error) {
     return Response.json(
-      { 
-        toast: null, 
-        user: null 
-      }, 
-      { 
-        headers: undefined 
+      {
+        toast: null,
+        user: null,
+      },
+      {
+        headers: undefined,
       }
     );
   }
 }
 export function Layout({ children }: { children: React.ReactNode }) {
- 
-
   return (
-    <html  lang="ar" >
+    <html lang="ar">
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>قيم</title>
+        <title>يانعة</title>
         <Meta />
         <Links />
       </head>
@@ -121,18 +119,23 @@ export function Layout({ children }: { children: React.ReactNode }) {
 export default function App() {
   const location = useLocation();
   const { toast, phoneNumber } = useLoaderData<any>();
-  
+
   useToast(toast);
   // console.log("qrcode:::",generatedQRCode);
 
-
- const noNavbarRoutes = ["/login", "/join", "/register", "/forgot-password", "/reset-password"];
+  const noNavbarRoutes = [
+    "/login",
+    "/join",
+    "/register",
+    "/forgot-password",
+    "/reset-password",
+  ];
 
   const showNavbar = !noNavbarRoutes.includes(location.pathname);
 
   return (
     <>
-      {showNavbar && <Navbar/>}
+      {showNavbar && <Navbar />}
       <Outlet />
       {showNavbar && <Footer phoneNumber={phoneNumber} text={""} />}
     </>

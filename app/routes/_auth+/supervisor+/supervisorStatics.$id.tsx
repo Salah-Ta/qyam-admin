@@ -19,7 +19,7 @@ import {
 import { Doughnut, Bar } from "react-chartjs-2";
 import { cn } from "~/lib/utils";
 import { useNavigate } from "@remix-run/react";
-import { PlusIcon } from "lucide-react";
+import { PlusIcon, ArrowLeftIcon } from "lucide-react";
 
 // Register Chart.js components
 ChartJS.register(
@@ -424,6 +424,16 @@ export const SupervisorStatistics = (): JSX.Element => {
 
   return (
     <div className="bg-[#f9f9f9]">
+      {/* Return Arrow */}
+      <div className="pt-6 pl-6">
+        <button 
+          onClick={() => navigate("/supervisor/allTrainers")}
+          className="flex items-center justify-center w-10 h-10 bg-white rounded-lg border border-gray-300 shadow-sm hover:bg-gray-50 transition-colors"
+          aria-label="العودة إلى قائمة المدربين"
+        >
+          <ArrowLeftIcon className="w-5 h-5 text-gray-600" />
+        </button>
+      </div>
       <div className=" mx-auto  max-w-full lg:px-[112px]  max-lg:px-[10px]">
         {/* Container Section */}
         <div className="flex flex-col w-full items-end   -mt-[10px]">
@@ -616,37 +626,6 @@ export const SupervisorStatistics = (): JSX.Element => {
           <section className="flex flex-col gap-6 w-full mt-[36px]">
             <div className="flex flex-col gap-5 w-full">
               <div className="flex items-start gap-4 w-full h-full">
-                <div className="flex flex-col gap-5 w-full">
-                  <div className="flex items-center w-full">
-                    {" "}
-                    {/* Changed to items-center for vertical alignment */}
-                    <div className="flex rounded-md border border-[#d5d6d9] overflow-hidden">
-                      {" "}
-                      {/* Added overflow-hidden */}
-                      <button className="px-4 py-2 border-r border-[#d5d6d9] bg-white hover:bg-neutral-50 transition-colors [direction:rtl]">
-                        <span className="font-bold text-[#414651] text-sm">
-                          المدارس
-                        </span>
-                      </button>
-                      <button className="px-4 py-2 border-r border-[#d5d6d9] bg-white hover:bg-neutral-50 transition-colors [direction:rtl]">
-                        <span className="font-bold text-[#414651] text-sm">
-                          الإدارات
-                        </span>
-                      </button>
-                      <button className="px-4 py-2 bg-neutral-50 [direction:rtl] flex items-center justify-center gap-2">
-                        {" "}
-                        {/* Removed border-right from last button */}
-                        <span className="font-bold text-[#414651] text-sm">
-                          المناطق
-                        </span>
-                        <div className="relative w-2.5 h-2.5 flex items-center justify-center">
-                          <div className="w-2 h-2 bg-[#17b169] rounded-full" />{" "}
-                          {/* Simplified green dot */}
-                        </div>
-                      </button>
-                    </div>
-                  </div>
-                </div>
 
                 <div className="flex flex-col items-end justify-center gap-0.5 flex-1">
                   <h2 className=" font-bold text-[#181d27] text-lg leading-7 [direction:rtl]">

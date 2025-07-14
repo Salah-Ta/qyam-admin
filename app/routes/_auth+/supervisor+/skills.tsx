@@ -3,7 +3,7 @@ import { PlusIcon } from "lucide-react";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import column1 from "../../../assets/images/new-design/column-1.svg";
-import { useNavigate } from "@remix-run/react";
+import { useNavigate, useLocation } from "@remix-run/react";
 import { json, LoaderFunctionArgs } from "@remix-run/cloudflare";
 import { useLoaderData } from "@remix-run/react";
 import skillDb from "../../../db/skill/skill.server";
@@ -149,6 +149,14 @@ export const Skills = (): JSX.Element => {
   }>();
 
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Active state detection
+  const isSkillsActive = 
+    location.pathname === "/supervisor/skills" ||
+    location.pathname === "/supervisor/skills/";
+
+  const isTrainersActive = location.pathname.includes("/allTrainers");
 
   // Transform skills data for the word cloud
   const wordCloudData = loaderData.skills.map((skill) => ({
@@ -193,29 +201,18 @@ export const Skills = (): JSX.Element => {
   // Tab items data
   const tabItems = [
     {
-      id: "skills",
-      label: "المهارات",
+      id: "program-statistics",
+      label: "إحصاءات البرنامج",
       path: "/supervisor/skills",
-      active: false,
-      hasIndicator: true,
+      active: isSkillsActive,
+      hasIndicator: isSkillsActive,
     },
     {
-      id: "regions",
-      label: "المناطق",
-      path: "/supervisor/regionsStatistics",
-      active: false,
-    },
-    {
-      id: "statistics",
-      label: "الإحصاءات",
-      path: "/supervisor/programStatics",
-      active: false,
-    },
-    {
-      id: "trainer-statistics",
-      label: "إحصاءات المدربة",
-      path: "/supervisor/supervisorStatics",
-      active: false,
+      id: "trainers-data",
+      label: "بيانات المدربين",
+      path: "/supervisor/allTrainers",
+      active: isTrainersActive,
+      hasIndicator: isTrainersActive,
     },
   ];
 
@@ -261,18 +258,20 @@ export const Skills = (): JSX.Element => {
                     <button
                       key={tab.id}
                       onClick={() => navigate(tab.path)}
-                      className={`min-h-10 px-4 py-2   border border-[#D5D7DA] w-full md:w-auto ${
-                        tab.active ? "bg-[#FAFAFA]" : "bg-white"
-                      } [direction:rtl] ${!tab.active ? "z-[1]" : "z-[-5]"}
-          ${index === 0 ? "md:rounded-r-lg rounded-t-lg md:rounded-l-none" : ""}
+                      className={`min-h-10 px-4 py-2 border border-[#D5D7DA] w-full md:w-auto [direction:rtl] transition-colors ${
+                        tab.active 
+                          ? "bg-white shadow-sm z-10 -mb-px" 
+                          : "bg-[#F8F9FA] hover:bg-white z-[1]"
+                      }
+          ${index === 0 ? "md:rounded-r-md rounded-t-md md:rounded-l-none" : ""}
           ${
             index === tabItems.length - 1
-              ? "md:rounded-l-lg rounded-b-lg md:rounded-r-none"
+              ? "md:rounded-l-md rounded-b-md md:rounded-r-none"
               : ""
           }
           ${
             index !== tabItems.length - 1
-              ? "border-b-0 md:border-b md:border-r-0"
+              ? "md:border-b"
               : ""
           }`}
                     >
@@ -282,7 +281,9 @@ export const Skills = (): JSX.Element => {
                             <div className="relative w-2 h-2 top-px -left-[5px] bg-[#17b169] rounded" />
                           </div>
                         )}
-                        <span className="font-bold text-[#414651] text-sm text-center md:text-right tracking-[0] leading-5 whitespace-nowrap">
+                        <span className={`font-bold text-sm text-center md:text-right tracking-[0] leading-5 whitespace-nowrap ${
+                          tab.active ? "text-[#17b169]" : "text-[#414651]"
+                        }`}>
                           {tab.label}
                         </span>
                       </div>

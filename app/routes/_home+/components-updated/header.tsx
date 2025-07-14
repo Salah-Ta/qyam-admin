@@ -110,15 +110,11 @@ export const Header = (): JSX.Element => {
         </div>
 
         <div className="inline-flex items-start gap-3">
-          <button className="inline-flex items-center justify-center gap-2 px-[26px] py-4 bg-white rounded-lg border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs-skeuomorphic">
-            <span className=" font-bold text-[#414651] text-lg text-left tracking-[0] leading-7 whitespace-nowrap ">
-              للمزيد
-            </span>
-          </button>
-
-          <button className="flex items-center justify-center px-[26px] py-4 bg-[#006173] text-white rounded-lg">
+          <button 
+           onClick={() => window.location.href = "/join"}
+          className="flex items-center justify-center px-[26px] py-4 bg-[#006173] text-white rounded-lg">
             <span className=" font-bold text-lg text-left tracking-[0] leading-7 whitespace-nowrap ">
-              للتسجيل
+              انضمام
             </span>
           </button>
         </div>

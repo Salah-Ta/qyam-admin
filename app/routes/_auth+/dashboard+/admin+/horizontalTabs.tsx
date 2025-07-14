@@ -44,10 +44,10 @@ export const HorizontalTabs = (): JSX.Element => {
   return (
     <Tabs
       defaultValue={activeTab}
-      className="w-full mx-1 mb-[20px] lg:mt-[125px]"
+      className="w-full mb-[20px] lg:mt-[125px] rounded-md"
       onValueChange={setActiveTab}
     >
-      <TabsList className="flex flex-col md:flex-row w-full h-auto md:h-14 p-1.5 gap-1 bg-neutral-50 border border-solid border-[#e9e9eb] rounded-none">
+      <TabsList className="flex flex-col rounded-xl md:flex-row w-full h-auto md:h-14 p-1.5 gap-1 bg-neutral-50 border border-solid border-[#e9e9eb] ">
         {tabItems.map((tab) => (
           <TabsTrigger
             key={tab.id}

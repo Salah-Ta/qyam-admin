@@ -79,43 +79,67 @@ const OriginalColumnTestimonials: React.FC<OriginalColumnTestimonialsProps> = ({
   const columns = createColumns();
 
   return (
-    <div className="flex flex-col max-w-screen-xl items-start gap-8 px-8 w-full mb-5">
-      <style dangerouslySetInnerHTML={{
-        __html: `
-          @keyframes scrollUp0 {
-            0% { transform: translateY(0); }
-            100% { transform: translateY(-50%); }
-          }
-          @keyframes scrollUp1 {
-            0% { transform: translateY(0); }
-            100% { transform: translateY(-50%); }
-          }
-          @keyframes scrollUp2 {
-            0% { transform: translateY(0); }
-            100% { transform: translateY(-50%); }
-          }
-          .scroll-animation-0 {
-            animation: scrollUp0 30s linear infinite;
-          }
-          .scroll-animation-1 {
-            animation: scrollUp1 40s linear infinite;
-          }
-          .scroll-animation-2 {
-            animation: scrollUp2 35s linear infinite;
-          }
-          .scroll-animation-0:hover,
-          .scroll-animation-1:hover,
-          .scroll-animation-2:hover {
-            animation-play-state: paused;
-          }
-        `
-      }} />
+    <>
+      <style>{`
+        @keyframes scrollUp0 {
+          0% { transform: translateY(0); }
+          100% { transform: translateY(-50%); }
+        }
+        @keyframes scrollUp1 {
+          0% { transform: translateY(0); }
+          100% { transform: translateY(-50%); }
+        }
+        @keyframes scrollUp2 {
+          0% { transform: translateY(0); }
+          100% { transform: translateY(-50%); }
+        }
+        .scroll-animation-0 {
+          animation: scrollUp0 30s linear infinite;
+        }
+        .scroll-animation-1 {
+          animation: scrollUp1 40s linear infinite;
+        }
+        .scroll-animation-2 {
+          animation: scrollUp2 35s linear infinite;
+        }
+        .scroll-animation-0:hover,
+        .scroll-animation-1:hover,
+        .scroll-animation-2:hover {
+          animation-play-state: paused;
+        }
+        .testimonial-column {
+          position: relative;
+        }
+        .testimonial-column::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 80px;
+          background: linear-gradient(to bottom, rgb(249 249 249), rgba(255, 255, 255, 0));
+          z-index: 10;
+          pointer-events: none;
+        }
+        .testimonial-column::after {
+          content: '';
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          height: 80px;
+          background: linear-gradient(to top, rgb(249 249 249), rgba(255, 255, 255, 0));
+          z-index: 10;
+          pointer-events: none;
+        }
+      `}</style>
+      <div className="flex flex-col max-w-screen-xl items-start gap-8 px-8 w-full mb-10 pb-10">
       <div className="flex flex-col items-center gap-10 w-full">
         <div className="flex flex-col md:flex-row md:flex-nowrap items-start gap-8 w-full">
           {columns.map((column, columnIndex) => (
             <div 
               key={columnIndex} 
-              className="flex-1 overflow-hidden"
+              className="flex justify-center flex-1 overflow-hidden testimonial-column"
               style={{ height: '600px' }}
             >
               <div className={`space-y-6 scroll-animation-${columnIndex}`}>
@@ -134,7 +158,8 @@ const OriginalColumnTestimonials: React.FC<OriginalColumnTestimonialsProps> = ({
           ))}
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 };
 
