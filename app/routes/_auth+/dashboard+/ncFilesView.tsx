@@ -1,7 +1,45 @@
 import React from "react";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { useLoaderData, useNavigate } from "@remix-run/react";
+import { LoaderFunctionArgs } from "@remix-run/cloudflare";
+import articleDB from "~/db/articles/articles.server";
+import { Article } from "~/types/types";
 import cardImg from "~/assets/images/new-design/image-1.png";
+
+// Loader function to fetch article data
+export async function loader({ request, context }: LoaderFunctionArgs) {
+  const url = new URL(request.url);
+  const articleId = url.searchParams.get('articleId');
+  
+  if (!articleId) {
+    throw new Response("Article ID is required", { status: 400 });
+  }
+
+  try {
+    const response = await articleDB.getArticleBySlug(
+      articleId,
+      context.cloudflare.env.DATABASE_URL
+    ) as { status: string; data?: Article };
+    
+    if (response.status !== 'success' || !response.data) {
+      throw new Response("Article not found", { status: 404 });
+    }
+    
+    return Response.json(response.data);
+  } catch (error) {
+    console.error("Article fetch error:", error);
+    throw new Response("Failed to load article", { status: 500 });
+  }
+}
+
+// Type for serialized article data
+type SerializedArticle = Omit<Article, 'createdAt' | 'updatedAt'> & {
+  id: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
@@ -26,56 +64,88 @@ function CardContent({ className, ...props }: CardContentProps) {
   return <div className={cn("p-6 pt-0", className)} {...props} />;
 }
 
-// Data for the paragraphs to enable mapping
-const paragraphs = [
-  "تعد القيم بمثابة الخريطة التي نسترشد بها في رحلة حياتنا، هي المبادئ والمعايير التي نؤمن بها ونحاول أن نعيش وفقها. إنها بوصلتنا التي تساعدنا في اتخاذ القرارات الصحيحة وتحديد مسارنا في الحياة. تتجاوز القيم كونها مجرد أفكار، بل هي القوة الدافعة التي تحرك سلوكنا وتشكل شخصيتنا وعلاقاتنا مع الآخرين.",
-  "لماذا تعتبر القيم مهمة؟",
-  "بناء شخصية قوية ومتوازنة: القيم هي اللبنة الأساسية التي تبنى عليها شخصيتنا. عندما نمتلك مجموعة قيم واضحة، نشعر بالاستقرار والاتزان النفسي. تساعدنا القيم على التعامل مع التحديات والصعاب التي تواجهنا في الحياة، وتمنحنا القوة والإرادة لمواجهتها",
-  "تحديد الهوية: القيم تعكس هويتنا وطريقة تفكيرنا. إنها تميزنا عن الآخرين وتجعلنا أفرادا فريدين. عندما نعيش وفقا لقيمنا، نشعر بالانتماء إلى أنفسنا وإلى المجتمع الذي نعيش فيه.",
-  "بناء علاقات قوية: القيم الجيدة تساعدنا على بناء علاقات قوية ومتينة مع الآخرين. عندما نتعامل مع الناس باحترام وتقدير، ونكون صادقين ومخلصين في علاقاتنا، نكسب ثقتهم واحترامهم.",
-  "إيجاد السعادة والرضا: عندما نعيش حياة تتفق مع قيمنا، نشعر بالسعادة والرضا عن أنفسنا. نعرف أننا نسير في الطريق الصحيح وأننا نساهم في بناء عالم أفضل.",
-  "التأثير الإيجابي في المجتمع: القيم الجيدة لا تقتصر فائدتها على الفرد فقط، بل تمتد لتشمل المجتمع ككل. عندما يعيش أفراد المجتمع وفقا لقيم مشتركة، يتحقق التعاون والتكاتف، وينعم المجتمع بالاستقرار والازدهار.",
-];
-
 export const Section2 = (): JSX.Element => {
+  const article = useLoaderData<SerializedArticle>();
+  const navigate = useNavigate();
+  
+  // Parse the content into paragraphs - assuming content is stored as a single string
+  // that can be split into paragraphs or is already formatted as HTML/markdown
+  const parseContent = (content: string): string[] => {
+    if (!content || content.trim().length === 0) {
+      return [];
+    }
+    
+    // If content contains newlines, split by them
+    if (content.includes('\n\n')) {
+      return content.split('\n\n').filter(paragraph => paragraph.trim().length > 0);
+    } else if (content.includes('\n')) {
+      return content.split('\n').filter(paragraph => paragraph.trim().length > 0);
+    }
+    
+    // If content contains HTML paragraphs, extract them
+    if (content.includes('<p>')) {
+      const matches = content.match(/<p[^>]*>(.*?)<\/p>/gi);
+      if (matches) {
+        return matches.map(match => match.replace(/<\/?p[^>]*>/gi, '').trim()).filter(p => p.length > 0);
+      }
+    }
+    
+    // If content is very long, try to split by periods followed by spaces
+    if (content.length > 500) {
+      const sentences = content.split(/\.\s+/).filter(sentence => sentence.trim().length > 0);
+      if (sentences.length > 3) {
+        return sentences.map(sentence => sentence.endsWith('.') ? sentence : sentence + '.');
+      }
+    }
+    
+    // Otherwise, treat it as a single paragraph
+    return [content];
+  };
+
+  const paragraphs = parseContent(article.content || '');
+  
+  // If no content paragraphs, use description as fallback
+  const displayParagraphs = paragraphs.length > 0 ? paragraphs : [article.description || 'محتوى المقال غير متوفر حالياً.'];
+
   return (
-    <Card className="flex flex-col w-full   items-end gap-[42px] p-4 rounded-3xl shadow-shadows-shadow-md mb-[505.5px] md:mt-[165.5px]">
-      <img className="w-full h-auto object-cover" alt="Image" src={cardImg} />
+    <div className="flex flex-col w-full gap-4 md:mt-[165.5px]">
+      {/* Back Button */}
+      <button
+        onClick={() => navigate('/dashboard/infoCenter')}
+        className="flex items-center gap-2 px-4 py-2 text-[#006173] hover:bg-[#006173] hover:text-white transition-colors rounded-md border border-[#006173] self-start mb-4"
+        dir="rtl"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+        </svg>
+        <span className="font-medium text-sm">العودة إلى مركز المعلومات</span>
+      </button>
 
-      <CardContent className="flex flex-col items-end justify-center gap-6 w-full p-0">
-        <h1 className="  font-bold text-[32px] leading-7 [direction:rtl] w-full text-[#1f2a37] tracking-[0] ">
-          أهمية القيم في حياتنا: ركيزة أساسية للشخصية والمجتمع
-        </h1>
+      <Card className="flex flex-col w-full items-end gap-[42px] p-4 rounded-3xl shadow-shadows-shadow-md mb-[505.5px]">
+        <img 
+          className="w-full h-auto object-cover rounded-2xl" 
+          alt="Article image" 
+          src={article.image || cardImg} 
+        />
 
-        <div className="flex flex-col items-start gap-4 w-full">
-          {paragraphs.map((paragraph, index) => (
-            <p
-              key={index}
-              className="[ text-right font-normal text-2xl  leading-[33.6px] w-full text-[#1f2a37] tracking-[0] [direction:rtl]"
-            >
-              {index >= paragraphs.length - 5 ? (
-                <>
-                  <span
-                    style={{
-                      display: "inline-block",
-                      width: "10px",
-                      height: "10px",
-                      backgroundColor: "#1f2a37",
-                      borderRadius: "50%",
-                      marginLeft: "10px",
-                      marginRight: "10px",
-                    }}
-                  />
-                  {paragraph}
-                </>
-              ) : (
-                paragraph
-              )}
-            </p>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+        <CardContent className="flex flex-col items-end justify-center gap-6 w-full p-0">
+          <h1 className="font-bold text-[32px] leading-7 [direction:rtl] w-full text-[#1f2a37] tracking-[0]">
+            {article.title}
+          </h1>
+
+          <div className="flex flex-col items-start gap-4 w-full">
+            {displayParagraphs.map((paragraph, index) => (
+              <p
+                key={index}
+                className="text-right font-normal text-2xl leading-[33.6px] w-full text-[#1f2a37] tracking-[0] [direction:rtl]"
+              >
+                {paragraph}
+              </p>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 
