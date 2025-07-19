@@ -135,12 +135,16 @@ export type SkillReport = {
 };
 
 export type Skill = {
-  id: string;
+  id: string?;
   name: string;
-  //description?: string; // Optional if not needed
+  description: string?;
   createdAt?: Date;
   updatedAt?: Date;
 };
+
+export interface SkillWithCount extends Skill {
+  usageCount: number;
+}
 
 export type CreateReportData = {
   userId: string;

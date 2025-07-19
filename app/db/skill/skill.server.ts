@@ -1,14 +1,23 @@
-import { PrismaClient } from '@prisma/client';
-import { Skill } from '~/types/types';
+import { Skill, SkillWithCount } from '~/types/types';
+import { client } from '../db-client.server';
+
+const initializeDatabase = (dbUrl?: string) => {
+    const db = dbUrl ? client(dbUrl) : client();
+    if (!db) {
+        throw new Error("فشل الاتصال بقاعدة البيانات");
+    }
+    return db;
+};
 
 // Create a new skill
-async function createSkill(data: { name: string }, dbUrl: string) {
-  const prisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
+async function createSkill(data: Skill, dbUrl?: string): Promise<{ success: boolean; data?: Skill; error?: string }> {
+  const db = initializeDatabase(dbUrl);
   
   try {
-    const skill = await prisma.skill.create({
+    const skill = await db.skill.create({
       data: {
         name: data.name,
+        description: data.description || '', // Ensure description is not undefined
       }
     });
     
@@ -17,16 +26,16 @@ async function createSkill(data: { name: string }, dbUrl: string) {
     console.error("Error creating skill:", error);
     return { success: false, error: error.message };
   } finally {
-    await prisma.$disconnect();
+    await db.$disconnect();
   }
 }
 
 // Get all skills
-async function getAllSkills(dbUrl: string) {
-  const prisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
-  
+async function getAllSkills(dbUrl?: string): Promise<{ success: boolean; data?: Skill[]; error?: string }> {
+  const db = initializeDatabase(dbUrl);
+
   try {
-    const skills = await prisma.skill.findMany({
+    const skills = await db.skill.findMany({
       orderBy: {
         name: 'asc'
       }
@@ -37,16 +46,16 @@ async function getAllSkills(dbUrl: string) {
     console.error("Error fetching skills:", error);
     return { success: false, error: error.message };
   } finally {
-    await prisma.$disconnect();
+    await db.$disconnect();
   }
 }
 
 // Get a specific skill
-async function getSkill(id: string, dbUrl: string) {
-  const prisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
-  
+async function getSkill(id: string, dbUrl?: string): Promise<{ success: boolean; data?: Skill; error?: string }> {
+  const db = initializeDatabase(dbUrl);
+
   try {
-    const skill = await prisma.skill.findUnique({
+    const skill = await db.skill.findUnique({
       where: { id }
     });
     
@@ -55,19 +64,20 @@ async function getSkill(id: string, dbUrl: string) {
     console.error("Error fetching skill:", error);
     return { success: false, error: error.message };
   } finally {
-    await prisma.$disconnect();
+    await db.$disconnect();
   }
 }
 
 // Update a skill
-async function updateSkill(id: string, data: { name?: string }, dbUrl: string) {
-  const prisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
-  
+async function updateSkill(id: string, data: Skill, dbUrl?: string): Promise<{ success: boolean; data?: Skill; error?: string }> {
+  const db = initializeDatabase(dbUrl);
+
   try {
-    const skill = await prisma.skill.update({
+    const skill = await db.skill.update({
       where: { id },
       data: {
         ...(data.name && { name: data.name }),
+        ...(data.description && { description: data.description }),
       }
     });
     
@@ -76,17 +86,17 @@ async function updateSkill(id: string, data: { name?: string }, dbUrl: string) {
     console.error("Error updating skill:", error);
     return { success: false, error: error.message };
   } finally {
-    await prisma.$disconnect();
+    await db.$disconnect();
   }
 }
 
 // Delete a skill
-async function deleteSkill(id: string, dbUrl: string) {
-  const prisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
-  
+async function deleteSkill(id: string, dbUrl?: string): Promise<{ success: boolean; error?: string }> {
+  const db = initializeDatabase(dbUrl);
+
   try {
     // First check if the skill is used in any reports
-    const skillUseCount = await prisma.skillReport.count({
+    const skillUseCount = await db.skillReport.count({
       where: { skillId: id }
     });
     
@@ -98,7 +108,7 @@ async function deleteSkill(id: string, dbUrl: string) {
     }
     
     // If not used, delete the skill
-    await prisma.skill.delete({
+    await db.skill.delete({
       where: { id }
     });
     
@@ -107,7 +117,44 @@ async function deleteSkill(id: string, dbUrl: string) {
     console.error("Error deleting skill:", error);
     return { success: false, error: error.message };
   } finally {
-    await prisma.$disconnect();
+    await db.$disconnect();
+  }
+}
+
+// Get skills with usage counts for word cloud
+async function getSkillsWithUsageCount(dbUrl?: string): Promise<{ success: boolean; data?: SkillWithCount[]; error?: string }> {
+  const db = initializeDatabase(dbUrl);
+
+  try {
+    const skills = await db.skill.findMany({
+      include: {
+        reports: {
+          select: {
+            skillId: true
+          }
+        }
+      }
+    });
+    
+    // Transform to include usage count
+    const skillsWithCount = skills.map(skill => ({
+      id: skill.id,
+      name: skill.name,
+      description: skill.description,
+      usageCount: skill.reports.length,
+      createdAt: skill.createdAt,
+      updatedAt: skill.updatedAt
+    }));
+    
+    // Sort by usage count (descending)
+    skillsWithCount.sort((a, b) => b.usageCount - a.usageCount);
+    
+    return { success: true, data: skillsWithCount };
+  } catch (error: any) {
+    console.error("Error fetching skills with usage count:", error);
+    return { success: false, error: error.message };
+  } finally {
+    await db.$disconnect();
   }
 }
 
@@ -116,5 +163,6 @@ export default {
   getAllSkills,
   getSkill,
   updateSkill,
-  deleteSkill
+  deleteSkill,
+  getSkillsWithUsageCount
 };
