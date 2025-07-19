@@ -135,9 +135,9 @@ export type SkillReport = {
 };
 
 export type Skill = {
-  id: string?;
+  id?: string;
   name: string;
-  description: string?;
+  description?: string;
   createdAt?: Date;
   updatedAt?: Date;
 };
@@ -167,7 +167,7 @@ export type Testimonial = {
   id?: string;
   name: string;
   comment: string;
-  rating: number;
+  rating?: number;
   createdAt?: Date;
   updatedAt?: Date;
   reports?: TestimonialReport[];
@@ -186,7 +186,7 @@ export type TestimonialReport = {
 export type CreateTestimonialData = {
   name: string;
   comment: string;
-  //rating: number; // Optional if you want to set a default rating in the backend
+  rating?: number; // Optional if you want to set a default rating in the backend
 };
 
 // Report statistics types

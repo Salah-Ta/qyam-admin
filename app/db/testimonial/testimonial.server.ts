@@ -1,12 +1,20 @@
-import { PrismaClient } from '@prisma/client';
 import { CreateTestimonialData, Testimonial } from '~/types/types';
+import { client } from '../db-client.server';
+
+const initializeDatabase = (dbUrl?: string) => {
+    const db = dbUrl ? client(dbUrl) : client();
+    if (!db) {
+        throw new Error("فشل الاتصال بقاعدة البيانات");
+    }
+    return db;
+};
 
 // Create a new testimonial
-async function createTestimonial(data: CreateTestimonialData, dbUrl: string) {
-  const prisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
-  
+async function createTestimonial(data: CreateTestimonialData, dbUrl?: string) {
+  const db = initializeDatabase(dbUrl);
+
   try {
-    const testimonial = await prisma.testimonial.create({
+    const testimonial = await db.testimonial.create({
       data: {
         name: data.name,
         comment: data.comment
@@ -18,16 +26,16 @@ async function createTestimonial(data: CreateTestimonialData, dbUrl: string) {
     console.error("Error creating testimonial:", error);
     return { success: false, error: error.message };
   } finally {
-    await prisma.$disconnect();
+    await db.$disconnect();
   }
 }
 
 // Get testimonial by ID
-async function getTestimonial(id: string, dbUrl: string) {
-  const prisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
-  
+async function getTestimonial(id: string, dbUrl?: string) {
+  const db = initializeDatabase(dbUrl);
+
   try {
-    const testimonial = await prisma.testimonial.findUnique({
+    const testimonial = await db.testimonial.findUnique({
       where: { id }
     });
     
@@ -36,16 +44,16 @@ async function getTestimonial(id: string, dbUrl: string) {
     console.error("Error fetching testimonial:", error);
     return { success: false, error: error.message };
   } finally {
-    await prisma.$disconnect();
+    await db.$disconnect();
   }
 }
 
 // Get all testimonials
-async function getAllTestimonials(dbUrl: string) {
-  const prisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
-  
+async function getAllTestimonials(dbUrl?: string) {
+  const db = initializeDatabase(dbUrl);
+
   try {
-    const testimonials = await prisma.testimonial.findMany({
+    const testimonials = await db.testimonial.findMany({
       orderBy: {
         createdAt: 'desc'
       }
@@ -56,7 +64,7 @@ async function getAllTestimonials(dbUrl: string) {
     console.error("Error fetching testimonials:", error);
     return { success: false, error: error.message };
   } finally {
-    await prisma.$disconnect();
+    await db.$disconnect();
   }
 }
 
