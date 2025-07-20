@@ -15,8 +15,9 @@ const editUserRegisteration = (userId: string, status: AcceptenceState, dbUrl?: 
   resendApi: string;
   mainEmail: string;
   userEmail: string;
-}) => {
-  
+},
+previousStatus?: AcceptenceState) => {
+
   const db = initializeDatabase(dbUrl);
 
   return new Promise((resolve, reject) => {
@@ -25,16 +26,30 @@ const editUserRegisteration = (userId: string, status: AcceptenceState, dbUrl?: 
       where: { id: userId }
     }).then(async () => {
       // Send email notification if status is accepted or denied
-      if ((status === "accepted" || status === "denied") && emailConfig) {
+      if ((status === "accepted" || status === "denied" || status === "pending" || status === "idle") && emailConfig) {
+        
+        let emailText;
+        switch (status) {
+          case "accepted":
+            emailText = previousStatus === "idle" ? glossary.email.reactivation_message : glossary.email.acceptance_message;
+            break;
+          case "denied":
+            emailText = glossary.email.rejection_message;
+            break;
+          case "pending":
+            emailText = glossary.email.registration_message;
+            break;
+          case "idle":
+            emailText = glossary.email.suspension_message;
+            break;
+        }
         // Send email
         await sendEmail({
           to: emailConfig!.userEmail,
           subject: glossary.email.program_status_subject,
           template: "program-status",
           props: { status, name: "" },
-          text: status === "accepted"
-            ? glossary.email.acceptence_message
-            : glossary.email.rejection_message,
+          text: emailText,
         },
           emailConfig!.resendApi,
           emailConfig!.mainEmail);
@@ -51,7 +66,7 @@ const editUserRegisteration = (userId: string, status: AcceptenceState, dbUrl?: 
 }
 
 const bulkEditUserRegisteration = (userIds: string[], status: "accepted" | "denied", dbUrl?: string) => {
-  
+
   const db = initializeDatabase(dbUrl);
 
   return new Promise((resolve, reject) => {
@@ -68,7 +83,7 @@ const bulkEditUserRegisteration = (userIds: string[], status: "accepted" | "deni
 }
 
 const getAllUsers = (dbUrl?: string): Promise<StatusResponse<QUser[]>> => {
-  
+
   const db = initializeDatabase(dbUrl);
 
   return new Promise((resolve, reject) => {
@@ -92,7 +107,7 @@ const getAllUsers = (dbUrl?: string): Promise<StatusResponse<QUser[]>> => {
 };
 
 const getUser = (id: string, dbUrl?: string): Promise<StatusResponse<QUser>> => {
-  
+
   const db = initializeDatabase(dbUrl);
 
   return new Promise((resolve, reject) => {
@@ -123,9 +138,9 @@ const createUser = (userData: {
   eduAdminId?: string,
   schoolId?: string
 }, dbUrl?: string): Promise<StatusResponse<null>> => {
-  
+
   const db = initializeDatabase(dbUrl);
-  
+
   return new Promise((resolve, reject) => {
     db.user
       .create({
@@ -157,8 +172,8 @@ const updateUser = (id: string, userData: {
   eduAdminId?: string | null,
   schoolId?: string | null
 }, dbUrl?: string): Promise<StatusResponse<null>> => {
-    
-const db = initializeDatabase(dbUrl);
+
+  const db = initializeDatabase(dbUrl);
 
   return new Promise((resolve, reject) => {
     db.user
@@ -183,7 +198,7 @@ const db = initializeDatabase(dbUrl);
 };
 
 const deleteUser = (id: string, dbUrl?: string): Promise<StatusResponse<null>> => {
-  
+
   const db = initializeDatabase(dbUrl);
 
   return new Promise((resolve, reject) => {
@@ -209,9 +224,9 @@ const deleteUser = (id: string, dbUrl?: string): Promise<StatusResponse<null>> =
 
 // Function to get users by region
 const getUsersByRegion = (regionId: string, dbUrl?: string): Promise<StatusResponse<QUser[]>> => {
-  
+
   const db = initializeDatabase(dbUrl);
-  
+
   return new Promise((resolve, reject) => {
     db.user
       .findMany({
@@ -235,9 +250,9 @@ const getUsersByRegion = (regionId: string, dbUrl?: string): Promise<StatusRespo
 
 // Function to get users by eduAdmin
 const getUsersByEduAdmin = (eduAdminId: string, dbUrl?: string): Promise<StatusResponse<QUser[]>> => {
-  
+
   const db = initializeDatabase(dbUrl);
-  
+
   return new Promise((resolve, reject) => {
     db.user
       .findMany({
@@ -261,7 +276,7 @@ const getUsersByEduAdmin = (eduAdminId: string, dbUrl?: string): Promise<StatusR
 
 // Function to get users by school
 const getUsersBySchool = (schoolId: string, dbUrl?: string): Promise<StatusResponse<QUser[]>> => {
-  
+
   const db = initializeDatabase(dbUrl);
 
   return new Promise((resolve, reject) => {
@@ -289,7 +304,7 @@ const getUsersBySchool = (schoolId: string, dbUrl?: string): Promise<StatusRespo
  * Get user details including certificates
  */
 const getUserWithCertificates = (userId: string, dbUrl?: string): Promise<StatusResponse<any>> => {
-  
+
   const db = initializeDatabase(dbUrl);
 
   return new Promise((resolve, reject) => {
@@ -336,7 +351,7 @@ const addCertificateToUser = (
 ): Promise<StatusResponse<null>> => {
 
   const db = initializeDatabase(dbUrl);
-  
+
   return new Promise((resolve, reject) => {
     db.userCertificate
       .create({

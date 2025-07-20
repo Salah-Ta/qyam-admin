@@ -52,11 +52,11 @@ const targeted_users = {
 
 const levels = {
   title: "مستويات البرنامج",
-  button_user:{
-    pending:"تم ارسال طلب الانضمام",
-    accepted:"تم الانضمام للبرنامج",
-    rejected:"الانضمام للبرنامج",
-    idle:"الانضمام للبرنامج",
+  button_user: {
+    pending: "تم ارسال طلب الانضمام",
+    accepted: "تم الانضمام للبرنامج",
+    rejected: "الانضمام للبرنامج",
+    idle: "الانضمام للبرنامج",
 
   },
 
@@ -77,45 +77,45 @@ const status_response = {
     material_deleted: "تم حذف المقرر بنجاح",
     user_accepted: "تم قبول المستخدم بنجاح",
     user_denied: "تم استبعاد المستخدم بنجاح",
-    article_added:"تمت اضافة المقال",
-    article_updated:"تم تعديل المقال",
-    article_deleted:"تم حذف المقال"
+    article_added: "تمت اضافة المقال",
+    article_updated: "تم تعديل المقال",
+    article_deleted: "تم حذف المقال"
   },
   error: {
-    general:"حدث خطأ ما",
+    general: "حدث خطأ ما",
     material_added: "حدث خطأ أثناء إضافة المقرر",
     material_updated: "حدث خطأ أثناء تحديث المقرر",
     material_deleted: "حدث خطأ أثناء حذف المقرر",
     user_accepted: "حدث خطأ أثناء قبول المستخدم",
     user_denied: "حدث خطأ أثناء استبعاد المستخدم",
-    article_added:"حدث خطأ أثناء اضافة المقال",
-    article_updated:"حدث خطأ أثناء تعديل المقال",
-    article_deleted:"حدث خطأ أثناء حذف المقال"
+    article_added: "حدث خطأ أثناء اضافة المقال",
+    article_updated: "حدث خطأ أثناء تعديل المقال",
+    article_deleted: "حدث خطأ أثناء حذف المقال"
   },
 };
 
 
 const cp = {
-  control_panel:"لوحة النظام",
-  registered:"المسجلين",
-  accepted:"المقبولين",
-  rejected:" الغير مقبولين",
-  material:"المناهج",
-  messages:"الرسائل",
-  articles:"المقالات",
-  programs:"البرامج",
-  admin:"مدير النظام",
+  control_panel: "لوحة النظام",
+  registered: "المسجلين",
+  accepted: "المقبولين",
+  rejected: " الغير مقبولين",
+  material: "المناهج",
+  messages: "الرسائل",
+  articles: "المقالات",
+  programs: "البرامج",
+  admin: "مدير النظام",
 
 
-  user:{
-    pending:"قيد التنفيذ",
-    denied:"مرفوض",
-    accepted:"مقبول",
-    idle:"غير نشط",
-    edit_status_success:"تم تحديث حالة انضمام المستخدم",
-    edit_status_failure:"فشلت عملية تحديث حالة انضمام المستخدم",
-        bulk_edit_status_success:"تم تحديث حالة انضمام المستخدمين",
-   bulk_edit_status_failure:"فشلت عملية تحديث حالة انضمام المستخدمين",
+  user: {
+    pending: "قيد التنفيذ",
+    denied: "مرفوض",
+    accepted: "مقبول",
+    idle: "غير نشط",
+    edit_status_success: "تم تحديث حالة انضمام المستخدم",
+    edit_status_failure: "فشلت عملية تحديث حالة انضمام المستخدم",
+    bulk_edit_status_success: "تم تحديث حالة انضمام المستخدمين",
+    bulk_edit_status_failure: "فشلت عملية تحديث حالة انضمام المستخدمين",
     delete_success: "تم حذف المستخدم بنجاح",
     delete_failure: "فشلت عملية حذف المستخدم"
 
@@ -127,9 +127,13 @@ const cp = {
 
 
 const email = {
-  program_status_subject:"حالة طلب الانضمام",
-  acceptence_message : "تم قبولك في برنامج قيم٬ يمكنك الاطلاع على مختلف البرامج عبر المنصة",
-  rejection_message: "تم رفض طلبك للانضمام إلى برنامج قيم٫ نتمنى لك حظًا موفقًا"
+  program_status_subject: "حالة طلب الانضمام",
+  registration_message: "تم تسجيلك في برنامج قيم٬ سيتم التواصل معك قريبًا.",
+  acceptance_message: "تم قبولك في برنامج قيم٬ يمكنك الاطلاع على مختلف البرامج عبر المنصة",
+  rejection_message: "تم رفض طلبك للانضمام إلى برنامج قيم٫ نتمنى لك حظًا موفقًا",
+  suspension_message: "تم تعطيل حسابك في برنامج قيم٫ يمكنك إعادة تفعيله من خلال مدير النظام",
+  reactivation_message: "تم إعادة تفعيل حسابك في برنامج قيم٫ يمكنك الآن تسجيل الدخول",
+  deletion_message: "تم حذف حسابك في برنامج قيم٫ يمكنك إعادة التسجيل في أي وقت",
 }
 
 const contact = {
