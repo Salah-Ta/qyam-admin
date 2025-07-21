@@ -190,6 +190,70 @@ const deleteReport = async (id: string, dbUrl?: string): Promise<StatusResponse<
 };
 
 /**
+ * Delete reports where volunteerCount is greater than 200
+ */
+async function deleteReportsWithHighVolunteerCount(dbUrl?: string) {
+  const db = initializeDatabase(dbUrl);
+
+  try {
+    // First, find all reports with volunteerCount > 200
+    const reportsToDelete = await db.report.findMany({
+      where: {
+        volunteerCount: {
+          gt: 200
+        }
+      },
+      select: {
+        id: true,
+        volunteerCount: true,
+        userId: true,
+        createdAt: true
+      }
+    });
+
+    console.log(`Found ${reportsToDelete.length} reports with volunteerCount > 200:`);
+    reportsToDelete.forEach(report => {
+      console.log(`- Report ID: ${report.id}, Volunteer Count: ${report.volunteerCount}, User ID: ${report.userId}, Created: ${report.createdAt}`);
+    });
+
+    if (reportsToDelete.length === 0) {
+      return {
+        success: true,
+        message: "No reports found with volunteerCount > 200",
+        deletedCount: 0,
+        deletedReports: []
+      };
+    }
+
+    // Delete the reports using deleteMany for efficiency
+    const deleteResult = await db.report.deleteMany({
+      where: {
+        volunteerCount: {
+          gt: 200
+        }
+      }
+    });
+
+    console.log(`Successfully deleted ${deleteResult.count} reports with volunteerCount > 200`);
+
+    return {
+      success: true,
+      message: `Successfully deleted ${deleteResult.count} reports with volunteerCount > 200`,
+      deletedCount: deleteResult.count,
+      deletedReports: reportsToDelete
+    };
+  } catch (error: any) {
+    console.error("Error deleting reports with high volunteer count:", error);
+    return {
+      success: false,
+      error: error.message,
+      deletedCount: 0,
+      deletedReports: []
+    };
+  }
+}
+
+/**
  * Get all reports for a specific region
  */
 async function getRegionReports(regionId: string, dbUrl?: string) {
@@ -267,6 +331,7 @@ export default {
   createReport,
   getAllSkills,
   deleteReport,
+  deleteReportsWithHighVolunteerCount,
   getEduAdminReports,
   getSchoolReports,
   getRegionReports

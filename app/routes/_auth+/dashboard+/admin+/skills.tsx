@@ -3,12 +3,12 @@ import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { json, LoaderFunctionArgs } from "@remix-run/cloudflare";
 import { useLoaderData } from "@remix-run/react";
-import skillDb from "~/db/skill/skill.server";
-import testimonialDb from "~/db/testimonial/testimonial.server";
+import skillDb from "../../../../db/skill/skill.server";
+import testimonialDb from "../../../../db/testimonial/testimonial.server";
 // import ClientWordCloud from "../../../../../components/ClientWordCloud";
 // import WordCloudErrorBoundary from "../../../../../components/WordCloudErrorBoundary";
 import { WordCloud } from "@isoterik/react-word-cloud";
-import SmoothColumnTestimonials from "../../../../../components/SmoothColumnTestimonials";
+import SmoothColumnTestimonials from "../../../../components/SmoothColumnTestimonials";
 import { getAuthenticated } from "~/lib/get-authenticated.server";
 
 // Utility function
@@ -97,14 +97,14 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     console.log("=== Loader Debug Info ===");
     console.log("Environment:", typeof context?.cloudflare?.env);
     console.log("Has DATABASE_URL:", !!context?.cloudflare?.env?.DATABASE_URL);
-    
+
     // Check authentication
-    const user = await getAuthenticated({ request, context });
-    if (!user) {
-      console.log("Authentication failed");
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    console.log("User authenticated:", !!user);
+    // const user = await getAuthenticated({ request, context });
+    // if (!user) {
+    //   console.log("Authentication failed");
+    //   return Response.json({ error: "Unauthorized" }, { status: 401 });
+    // }
+    // console.log("User authenticated:", !!user);
 
     const dbUrl = context.cloudflare.env.DATABASE_URL;
     console.log("DB URL exists:", !!dbUrl);
@@ -113,17 +113,25 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     console.log("Fetching skills data...");
     let skillsResult;
     try {
-      skillsResult = await skillDb.getSkillsWithUsageCount(dbUrl);
+      // skillsResult = await skillDb.getSkillsWithUsageCount(dbUrl);
+      skillsResult = await skillDb.getAllSkills(dbUrl);
+
       console.log("Skills fetch completed:", skillsResult);
       console.log("Skills success:", skillsResult.success);
       console.log("Skills data length:", skillsResult.data?.length);
     } catch (skillsError) {
       console.error("Skills fetch error:", skillsError);
-      console.error("Skills error stack:", skillsError instanceof Error ? skillsError.stack : 'No stack trace');
+      console.error(
+        "Skills error stack:",
+        skillsError instanceof Error ? skillsError.stack : "No stack trace"
+      );
       return Response.json(
-        { 
-          error: "Failed to fetch skills", 
-          details: skillsError instanceof Error ? skillsError.message : 'Unknown error'
+        {
+          error: "Failed to fetch skills",
+          details:
+            skillsError instanceof Error
+              ? skillsError.message
+              : "Unknown error",
         },
         { status: 500 }
       );
@@ -139,33 +147,41 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
       console.log("Testimonials data length:", testimonialsResult.data?.length);
     } catch (testimonialsError) {
       console.error("Testimonials fetch error:", testimonialsError);
-      console.error("Testimonials error stack:", testimonialsError instanceof Error ? testimonialsError.stack : 'No stack trace');
+      console.error(
+        "Testimonials error stack:",
+        testimonialsError instanceof Error
+          ? testimonialsError.stack
+          : "No stack trace"
+      );
       // Don't fail the whole request if testimonials fail
       testimonialsResult = { success: false, data: [] };
     }
 
-    if (!skillsResult.success) {
-      console.error("Skills fetch failed:", skillsResult);
-      return Response.json(
-        { error: "Failed to fetch skills" },
-        { status: 500 }
-      );
-    }
+    // if (!skillsResult.success) {
+    //   console.error("Skills fetch failed:", skillsResult);
+    //   return Response.json(
+    //     { error: "Failed to fetch skills" },
+    //     { status: 500 }
+    //   );
+    // }
 
     const response = {
-      skills: skillsResult.data || [],
+      skills: [],
       testimonials: testimonialsResult.success
         ? testimonialsResult.data || []
         : [],
     };
-    
+
     console.log("Final response:", response);
     console.log("=== End Loader Debug Info ===");
-    
+
     return Response.json(response);
   } catch (error) {
     console.error("Error in skills loader:", error);
-    console.error("Error stack:", error instanceof Error ? error.stack : 'No stack trace');
+    console.error(
+      "Error stack:",
+      error instanceof Error ? error.stack : "No stack trace"
+    );
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -208,44 +224,59 @@ export const Skills = (): JSX.Element => {
   console.log("wordCloudData:", wordCloudData);
   console.log("finalWordCloudData:", finalWordCloudData);
   console.log("Is array:", Array.isArray(finalWordCloudData));
-  console.log("Has length > 0:", finalWordCloudData && finalWordCloudData.length > 0);
+  console.log(
+    "Has length > 0:",
+    finalWordCloudData && finalWordCloudData.length > 0
+  );
   console.log("=== End Debug Info ===");
 
   // Word cloud configuration
-  const colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f'];
-  
+  const colors = [
+    "#1f77b4",
+    "#ff7f0e",
+    "#2ca02c",
+    "#d62728",
+    "#9467bd",
+    "#8c564b",
+    "#e377c2",
+    "#7f7f7f",
+  ];
+
   const options = {
     colors: colors,
     enableTooltip: true,
     deterministic: false,
-    fontFamily: 'Arial, sans-serif',
+    fontFamily: "Arial, sans-serif",
     fontSizes: [18, 65] as [number, number],
-    fontStyle: 'normal',
-    fontWeight: 'normal',
+    fontStyle: "normal",
+    fontWeight: "normal",
     padding: 3,
     rotations: 3,
     rotationAngles: [-45, 45] as [number, number],
-    scale: 'sqrt' as const,
-    spiral: 'archimedean' as const,
+    scale: "sqrt" as const,
+    spiral: "archimedean" as const,
     transitionDuration: 1000,
     tooltipOptions: {
       style: {
-        backgroundColor: '#333',
-        color: '#fff',
-        padding: '8px 12px',
-        borderRadius: '4px',
-        fontSize: '14px',
-        fontFamily: 'Arial, sans-serif',
-        direction: 'rtl',
-        textAlign: 'right',
-      }
+        backgroundColor: "#333",
+        color: "#fff",
+        padding: "8px 12px",
+        borderRadius: "4px",
+        fontSize: "14px",
+        fontFamily: "Arial, sans-serif",
+        direction: "rtl",
+        textAlign: "right",
+      },
     },
     getWordTooltip: (word: any) => `هذه المهارة ظهرت ${word.value} مرة`,
   };
 
   // Console log the words that will be displayed in the word cloud
   console.log("WordCloud Data:", finalWordCloudData);
-  console.log("Has database data:", finalWordCloudData && finalWordCloudData?.length > 0);
+  console.log(
+    "Has database data:",
+    finalWordCloudData && finalWordCloudData?.length > 0
+  );
   console.log("Total words:", finalWordCloudData?.length || 0);
 
   return (
@@ -341,8 +372,10 @@ export const Skills = (): JSX.Element => {
             </p>
           </div>
 
-          <div className="relative w-full flex justify-center items-center">
-            {finalWordCloudData && Array.isArray(finalWordCloudData) && finalWordCloudData?.length > 0 ? (
+          <div className="relative w-full h-[600px] flex justify-center items-center">
+            {finalWordCloudData &&
+            Array.isArray(finalWordCloudData) &&
+            finalWordCloudData.length > 0 ? (
               <WordCloud
                 words={finalWordCloudData}
                 width={900}
@@ -354,9 +387,14 @@ export const Skills = (): JSX.Element => {
                 fontSize={(word) => {
                   const minSize = 18;
                   const maxSize = 65;
-                  const maxValue = Math.max(...(finalWordCloudData?.map(w => w.value) || [1]));
+                  const maxValue = Math.max(
+                    ...(finalWordCloudData?.map((w) => w.value) || [1])
+                  );
                   const scale = Math.sqrt(word.value / maxValue);
-                  return Math.max(minSize, Math.min(maxSize, minSize + (maxSize - minSize) * scale));
+                  return Math.max(
+                    minSize,
+                    Math.min(maxSize, minSize + (maxSize - minSize) * scale)
+                  );
                 }}
                 rotate={(word, index) => {
                   const angles = [-45, 0, 45];
@@ -369,7 +407,9 @@ export const Skills = (): JSX.Element => {
               <div className="flex items-center justify-center h-full">
                 <div className="flex flex-col items-center gap-4">
                   <div className="w-8 h-8 border-2 border-[#1f77b4] border-t-transparent rounded-full animate-spin"></div>
-                  <p className="text-gray-500 text-xl">جاري تحميل بيانات المهارات...</p>
+                  <p className="text-gray-500 text-xl">
+                    جاري تحميل بيانات المهارات...
+                  </p>
                 </div>
               </div>
             )}
@@ -389,7 +429,9 @@ export const Skills = (): JSX.Element => {
             </p>
           </div>
         </div>
-        {loaderData?.testimonials && Array.isArray(loaderData.testimonials) && loaderData.testimonials.length > 0 ? (
+        {loaderData?.testimonials &&
+        Array.isArray(loaderData.testimonials) &&
+        loaderData.testimonials.length > 0 ? (
           <SmoothColumnTestimonials testimonials={loaderData.testimonials} />
         ) : (
           <div className="flex items-center justify-center py-12">

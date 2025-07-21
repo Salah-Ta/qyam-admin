@@ -606,7 +606,7 @@ export const ControlPanel = (): JSX.Element => {
           <Card className="w-full h-full rounded-2xl border border-[#d0d5dd]">
             <CardContent className="p-8 flex flex-col gap-4">
               {/* Articles Section */}
-              <div className="flex items-center gap-[5px] self-end mt-16">
+              <div className="flex items-center gap-[5px] self-end">
                 <div className="w-[18px] h-[18px] bg-blue-100 rounded-[9px] flex items-center justify-center">
                   <CheckIcon className="w-[9px] h-[9px] text-blue-600" />
                 </div>

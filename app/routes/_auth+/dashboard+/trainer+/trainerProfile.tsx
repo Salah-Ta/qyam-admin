@@ -1,13 +1,13 @@
 import { LoaderFunctionArgs, json } from "@remix-run/cloudflare";
 import materialDB from "~/db/material/material.server";
 import reportDB from "~/db/report/report.server";
+import skillDB from "~/db/skill/skill.server";
 import { MinusCircleIcon, XIcon } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "./assets/avatar";
 import { Badge } from "./assets/badge";
 import { Button } from "./assets/button";
 import { Card, CardContent } from "./assets/card";
 import { Checkbox } from "./assets/checkbox";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./assets/tabs";
 import { Textarea } from "./assets/textarea";
 import { useState } from "react";
 import {
@@ -15,9 +15,10 @@ import {
   useRouteLoaderData,
   useSubmit,
   useNavigation,
+  useActionData,
 } from "@remix-run/react";
-// import reportservice from "../../../../db/report/report.server";
-import { toast as sonnerToast } from "sonner";
+import { CreateReportData } from "~/types/types";
+import React from "react";
 
 import Group30476 from "../../../../assets/images/new-design/group-3.svg";
 import sendicon from "../../../../assets/icons/send.svg";
@@ -29,10 +30,6 @@ import phone from "../../../../assets/icons/phone.svg";
 import region from "../../../../assets/icons/region.svg";
 
 import profile from "../../../../assets/icons/profile.svg";
-import { CreateReportData } from "~/types/types";
-import { getToast } from "~/lib/toast.server";
-import React from "react";
-import { createToastHeaders } from "~/lib/toast.server";
 
 export type LoaderData = {
   materials: any;
@@ -54,14 +51,16 @@ export async function loader({
     context.cloudflare.env.DATABASE_URL
   );
 
-  const { toast, headers } = await getToast(request);
+  // Fetch all skills
+  const skills = await skillDB.getAllSkills(
+    context.cloudflare.env.DATABASE_URL
+  );
 
   return Response.json({
     materials: materials.data,
     DBurl,
-    toast,
-    headers,
     reports: reports.data,
+    skills: skills.data,
   });
 }
 
@@ -73,29 +72,25 @@ export async function action({ request, context }: LoaderFunctionArgs) {
 
   try {
     await reportDB.createReport(reportData, DBurl);
-    const headers = await createToastHeaders({
-      type: "success",
-      description: "تم إرسال التقرير بنجاح",
-    });
-    return json({ success: true }, { headers });
+    return json({ success: true });
   } catch (error) {
-    const headers = await createToastHeaders({
-      type: "error",
-      description: "حدث خطأ أثناء إرسال التقرير",
-    });
+    const errorMessage =
+      error instanceof Error ? error.message : "An unknown error occurred";
     return json(
-      { success: false, error: error.message },
-      { status: 500, headers }
+      { success: false, error: errorMessage },
+      { status: 500 }
     );
   }
 }
 
 export const TrainerProfile = () => {
   const { user } = useRouteLoaderData<any>("root");
-
-  const { materials, DBurl, reports } = useLoaderData<any>();
+  const { materials, DBurl, reports, skills } = useLoaderData<any>();
+  const actionData = useActionData<any>();
+  const navigation = useNavigation();
 
   console.log(user, materials, reports);
+  console.log("All Skills:", skills);
 
   // Show toast if present
 
@@ -107,6 +102,71 @@ export const TrainerProfile = () => {
   ]);
   const [activeTab, setActiveTab] = useState("opinion-1");
 
+  // Track if form has unsaved changes
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [showSubmitPopup, setShowSubmitPopup] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState<'loading' | 'success' | 'error'>('loading');
+  const [submitMessage, setSubmitMessage] = useState("");
+
+  // Debug logging
+  console.log("Navigation state:", navigation.state, "Form method:", navigation.formMethod);
+  console.log("Action data:", actionData);
+  console.log("Show submit popup:", showSubmitPopup, "Submit status:", submitStatus);
+
+  // Function to reset all form data
+  const resetFormData = React.useCallback(() => {
+    // Reset report data
+    setReportData({
+      userId: user?.id ?? "",
+      volunteerHours: 0,
+      volunteerCount: 0,
+      activitiesCount: 0,
+      volunteerOpportunities: 0,
+      economicValue: 0,
+      skillsEconomicValue: 0,
+      skillsTrainedCount: 0,
+      attachedFiles: [],
+      skillIds: [],
+      testimonials: [],
+    });
+    // Reset opinions
+    setOpinions([{ id: 1, title: "", active: true, comment: "" }]);
+    setActiveTab("opinion-1");
+    // Reset skills - will be repopulated from API
+    if (skills && Array.isArray(skills)) {
+      const resetSkills = skills.map((skill: any) => ({
+        id: skill.id,
+        label: skill.name,
+        checked: false,
+      }));
+      // Distribute skills across 3 columns
+      const column1 = resetSkills.slice(0, Math.ceil(resetSkills.length / 3));
+      const column2 = resetSkills.slice(Math.ceil(resetSkills.length / 3), Math.ceil(resetSkills.length * 2 / 3));
+      const column3 = resetSkills.slice(Math.ceil(resetSkills.length * 2 / 3));
+      setSkillsColumns([column1, column2, column3]);
+    }
+  }, [user?.id, skills]);
+
+  // Update localStorage whenever there are changes
+  React.useEffect(() => {
+    localStorage.setItem(
+      "hasUnsavedReportChanges",
+      hasUnsavedChanges.toString()
+    );
+  }, [hasUnsavedChanges]);
+
+  // Listen for reset events from parent component
+  React.useEffect(() => {
+    const handleReset = () => {
+      // Reset all form data
+      resetFormData();
+      setHasUnsavedChanges(false);
+    };
+
+    window.addEventListener("resetTrainerProfile", handleReset);
+    return () => window.removeEventListener("resetTrainerProfile", handleReset);
+  }, []);
+
   // Handler to add a new opinion
   const handleAddOpinion = () => {
     const newId =
@@ -116,13 +176,19 @@ export const TrainerProfile = () => {
       { id: newId, title: "", active: true, comment: "" },
     ]);
     setActiveTab(`opinion-${newId}`);
+    setHasUnsavedChanges(true);
   };
 
   // filepath: c:\Users\aminj\OneDrive\Documents\GitHub\qyam-admin\app\routes\_auth+\dashboard+\trainer+\trainerProfile.tsx
   const submit = useSubmit();
 
-  const handleSendReport = (e: React.FormEvent) => {
+  const handleSendReport = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Show loading popup immediately
+    setShowSubmitPopup(true);
+    setSubmitStatus('loading');
+    setSubmitMessage('جاري إرسال التقرير...');
 
     const latestReportData: CreateReportData = {
       ...reportData,
@@ -141,12 +207,32 @@ export const TrainerProfile = () => {
     const formData = new FormData();
     formData.append("reportData", JSON.stringify(latestReportData));
 
-    submit(formData, { method: "post" });
+    try {
+      // Submit the form
+      submit(formData, { method: "post" });
+    } catch (error) {
+      // Handle any immediate errors
+      setSubmitStatus('error');
+      setSubmitMessage('حدث خطأ أثناء إرسال التقرير. يرجى المحاولة مرة أخرى.');
+    }
   };
 
   // Handler to toggle tab open/close
   const handleTabClick = (id: number) => {
     setActiveTab((prev) => (prev === `opinion-${id}` ? "" : `opinion-${id}`));
+  };
+
+  // Handler to delete an opinion
+  const handleDeleteOpinion = (id: number, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent triggering the toggle
+    if (opinions.length > 1) {
+      setOpinions(opinions.filter((op) => op.id !== id));
+      // If deleting the active tab, clear active tab
+      if (activeTab === `opinion-${id}`) {
+        setActiveTab("");
+      }
+      setHasUnsavedChanges(true);
+    }
   };
 
   // Handler to update opinion title or comment
@@ -158,6 +244,7 @@ export const TrainerProfile = () => {
     setOpinions((prev) =>
       prev.map((op) => (op.id === id ? { ...op, [field]: value } : op))
     );
+    setHasUnsavedChanges(true);
   };
 
   // // Data for progress checklist
@@ -229,84 +316,8 @@ export const TrainerProfile = () => {
     { title: "المهارات اللي تم تدريب الفتيات عليها", value: "0" },
   ];
 
-  // Data for the skills checklist organized in columns
-  const [skillsColumns, setSkillsColumns] = useState([
-    [
-      {
-        id: "concept",
-        label: "معرفة مفهوم التطوع شرعا ونظاما",
-        checked: false,
-      },
-      { id: "dialogue", label: "مهارات الحوار والعمل الجماعي", checked: false },
-      { id: "communication", label: "مهارات الاتصال", checked: false },
-      { id: "selfAwareness", label: "تنمية الوعي الذاتي", checked: false },
-      {
-        id: "digitalTools",
-        label: "استخدام الأدوات الرقمية في الأنشطة التطوعية",
-        checked: false,
-      },
-      { id: "selfConfidence", label: "الثقة بالنفس", checked: false },
-      {
-        id: "careerPath",
-        label: "تحديد المسار التعليمي والمهني المناسب",
-        checked: false,
-      },
-    ],
-    [
-      { id: "timeManagement", label: "إدارة الوقت", checked: false },
-      {
-        id: "rightsAndDuties",
-        label: "تحديد حقوق وواجبات المتطوع",
-        checked: false,
-      },
-      {
-        id: "socialRoles",
-        label: "إدراك الأدوار الاجتماعية المختلفة",
-        checked: false,
-      },
-      {
-        id: "criticalThinking",
-        label: "مهارات التفكير الناقد",
-        checked: false,
-      },
-      { id: "problemSolving", label: "حل المشكلات", checked: false },
-      {
-        id: "nationalIdentity",
-        label: "الاعتزاز بالثقافة والهوية الوطنية",
-        checked: false,
-      },
-      { id: "creativity", label: "مهارات الإبداع", checked: false },
-    ],
-    [
-      {
-        id: "resilience",
-        label: "الصلابة النفسية، والتعامل مع التحديات",
-        checked: false,
-      },
-      {
-        id: "careerPlanning",
-        label: "تحديد المسار التعليمي والمهني المناسب",
-        checked: false,
-      },
-      { id: "strengths", label: "اكتشاف نقاط القوة وتوظيفها", checked: false },
-      {
-        id: "identity",
-        label: "بناء الهوية الذاتية والقيم الأصيلة",
-        checked: false,
-      },
-      {
-        id: "ageCharacteristics",
-        label: "التعرف على خصائص المرحلة العمرية",
-        checked: false,
-      },
-      {
-        id: "platformAccount",
-        label: "امتلاك حساب في المنصة الوطنية للعمل التطوعي",
-        checked: false,
-      },
-      { id: "responsibility", label: "تحمل المسؤولية", checked: false },
-    ],
-  ]);
+  // Data for the skills checklist organized in columns - populated from API
+  const [skillsColumns, setSkillsColumns] = useState<any[][]>([[], [], []]);
   const handleCheckboxChange = (
     columnIndex: number,
     skillIndex: number,
@@ -321,6 +332,7 @@ export const TrainerProfile = () => {
       };
       return updatedColumns;
     });
+    setHasUnsavedChanges(true);
   };
 
   function handleValueChange(index: number, value: string): void {
@@ -375,122 +387,199 @@ export const TrainerProfile = () => {
       ...prev,
       [field]: Number(value),
     }));
+    setHasUnsavedChanges(true);
   };
 
-  const navigation = useNavigation();
+  // Function to calculate progress for the NavFeatureCard
+  const calculateProgress = () => {
+    // Calculate reports section progress based on individual metric cards
+    const metricValues = [
+      reportData.volunteerHours,
+      reportData.volunteerCount,
+      reportData.activitiesCount,
+      reportData.volunteerOpportunities,
+      reportData.economicValue,
+      reportData.skillsEconomicValue,
+      reportData.skillsTrainedCount,
+    ];
 
-  // Add this effect to reset form after successful submit
+    const filledMetrics = metricValues.filter((value) => value > 0).length;
+    const totalMetrics = metricValues.length;
+    const reportsProgress =
+      totalMetrics > 0 ? (filledMetrics / totalMetrics) * 100 : 0;
+    const reportsCompleted = reportsProgress === 100; // Only complete when all fields are filled
+
+    // Check if opinions section has meaningful data
+    const opinionsCompleted = opinions.some(
+      (opinion) => opinion.title.trim() !== "" || opinion.comment.trim() !== ""
+    );
+
+    // Check if skills section has any checked items
+    const skillsCompleted = skillsColumns.some((column) =>
+      column.some((skill) => skill.checked)
+    );
+
+    return {
+      reportsCompleted,
+      reportsProgress, // Add granular progress for reports
+      opinionsCompleted,
+      skillsCompleted,
+    };
+  };
+
+  // Update progress data when form data changes
   React.useEffect(() => {
-    // Reset report data
-    setReportData({
-      userId: user?.id ?? "",
-      volunteerHours: 0,
-      volunteerCount: 0,
-      activitiesCount: 0,
-      volunteerOpportunities: 0,
-      economicValue: 0,
-      skillsEconomicValue: 0,
-      skillsTrainedCount: 0,
-      attachedFiles: [],
-      skillIds: [],
-      testimonials: [],
-    });
-    // Reset opinions
-    setOpinions([{ id: 1, title: "", active: true, comment: "" }]);
-    setActiveTab("opinion-1");
-    // Reset skills
-    setSkillsColumns([
-      [
-        {
-          id: "concept",
-          label: "معرفة مفهوم التطوع شرعا ونظاما",
-          checked: false,
-        },
-        {
-          id: "dialogue",
-          label: "مهارات الحوار والعمل الجماعي",
-          checked: false,
-        },
-        { id: "communication", label: "مهارات الاتصال", checked: false },
-        { id: "selfAwareness", label: "تنمية الوعي الذاتي", checked: false },
-        {
-          id: "digitalTools",
-          label: "استخدام الأدوات الرقمية في الأنشطة التطوعية",
-          checked: false,
-        },
-        { id: "selfConfidence", label: "الثقة بالنفس", checked: false },
-        {
-          id: "careerPath",
-          label: "تحديد المسار التعليمي والمهني المناسب",
-          checked: false,
-        },
-      ],
-      [
-        { id: "timeManagement", label: "إدارة الوقت", checked: false },
-        {
-          id: "rightsAndDuties",
-          label: "تحديد حقوق وواجبات المتطوع",
-          checked: false,
-        },
-        {
-          id: "socialRoles",
-          label: "إدراك الأدوار الاجتماعية المختلفة",
-          checked: false,
-        },
-        {
-          id: "criticalThinking",
-          label: "مهارات التفكير الناقد",
-          checked: false,
-        },
-        { id: "problemSolving", label: "حل المشكلات", checked: false },
-        {
-          id: "nationalIdentity",
-          label: "الاعتزاز بالثقافة والهوية الوطنية",
-          checked: false,
-        },
-        { id: "creativity", label: "مهارات الإبداع", checked: false },
-      ],
-      [
-        {
-          id: "resilience",
-          label: "الصلابة النفسية، والتعامل مع التحديات",
-          checked: false,
-        },
-        {
-          id: "careerPlanning",
-          label: "تحديد المسار التعليمي والمهني المناسب",
-          checked: false,
-        },
-        {
-          id: "strengths",
-          label: "اكتشاف نقاط القوة وتوظيفها",
-          checked: false,
-        },
-        {
-          id: "identity",
-          label: "بناء الهوية الذاتية والقيم الأصيلة",
-          checked: false,
-        },
-        {
-          id: "ageCharacteristics",
-          label: "التعرف على خصائص المرحلة العمرية",
-          checked: false,
-        },
-        {
-          id: "platformAccount",
-          label: "امتلاك حساب في المنصة الوطنية للعمل التطوعي",
-          checked: false,
-        },
-        { id: "responsibility", label: "تحمل المسؤولية", checked: false },
-      ],
-    ]);
-  }, [navigation.state, navigation.formMethod, user?.id]);
+    const progressData = calculateProgress();
+    // Store in localStorage for the parent to read
+    localStorage.setItem("trainerProgressData", JSON.stringify(progressData));
+    // Dispatch custom event to notify parent component
+    window.dispatchEvent(new CustomEvent("trainerProgressUpdate"));
+  }, [reportData, opinions, skillsColumns]);
+
+  // Handle form submission response - simplified approach
+  React.useEffect(() => {
+    // If we have action data and popup is showing, process the response
+    if (actionData && showSubmitPopup) {
+      console.log("Processing action data:", actionData);
+      
+      if (actionData.success === true) {
+        // Success case
+        console.log("Success detected");
+        setSubmitStatus('success');
+        setSubmitMessage('شكراً لك على إرسال التقرير. تم حفظ جميع البيانات بنجاح وسيتم مراجعتها قريباً.');
+        
+        // Reset form data after a short delay
+        setTimeout(() => {
+          resetFormData();
+          setHasUnsavedChanges(false);
+        }, 1000);
+        
+        // Hide popup after 4 seconds
+        setTimeout(() => {
+          setShowSubmitPopup(false);
+        }, 4000);
+      } else if (actionData.success === false) {
+        // Error case
+        console.log("Error detected:", actionData.error);
+        setSubmitStatus('error');
+        setSubmitMessage(actionData.error || 'حدث خطأ أثناء إرسال التقرير. يرجى المحاولة مرة أخرى.');
+      }
+    }
+  }, [actionData, showSubmitPopup, resetFormData]);
+
+  // Fallback: If navigation becomes idle but we're still loading, assume success
+  React.useEffect(() => {
+    if (navigation.state === "idle" && showSubmitPopup && submitStatus === 'loading' && navigation.formMethod === "post") {
+      console.log("Fallback success trigger - no action data but submission completed");
+      setSubmitStatus('success');
+      setSubmitMessage('تم إرسال التقرير بنجاح!');
+      
+      setTimeout(() => {
+        resetFormData();
+        setHasUnsavedChanges(false);
+      }, 1000);
+      
+      setTimeout(() => {
+        setShowSubmitPopup(false);
+      }, 4000);
+    }
+  }, [navigation.state, navigation.formMethod, showSubmitPopup, submitStatus, resetFormData]);
+
+  // Populate skills from API when component loads
+  React.useEffect(() => {
+    if (skills && Array.isArray(skills) && skills.length > 0) {
+      console.log("Populating skills from API:", skills);
+      
+      // Transform API skills to match component format
+      const apiSkills = skills.map((skill: any) => ({
+        id: skill.id,
+        label: skill.name,
+        checked: false,
+      }));
+
+      // Distribute skills across 3 columns evenly
+      const column1 = apiSkills.slice(0, Math.ceil(apiSkills.length / 3));
+      const column2 = apiSkills.slice(Math.ceil(apiSkills.length / 3), Math.ceil(apiSkills.length * 2 / 3));
+      const column3 = apiSkills.slice(Math.ceil(apiSkills.length * 2 / 3));
+      
+      setSkillsColumns([column1, column2, column3]);
+      console.log("Skills columns populated:", [column1, column2, column3]);
+    }
+  }, [skills]); // Dependency on skills to run when skills are loaded
 
   return (
-    <form
-      onSubmit={handleSendReport}
-      className="flex flex-col w-full max-w-full overflow-hidden"
-    >
+    <>
+      {/* Submit Status Popup */}
+      {showSubmitPopup && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl p-8 text-center shadow-2xl max-w-md mx-4 transform transition-all duration-300 scale-100">
+            {submitStatus === 'loading' && (
+              <>
+                <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-3 [direction:rtl]">جاري الإرسال...</h3>
+                <p className="text-gray-600 text-lg [direction:rtl] leading-relaxed">
+                  يرجى الانتظار، جاري إرسال التقرير...
+                </p>
+              </>
+            )}
+            
+            {submitStatus === 'success' && (
+              <>
+                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <svg className="w-10 h-10 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                  </svg>
+                </div>
+                <h3 className="text-2xl font-bold text-green-600 mb-3 [direction:rtl]">تم إرسال التقرير بنجاح!</h3>
+                <p className="text-gray-600 text-lg [direction:rtl] leading-relaxed">
+                  {submitMessage}
+                </p>
+                <button 
+                  onClick={() => setShowSubmitPopup(false)}
+                  className="mt-4 px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                >
+                  إغلاق
+                </button>
+              </>
+            )}
+            
+            {submitStatus === 'error' && (
+              <>
+                <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <svg className="w-10 h-10 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                  </svg>
+                </div>
+                <h3 className="text-2xl font-bold text-red-600 mb-3 [direction:rtl]">فشل في إرسال التقرير</h3>
+                <p className="text-gray-600 text-lg [direction:rtl] leading-relaxed">
+                  {submitMessage}
+                </p>
+                <button 
+                  onClick={() => setShowSubmitPopup(false)}
+                  className="mt-4 px-6 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                >
+                  إغلاق
+                </button>
+              </>
+            )}
+            
+            {submitStatus !== 'loading' && submitStatus !== 'error' && (
+              <div className="mt-6">
+                <div className="w-full bg-gray-200 rounded-full h-1">
+                  <div className="bg-green-500 h-1 rounded-full animate-pulse" style={{ width: '100%' }}></div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      
+      <form
+        onSubmit={handleSendReport}
+        className="flex flex-col w-full max-w-full overflow-hidden"
+      >
       {/* Navigation Section */}
       <div className="w-full rounded-xl mb-4 [direction:rtl]">
         <Card className="relative w-full border-[1px] border-[#004E5C] shadow-shadows-shadow-xs rounded-xl p-4 flex flex-col gap-4 [direction:rtl]">
@@ -635,7 +724,13 @@ export const TrainerProfile = () => {
                     className="w-[136px] h-9 text-center font-medium text-[#1f2a37] text-sm bg-[#f8f9fb] rounded-[8px] border border-solid border-[#d0d5dd] focus:outline-none focus:ring-2 focus:ring-[#68c35c] max-md:w-full [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                     style={{ MozAppearance: "textfield" }}
                     value={
-                      reportData[card.field as keyof CreateReportData] ?? ""
+                      typeof reportData[
+                        card.field as keyof CreateReportData
+                      ] === "number"
+                        ? (reportData[
+                            card.field as keyof CreateReportData
+                          ] as number)
+                        : ""
                     }
                     onChange={(e) =>
                       handleReportFieldChange(
@@ -655,89 +750,84 @@ export const TrainerProfile = () => {
       <Card className="w-full max-w-full mb-4 border border-[#d5d7da] rounded-[12px] [direction:rtl]">
         <CardContent className="m-4">
           {/* Header */}
-          <Card className="flex flex-col w-full h-[50px] items-baseline justify-between px-2 py-2 bg-[#199491] rounded-[8px] border-none">
-            <CardContent className="flex w-full justify-between items-center p-0">
-              <h2 className=" font-bold text-white text-2xl [direction:rtl]">
-                انطباع الطالبات
-              </h2>
-              <Button
-                variant="outline"
-                type="button"
-                className="flex w-[120px] items-center justify-center gap-1 px-3 py-2 bg-white rounded-md overflow-hidden border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs-skeuomorphic"
-                onClick={handleAddOpinion}
-              >
-                <span className="relative w-fit  font-bold text-[#414651] text-sm text-left tracking-[0] leading-5 whitespace-nowrap [direction:rtl]">
-                  أضف
-                </span>
-              </Button>
-            </CardContent>
-          </Card>
+          <div className="flex w-full h-[50px] items-center justify-between px-2 py-1 bg-[#199491] rounded-[8px] mb-5">
+            <h2 className="font-bold text-white text-2xl [direction:rtl]">
+              انطباع الطالبات
+            </h2>
+            <Button
+              variant="outline"
+              type="button"
+              className="flex w-[120px] items-center justify-center gap-1 px-3 py-2 bg-white rounded-md overflow-hidden border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs-skeuomorphic"
+              onClick={handleAddOpinion}
+            >
+              <span className="relative w-fit font-bold text-[#414651] text-sm text-left tracking-[0] leading-5 whitespace-nowrap [direction:rtl]">
+                أضف
+              </span>
+            </Button>
+          </div>
 
           {/* Review Opinions */}
-          <Tabs value={activeTab} onValueChange={() => {}}>
-            {/* Tabs List */}
-            <TabsList className="flex-col w-full mt-5 rounded-[8px] p-0 h-auto">
-              {opinions.map((opinion) => (
-                <div key={opinion.id} className="w-full">
-                  <TabsTrigger
-                    value={`opinion-${opinion.id}`}
-                    className={`flex items-center justify-between w-full p-3 h-[42px] rounded-lg ${
-                      activeTab === `opinion-${opinion.id}`
-                        ? "bg-[#ebedf0]"
-                        : "bg-[#f9f9f9]"
-                    }`}
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      handleTabClick(opinion.id);
-                    }}
-                    aria-selected={activeTab === `opinion-${opinion.id}`}
-                    style={{ width: "100%" }}
-                  >
-                    <div className="flex items-center justify-end w-full gap-4">
-                      <MinusCircleIcon className="w-6 h-6" />
-                      <div className="flex items-start justify-end flex-1 w-full">
-                        <div className="flex w-full gap-6 items-center justify-end">
-                          <div className="flex-col w-full items-end gap-2 flex">
-                            <input
-                              className={`w-full font-bold ${
-                                opinion.active ? "text-black" : "text-[#414651]"
-                              } text-base leading-normal [direction:rtl] bg-transparent border-none outline-none`}
-                              placeholder="عنوان الانطباع"
-                              value={opinion.title}
-                              onChange={(e) =>
-                                handleOpinionChange(
-                                  opinion.id,
-                                  "title",
-                                  e.target.value
-                                )
-                              }
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </TabsTrigger>
-                  {/* Show textarea directly below the active tab */}
-                  {activeTab === `opinion-${opinion.id}` && (
-                    <div className="w-full px-0 pb-4">
-                      <Textarea
-                        className="w-full text-right"
-                        placeholder="اكتب هنا"
-                        value={opinion.comment}
+          <div className="flex flex-col w-full gap-2">
+            {opinions.map((opinion) => (
+              <div key={opinion.id} className="w-full">
+                <div
+                  className={`flex items-center justify-between w-full p-3 h-[42px] rounded-lg cursor-pointer ${
+                    activeTab === `opinion-${opinion.id}`
+                      ? "bg-[#ebedf0]"
+                      : "bg-[#f9f9f9]"
+                  }`}
+                  onClick={() => handleTabClick(opinion.id)}
+                >
+                  <div className="flex-1 w-full pr-2">
+                    <span
+                      className={`w-full font-bold ${
+                        opinion.active ? "text-black" : "text-[#414651]"
+                      } text-base leading-normal [direction:rtl] text-right block`}
+                    >
+                      {`رأي الطالبة ${opinion.title || "..."}`}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <MinusCircleIcon
+                      className="w-6 h-6 text-red-500 cursor-pointer hover:text-red-700"
+                      onClick={(e) => handleDeleteOpinion(opinion.id, e)}
+                    />
+                  </div>
+                </div>
+                {/* Show textarea directly below the active tab */}
+                {activeTab === `opinion-${opinion.id}` && (
+                  <div className="w-full px-0 pt-3 pb-2">
+                    <div className="mb-3">
+                      <input
+                        className="w-full font-bold text-black text-base leading-normal [direction:rtl] bg-white border border-[#d0d5dd] rounded-lg p-3 text-right"
+                        placeholder="اسم المتدربة"
+                        value={opinion.title}
                         onChange={(e) =>
                           handleOpinionChange(
                             opinion.id,
-                            "comment",
+                            "title",
                             e.target.value
                           )
                         }
                       />
                     </div>
-                  )}
-                </div>
-              ))}
-            </TabsList>
-          </Tabs>
+                    <Textarea
+                      className="w-full text-right bg-white border border-[#d0d5dd] rounded-lg p-3 min-h-[100px] resize-none"
+                      placeholder="رأي المتدربة"
+                      value={opinion.comment}
+                      onChange={(e) =>
+                        handleOpinionChange(
+                          opinion.id,
+                          "comment",
+                          e.target.value
+                        )
+                      }
+                    />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </CardContent>
       </Card>
 
@@ -752,7 +842,7 @@ export const TrainerProfile = () => {
                   المهارات
                 </span>
                 <span className=" font-medium text-white text-xs max-md:hidden">
-                  /22 مهارات مختارة
+                  /{skillsColumns.flat().length} مهارات مختارة
                 </span>
               </div>
               <div></div>
@@ -798,13 +888,24 @@ export const TrainerProfile = () => {
       <div className="w-full max-w-full flex justify-center mt-[52px] [direction:rtl] ">
         <Button
           type="submit"
-          className="w-full bg-[#006173] text-white hover:bg-[#0a7285]  h-[48px]"
+          disabled={navigation.state === "submitting"}
+          className="w-full bg-[#006173] text-white hover:bg-[#0a7285] h-[48px] disabled:opacity-50 transition-all duration-200"
         >
-          إرسال التقرير
-          <img src={sendicon} alt="" />
+          {navigation.state === "submitting" ? (
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              <span>جاري الإرسال...</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <span>إرسال التقرير</span>
+              <img src={sendicon} alt="" />
+            </div>
+          )}
         </Button>
       </div>
     </form>
+    </>
   );
 };
 

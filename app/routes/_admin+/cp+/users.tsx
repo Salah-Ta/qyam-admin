@@ -579,7 +579,19 @@ const transformedData = data.map((el:any)=>({
 
       <div className="flex lg:flex-row flex-col  w-full px-24 lg:gap-x-8 gap-y-5 my-8 p-3 bg-gray-100/50 rounded-md justify-between">
         <div className="flex flex-col justify-center items-center gap-4">
-          <h5 className="font-bold ">الإحصائيات</h5>
+          <h5 className="font-bold ">الإحصائيات الشاملة</h5>
+          <p className="text-sm text-gray-600 text-center">
+            اعرض إحصائيات مفصلة وشاملة لجميع البيانات في النظام
+          </p>
+          <Link 
+            to="/admin/cp/statistics" 
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
+          >
+            عرض الإحصائيات الشاملة
+          </Link>
+        </div>
+        <div className="flex flex-col justify-center items-center gap-4">
+          <h5 className="font-bold ">الإحصائيات القديمة</h5>
           <Button onClick={updateStats} className="hidden lg:flex">
             حفظ الإحصائيات
           </Button>

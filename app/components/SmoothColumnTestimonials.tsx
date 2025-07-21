@@ -65,7 +65,7 @@ const OriginalColumnTestimonials: React.FC<OriginalColumnTestimonialsProps> = ({
     }
   ];
 
-  const displayTestimonials = testimonials.length > 0 ? [...sampleTestimonials, ...testimonials] : sampleTestimonials;
+  const displayTestimonials = testimonials?.length > 0 ? [...sampleTestimonials, ...testimonials] : sampleTestimonials;
 
   // Create three columns for distribution
   const createColumns = () => {
