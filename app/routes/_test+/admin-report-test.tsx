@@ -12,7 +12,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             return json({ status: "error", message: "Authentication required" }, { status: 401 });
         }
 
-        if ((user as any).role !== "admin") {
+        if ((user as any).role !==  "admin") {
             return json({ status: "error", message: "Admin access required" }, { status: 403 });
         }
 
@@ -27,19 +27,26 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         const regionId = url.searchParams.get("regionId");
         const eduAdminId = url.searchParams.get("eduAdminId");
         const schoolId = url.searchParams.get("schoolId");
-
+        
+        
         // Get statistics using the new service
+        var startTime = Date.now();
         const statistics = await statisticsService.getAdminDashboardDataStatistics(dbUrl, {
             regionId: regionId || undefined,
             eduAdminId: eduAdminId || undefined,
             schoolId: schoolId || undefined
         });
-
+        console.log("Admin Dashboard Data Statistics fetched in", Date.now() - startTime, "ms");
+        
         // Get regional breakdown
+        startTime = Date.now();
         const regionalBreakdown = await statisticsService.getRegionalBreakdown(dbUrl);
-
+        console.log("Regional Breakdown fetched in", Date.now() - startTime, "ms");
+        
         // Get eduAdmin breakdown
+        startTime = Date.now();
         const eduAdminBreakdown = await statisticsService.getEduAdminBreakdown(dbUrl);
+        console.log("EduAdmin Breakdown fetched in", Date.now() - startTime, "ms");
 
         return json({
             user,

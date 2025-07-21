@@ -2,6 +2,7 @@ import {
     DashStatistics
 } from "~/types/types";
 import { client } from "../db-client.server";
+import { PrismaClient } from "@prisma/client";
 
 const initializeDatabase = (dbUrl?: string) => {
     const db = dbUrl ? client(dbUrl) : client();
@@ -18,381 +19,417 @@ async function getAdminDashboardDataStatistics(dbUrl?: string, filters?: {
 
     const db = initializeDatabase(dbUrl);
 
-    // Get all data to calculate totals first
-    const [regions, eduAdmins, schools, reports, users] = await Promise.all([
-        db.region.findMany(),
-        db.eduAdmin.findMany(), 
-        db.school.findMany(),
-        db.report.findMany({ include: { user: true } }),
-        db.user.findMany()
-    ]);
+    // Update totals calculation with correct trainer definition
+    const [totalStatsResult] = await db.$queryRaw<Array<{
+        regions_total: number;
+        eduadmins_total: number;
+        schools_total: number;
+        trainers_total: number;
+        reports_total: number;
+        volunteer_hours_total: number;
+        economic_value_total: number;
+        volunteer_opportunities_total: number;
+        activities_count_total: number;
+        volunteer_count_total: number;
+        skills_economic_value_total: number;
+        skills_trained_count_total: number;
+    }>>`
+        SELECT 
+            (SELECT COUNT(*)::INTEGER FROM "region") as regions_total,
+            (SELECT COUNT(*)::INTEGER FROM "eduAdministration") as eduadmins_total,
+            (SELECT COUNT(*)::INTEGER FROM "school") as schools_total,
+            (SELECT COUNT(*)::INTEGER FROM public."user" WHERE "schoolId" IS NOT NULL AND role = 'user') as trainers_total,
+            (SELECT COUNT(*)::INTEGER FROM "report") as reports_total,
+            (SELECT COALESCE(SUM("volunteerHours"), 0)::INTEGER FROM "report") as volunteer_hours_total,
+            (SELECT COALESCE(SUM("economicValue"), 0)::INTEGER FROM "report") as economic_value_total,
+            (SELECT COALESCE(SUM("volunteerOpportunities"), 0)::INTEGER FROM "report") as volunteer_opportunities_total,
+            (SELECT COALESCE(SUM("activitiesCount"), 0)::INTEGER FROM "report") as activities_count_total,
+            (SELECT COALESCE(SUM("volunteerCount"), 0)::INTEGER FROM "report") as volunteer_count_total,
+            (SELECT COALESCE(SUM("skillsEconomicValue"), 0)::INTEGER FROM "report") as skills_economic_value_total,
+            (SELECT COALESCE(SUM("skillsTrainedCount"), 0)::INTEGER FROM "report") as skills_trained_count_total
+    `;
 
-    // Calculate totals from all reports
-    const totalStats = reports.reduce((acc, report) => ({
-        volunteerHours: acc.volunteerHours + (report.volunteerHours || 0),
-        economicValue: acc.economicValue + (report.economicValue || 0),
-        volunteerOpportunities: acc.volunteerOpportunities + (report.volunteerOpportunities || 0),
-        activitiesCount: acc.activitiesCount + (report.activitiesCount || 0),
-        volunteerCount: acc.volunteerCount + (report.volunteerCount || 0),
-        skillsEconomicValue: acc.skillsEconomicValue + (report.skillsEconomicValue || 0),
-        skillsTrainedCount: acc.skillsTrainedCount + (report.skillsTrainedCount || 0)
-    }), {
-        volunteerHours: 0,
-        economicValue: 0, 
-        volunteerOpportunities: 0,
-        activitiesCount: 0,
-        volunteerCount: 0,
-        skillsEconomicValue: 0,
-        skillsTrainedCount: 0
-    });
+    // Convert BigInt to Number
+    const totals = {
+        regions_total: Number(totalStatsResult.regions_total),
+        eduadmins_total: Number(totalStatsResult.eduadmins_total),
+        schools_total: Number(totalStatsResult.schools_total),
+        trainers_total: Number(totalStatsResult.trainers_total),
+        reports_total: Number(totalStatsResult.reports_total),
+        volunteer_hours_total: Number(totalStatsResult.volunteer_hours_total),
+        economic_value_total: Number(totalStatsResult.economic_value_total),
+        volunteer_opportunities_total: Number(totalStatsResult.volunteer_opportunities_total),
+        activities_count_total: Number(totalStatsResult.activities_count_total),
+        volunteer_count_total: Number(totalStatsResult.volunteer_count_total),
+        skills_economic_value_total: Number(totalStatsResult.skills_economic_value_total),
+        skills_trained_count_total: Number(totalStatsResult.skills_trained_count_total)
+    };
 
-    // Calculate total trainers: users with schoolId and not admin/supervisor
-    const totalTrainers = users.filter(user => 
-        user.schoolId && 
-        user.role !== 'admin' && 
-        user.role !== 'supervisor'
-    ).length;
+    // If no filters, return totals immediately
+    if (!filters?.schoolId && !filters?.eduAdminId && !filters?.regionId) {
+        return {
+            regionsTotal: totals.regions_total,
+            regionsFiltered: totals.regions_total,
+            eduAdminsTotal: totals.eduadmins_total,
+            eduAdminsFiltered: totals.eduadmins_total,
+            schoolsTotal: totals.schools_total,
+            schoolsFiltered: totals.schools_total,
+            reportsTotal: totals.reports_total,
+            reportsFiltered: totals.reports_total,
+            trainersTotal: totals.trainers_total,
+            trainersFiltered: totals.trainers_total,
+            volunteerHoursTotal: totals.volunteer_hours_total,
+            volunteerHoursFiltered: totals.volunteer_hours_total,
+            economicValueTotal: totals.economic_value_total,
+            economicValueFiltered: totals.economic_value_total,
+            volunteerOpportunitiesTotal: totals.volunteer_opportunities_total,
+            volunteerOpportunitiesFiltered: totals.volunteer_opportunities_total,
+            activitiesCountTotal: totals.activities_count_total,
+            activitiesCountFiltered: totals.activities_count_total,
+            volunteerCountTotal: totals.volunteer_count_total,
+            volunteerCountFiltered: totals.volunteer_count_total,
+            skillsEconomicValueTotal: totals.skills_economic_value_total,
+            skillsEconomicValueFiltered: totals.skills_economic_value_total,
+            skillsTrainedCountTotal: totals.skills_trained_count_total,
+            skillsTrainedCountFiltered: totals.skills_trained_count_total
+        };
+    }
 
-    // School filter has highest priority
+    // UPDATED: School filter with correct trainer definition
     if (filters?.schoolId) {
-        // Filter data by school
-        const filteredReports = reports.filter(report => report.user?.schoolId === filters.schoolId);
-        
-        const filteredStats = filteredReports.reduce((acc, report) => ({
-            volunteerHours: acc.volunteerHours + (report.volunteerHours || 0),
-            economicValue: acc.economicValue + (report.economicValue || 0),
-            volunteerOpportunities: acc.volunteerOpportunities + (report.volunteerOpportunities || 0),
-            activitiesCount: acc.activitiesCount + (report.activitiesCount || 0),
-            volunteerCount: acc.volunteerCount + (report.volunteerCount || 0),
-            skillsEconomicValue: acc.skillsEconomicValue + (report.skillsEconomicValue || 0),
-            skillsTrainedCount: acc.skillsTrainedCount + (report.skillsTrainedCount || 0)
-        }), {
-            volunteerHours: 0,
-            economicValue: 0, 
-            volunteerOpportunities: 0,
-            activitiesCount: 0,
-            volunteerCount: 0,
-            skillsEconomicValue: 0,
-            skillsTrainedCount: 0
-        });
+        const [filteredResult] = await db.$queryRaw<Array<{
+            trainers_count: number;
+            reports_count: number;
+            volunteer_hours: number;
+            economic_value: number;
+            volunteer_opportunities: number;
+            activities_count: number;
+            volunteer_count: number;
+            skills_economic_value: number;
+            skills_trained_count: number;
+        }>>`
+            SELECT 
+                COUNT(DISTINCT CASE WHEN u.role = 'user' THEN u.id END)::INTEGER as trainers_count,
+                COUNT(DISTINCT rep.id)::INTEGER as reports_count,
+                COALESCE(SUM(rep."volunteerHours"), 0)::INTEGER as volunteer_hours,
+                COALESCE(SUM(rep."economicValue"), 0)::INTEGER as economic_value,
+                COALESCE(SUM(rep."volunteerOpportunities"), 0)::INTEGER as volunteer_opportunities,
+                COALESCE(SUM(rep."activitiesCount"), 0)::INTEGER as activities_count,
+                COALESCE(SUM(rep."volunteerCount"), 0)::INTEGER as volunteer_count,
+                COALESCE(SUM(rep."skillsEconomicValue"), 0)::INTEGER as skills_economic_value,
+                COALESCE(SUM(rep."skillsTrainedCount"), 0)::INTEGER as skills_trained_count
+            FROM public."user" u
+            LEFT JOIN "report" rep ON rep."userId" = u.id
+            WHERE u."schoolId" = ${filters.schoolId}
+        `;
 
-        // Calculate filtered trainers: trainers who belong to this specific school
-        const filteredTrainers = users.filter(user => 
-            user.schoolId === filters.schoolId && 
-            user.role !== 'admin' && 
-            user.role !== 'supervisor'
-        ).length;
+        const filtered = {
+            trainers_count: Number(filteredResult.trainers_count),
+            reports_count: Number(filteredResult.reports_count),
+            volunteer_hours: Number(filteredResult.volunteer_hours),
+            economic_value: Number(filteredResult.economic_value),
+            volunteer_opportunities: Number(filteredResult.volunteer_opportunities),
+            activities_count: Number(filteredResult.activities_count),
+            volunteer_count: Number(filteredResult.volunteer_count),
+            skills_economic_value: Number(filteredResult.skills_economic_value),
+            skills_trained_count: Number(filteredResult.skills_trained_count)
+        };
 
         return {
-            regionsTotal: regions.length,
+            regionsTotal: totals.regions_total,
             regionsFiltered: 1,
-            eduAdminsTotal: eduAdmins.length,
+            eduAdminsTotal: totals.eduadmins_total,
             eduAdminsFiltered: 1,
-            schoolsTotal: schools.length,
+            schoolsTotal: totals.schools_total,
             schoolsFiltered: 1,
-            reportsTotal: reports.length,
-            reportsFiltered: filteredReports.length,
-            trainersTotal: totalTrainers,
-            trainersFiltered: filteredTrainers,
-            volunteerHoursTotal: totalStats.volunteerHours,
-            volunteerHoursFiltered: filteredStats.volunteerHours,
-            economicValueTotal: totalStats.economicValue,
-            economicValueFiltered: filteredStats.economicValue,
-            volunteerOpportunitiesTotal: totalStats.volunteerOpportunities,
-            volunteerOpportunitiesFiltered: filteredStats.volunteerOpportunities,
-            activitiesCountTotal: totalStats.activitiesCount,
-            activitiesCountFiltered: filteredStats.activitiesCount,
-            volunteerCountTotal: totalStats.volunteerCount,
-            volunteerCountFiltered: filteredStats.volunteerCount,
-            skillsEconomicValueTotal: totalStats.skillsEconomicValue,
-            skillsEconomicValueFiltered: filteredStats.skillsEconomicValue,
-            skillsTrainedCountTotal: totalStats.skillsTrainedCount,
-            skillsTrainedCountFiltered: filteredStats.skillsTrainedCount
+            reportsTotal: totals.reports_total,
+            reportsFiltered: filtered.reports_count,
+            trainersTotal: totals.trainers_total,
+            trainersFiltered: filtered.trainers_count,
+            volunteerHoursTotal: totals.volunteer_hours_total,
+            volunteerHoursFiltered: filtered.volunteer_hours,
+            economicValueTotal: totals.economic_value_total,
+            economicValueFiltered: filtered.economic_value,
+            volunteerOpportunitiesTotal: totals.volunteer_opportunities_total,
+            volunteerOpportunitiesFiltered: filtered.volunteer_opportunities,
+            activitiesCountTotal: totals.activities_count_total,
+            activitiesCountFiltered: filtered.activities_count,
+            volunteerCountTotal: totals.volunteer_count_total,
+            volunteerCountFiltered: filtered.volunteer_count,
+            skillsEconomicValueTotal: totals.skills_economic_value_total,
+            skillsEconomicValueFiltered: filtered.skills_economic_value,
+            skillsTrainedCountTotal: totals.skills_trained_count_total,
+            skillsTrainedCountFiltered: filtered.skills_trained_count
         };
     }
 
-    // EduAdmin filter has second priority
+    // UPDATED: EduAdmin filter with correct trainer definition
     if (filters?.eduAdminId) {
-        const filteredReports = reports.filter(report => report.user?.eduAdminId === filters.eduAdminId);
-        const filteredSchools = schools.filter(school => school.eduAdminId === filters.eduAdminId);
-        
-        const filteredStats = filteredReports.reduce((acc, report) => ({
-            volunteerHours: acc.volunteerHours + (report.volunteerHours || 0),
-            economicValue: acc.economicValue + (report.economicValue || 0),
-            volunteerOpportunities: acc.volunteerOpportunities + (report.volunteerOpportunities || 0),
-            activitiesCount: acc.activitiesCount + (report.activitiesCount || 0),
-            volunteerCount: acc.volunteerCount + (report.volunteerCount || 0),
-            skillsEconomicValue: acc.skillsEconomicValue + (report.skillsEconomicValue || 0),
-            skillsTrainedCount: acc.skillsTrainedCount + (report.skillsTrainedCount || 0)
-        }), {
-            volunteerHours: 0,
-            economicValue: 0, 
-            volunteerOpportunities: 0,
-            activitiesCount: 0,
-            volunteerCount: 0,
-            skillsEconomicValue: 0,
-            skillsTrainedCount: 0
-        });
+        const [filteredResult] = await db.$queryRaw<Array<{
+            schools_count: number;
+            trainers_count: number;
+            reports_count: number;
+            volunteer_hours: number;
+            economic_value: number;
+            volunteer_opportunities: number;
+            activities_count: number;
+            volunteer_count: number;
+            skills_economic_value: number;
+            skills_trained_count: number;
+        }>>`
+            SELECT 
+                COUNT(DISTINCT s.id)::INTEGER as schools_count,
+                COUNT(DISTINCT CASE WHEN u.role = 'user' THEN u.id END)::INTEGER as trainers_count,
+                COUNT(DISTINCT rep.id)::INTEGER as reports_count,
+                COALESCE(SUM(rep."volunteerHours"), 0)::INTEGER as volunteer_hours,
+                COALESCE(SUM(rep."economicValue"), 0)::INTEGER as economic_value,
+                COALESCE(SUM(rep."volunteerOpportunities"), 0)::INTEGER as volunteer_opportunities,
+                COALESCE(SUM(rep."activitiesCount"), 0)::INTEGER as activities_count,
+                COALESCE(SUM(rep."volunteerCount"), 0)::INTEGER as volunteer_count,
+                COALESCE(SUM(rep."skillsEconomicValue"), 0)::INTEGER as skills_economic_value,
+                COALESCE(SUM(rep."skillsTrainedCount"), 0)::INTEGER as skills_trained_count
+            FROM "school" s
+            LEFT JOIN public."user" u ON u."schoolId" = s.id
+            LEFT JOIN "report" rep ON rep."userId" = u.id
+            WHERE s."eduAdminId" = ${filters.eduAdminId}
+        `;
 
-        // Calculate filtered trainers: trainers who belong to schools under this eduAdmin
-        const schoolIds = filteredSchools.map(school => school.id);
-        const filteredTrainers = users.filter(user => 
-            schoolIds.includes(user.schoolId) && 
-            user.role !== 'admin' && 
-            user.role !== 'supervisor'
-        ).length;
+        const filtered = {
+            schools_count: Number(filteredResult.schools_count),
+            trainers_count: Number(filteredResult.trainers_count),
+            reports_count: Number(filteredResult.reports_count),
+            volunteer_hours: Number(filteredResult.volunteer_hours),
+            economic_value: Number(filteredResult.economic_value),
+            volunteer_opportunities: Number(filteredResult.volunteer_opportunities),
+            activities_count: Number(filteredResult.activities_count),
+            volunteer_count: Number(filteredResult.volunteer_count),
+            skills_economic_value: Number(filteredResult.skills_economic_value),
+            skills_trained_count: Number(filteredResult.skills_trained_count)
+        };
 
         return {
-            regionsTotal: regions.length,
+            regionsTotal: totals.regions_total,
             regionsFiltered: 1,
-            eduAdminsTotal: eduAdmins.length,
+            eduAdminsTotal: totals.eduadmins_total,
             eduAdminsFiltered: 1,
-            schoolsTotal: schools.length,
-            schoolsFiltered: filteredSchools.length,
-            reportsTotal: reports.length,
-            reportsFiltered: filteredReports.length,
-            trainersTotal: totalTrainers,
-            trainersFiltered: filteredTrainers,
-            volunteerHoursTotal: totalStats.volunteerHours,
-            volunteerHoursFiltered: filteredStats.volunteerHours,
-            economicValueTotal: totalStats.economicValue,
-            economicValueFiltered: filteredStats.economicValue,
-            volunteerOpportunitiesTotal: totalStats.volunteerOpportunities,
-            volunteerOpportunitiesFiltered: filteredStats.volunteerOpportunities,
-            activitiesCountTotal: totalStats.activitiesCount,
-            activitiesCountFiltered: filteredStats.activitiesCount,
-            volunteerCountTotal: totalStats.volunteerCount,
-            volunteerCountFiltered: filteredStats.volunteerCount,
-            skillsEconomicValueTotal: totalStats.skillsEconomicValue,
-            skillsEconomicValueFiltered: filteredStats.skillsEconomicValue,
-            skillsTrainedCountTotal: totalStats.skillsTrainedCount,
-            skillsTrainedCountFiltered: filteredStats.skillsTrainedCount
+            schoolsTotal: totals.schools_total,
+            schoolsFiltered: filtered.schools_count,
+            reportsTotal: totals.reports_total,
+            reportsFiltered: filtered.reports_count,
+            trainersTotal: totals.trainers_total,
+            trainersFiltered: filtered.trainers_count,
+            volunteerHoursTotal: totals.volunteer_hours_total,
+            volunteerHoursFiltered: filtered.volunteer_hours,
+            economicValueTotal: totals.economic_value_total,
+            economicValueFiltered: filtered.economic_value,
+            volunteerOpportunitiesTotal: totals.volunteer_opportunities_total,
+            volunteerOpportunitiesFiltered: filtered.volunteer_opportunities,
+            activitiesCountTotal: totals.activities_count_total,
+            activitiesCountFiltered: filtered.activities_count,
+            volunteerCountTotal: totals.volunteer_count_total,
+            volunteerCountFiltered: filtered.volunteer_count,
+            skillsEconomicValueTotal: totals.skills_economic_value_total,
+            skillsEconomicValueFiltered: filtered.skills_economic_value,
+            skillsTrainedCountTotal: totals.skills_trained_count_total,
+            skillsTrainedCountFiltered: filtered.skills_trained_count
         };
     }
 
-    // Region filter has third priority
+    // UPDATED: Region filter with correct trainer definition
     if (filters?.regionId) {
-        const filteredReports = reports.filter(report => report.user?.regionId === filters.regionId);
-        const filteredEduAdmins = eduAdmins.filter(eduAdmin => eduAdmin.regionId === filters.regionId);
-        const filteredSchools = schools.filter(school => 
-            filteredEduAdmins.some(ea => ea.id === school.eduAdminId)
-        );
-        
-        const filteredStats = filteredReports.reduce((acc, report) => ({
-            volunteerHours: acc.volunteerHours + (report.volunteerHours || 0),
-            economicValue: acc.economicValue + (report.economicValue || 0),
-            volunteerOpportunities: acc.volunteerOpportunities + (report.volunteerOpportunities || 0),
-            activitiesCount: acc.activitiesCount + (report.activitiesCount || 0),
-            volunteerCount: acc.volunteerCount + (report.volunteerCount || 0),
-            skillsEconomicValue: acc.skillsEconomicValue + (report.skillsEconomicValue || 0),
-            skillsTrainedCount: acc.skillsTrainedCount + (report.skillsTrainedCount || 0)
-        }), {
-            volunteerHours: 0,
-            economicValue: 0, 
-            volunteerOpportunities: 0,
-            activitiesCount: 0,
-            volunteerCount: 0,
-            skillsEconomicValue: 0,
-            skillsTrainedCount: 0
-        });
+        const [filteredResult] = await db.$queryRaw<Array<{
+            eduadmins_count: number;
+            schools_count: number;
+            trainers_count: number;
+            reports_count: number;
+            volunteer_hours: number;
+            economic_value: number;
+            volunteer_opportunities: number;
+            activities_count: number;
+            volunteer_count: number;
+            skills_economic_value: number;
+            skills_trained_count: number;
+        }>>`
+            SELECT 
+                COUNT(DISTINCT ea.id)::INTEGER as eduadmins_count,
+                COUNT(DISTINCT s.id)::INTEGER as schools_count,
+                COUNT(DISTINCT CASE WHEN u.role = 'user' THEN u.id END)::INTEGER as trainers_count,
+                COUNT(DISTINCT rep.id)::INTEGER as reports_count,
+                COALESCE(SUM(rep."volunteerHours"), 0)::INTEGER as volunteer_hours,
+                COALESCE(SUM(rep."economicValue"), 0)::INTEGER as economic_value,
+                COALESCE(SUM(rep."volunteerOpportunities"), 0)::INTEGER as volunteer_opportunities,
+                COALESCE(SUM(rep."activitiesCount"), 0)::INTEGER as activities_count,
+                COALESCE(SUM(rep."volunteerCount"), 0)::INTEGER as volunteer_count,
+                COALESCE(SUM(rep."skillsEconomicValue"), 0)::INTEGER as skills_economic_value,
+                COALESCE(SUM(rep."skillsTrainedCount"), 0)::INTEGER as skills_trained_count
+            FROM "eduAdministration" ea
+            LEFT JOIN "school" s ON s."eduAdminId" = ea.id
+            LEFT JOIN public."user" u ON u."schoolId" = s.id
+            LEFT JOIN "report" rep ON rep."userId" = u.id
+            WHERE ea."regionId" = ${filters.regionId}
+        `;
 
-        // Calculate filtered trainers: trainers who belong to schools under this region
-        const schoolIds = filteredSchools.map(school => school.id);
-        const filteredTrainers = users.filter(user => 
-            schoolIds.includes(user.schoolId) && 
-            user.role !== 'admin' && 
-            user.role !== 'supervisor'
-        ).length;
+        const filtered = {
+            eduadmins_count: Number(filteredResult.eduadmins_count),
+            schools_count: Number(filteredResult.schools_count),
+            trainers_count: Number(filteredResult.trainers_count),
+            reports_count: Number(filteredResult.reports_count),
+            volunteer_hours: Number(filteredResult.volunteer_hours),
+            economic_value: Number(filteredResult.economic_value),
+            volunteer_opportunities: Number(filteredResult.volunteer_opportunities),
+            activities_count: Number(filteredResult.activities_count),
+            volunteer_count: Number(filteredResult.volunteer_count),
+            skills_economic_value: Number(filteredResult.skills_economic_value),
+            skills_trained_count: Number(filteredResult.skills_trained_count)
+        };
 
         return {
-            regionsTotal: regions.length,
+            regionsTotal: totals.regions_total,
             regionsFiltered: 1,
-            eduAdminsTotal: eduAdmins.length,
-            eduAdminsFiltered: filteredEduAdmins.length,
-            schoolsTotal: schools.length,
-            schoolsFiltered: filteredSchools.length,
-            reportsTotal: reports.length,
-            reportsFiltered: filteredReports.length,
-            trainersTotal: totalTrainers,
-            trainersFiltered: filteredTrainers,
-            volunteerHoursTotal: totalStats.volunteerHours,
-            volunteerHoursFiltered: filteredStats.volunteerHours,
-            economicValueTotal: totalStats.economicValue,
-            economicValueFiltered: filteredStats.economicValue,
-            volunteerOpportunitiesTotal: totalStats.volunteerOpportunities,
-            volunteerOpportunitiesFiltered: filteredStats.volunteerOpportunities,
-            activitiesCountTotal: totalStats.activitiesCount,
-            activitiesCountFiltered: filteredStats.activitiesCount,
-            volunteerCountTotal: totalStats.volunteerCount,
-            volunteerCountFiltered: filteredStats.volunteerCount,
-            skillsEconomicValueTotal: totalStats.skillsEconomicValue,
-            skillsEconomicValueFiltered: filteredStats.skillsEconomicValue,
-            skillsTrainedCountTotal: totalStats.skillsTrainedCount,
-            skillsTrainedCountFiltered: filteredStats.skillsTrainedCount
+            eduAdminsTotal: totals.eduadmins_total,
+            eduAdminsFiltered: filtered.eduadmins_count,
+            schoolsTotal: totals.schools_total,
+            schoolsFiltered: filtered.schools_count,
+            reportsTotal: totals.reports_total,
+            reportsFiltered: filtered.reports_count,
+            trainersTotal: totals.trainers_total,
+            trainersFiltered: filtered.trainers_count,
+            volunteerHoursTotal: totals.volunteer_hours_total,
+            volunteerHoursFiltered: filtered.volunteer_hours,
+            economicValueTotal: totals.economic_value_total,
+            economicValueFiltered: filtered.economic_value,
+            volunteerOpportunitiesTotal: totals.volunteer_opportunities_total,
+            volunteerOpportunitiesFiltered: filtered.volunteer_opportunities,
+            activitiesCountTotal: totals.activities_count_total,
+            activitiesCountFiltered: filtered.activities_count,
+            volunteerCountTotal: totals.volunteer_count_total,
+            volunteerCountFiltered: filtered.volunteer_count,
+            skillsEconomicValueTotal: totals.skills_economic_value_total,
+            skillsEconomicValueFiltered: filtered.skills_economic_value,
+            skillsTrainedCountTotal: totals.skills_trained_count_total,
+            skillsTrainedCountFiltered: filtered.skills_trained_count
         };
     }
 
-    // If no filters provided, return totals with filtered values equal to totals
+    // Fallback return
     return {
-        regionsTotal: regions.length,
-        regionsFiltered: regions.length,
-        eduAdminsTotal: eduAdmins.length,
-        eduAdminsFiltered: eduAdmins.length,
-        schoolsTotal: schools.length,
-        schoolsFiltered: schools.length,
-        reportsTotal: reports.length,
-        reportsFiltered: reports.length,
-        trainersTotal: totalTrainers,
-        trainersFiltered: totalTrainers,
-        volunteerHoursTotal: totalStats.volunteerHours,
-        volunteerHoursFiltered: totalStats.volunteerHours,
-        economicValueTotal: totalStats.economicValue,
-        economicValueFiltered: totalStats.economicValue,
-        volunteerOpportunitiesTotal: totalStats.volunteerOpportunities,
-        volunteerOpportunitiesFiltered: totalStats.volunteerOpportunities,
-        activitiesCountTotal: totalStats.activitiesCount,
-        activitiesCountFiltered: totalStats.activitiesCount,
-        volunteerCountTotal: totalStats.volunteerCount,
-        volunteerCountFiltered: totalStats.volunteerCount,
-        skillsEconomicValueTotal: totalStats.skillsEconomicValue,
-        skillsEconomicValueFiltered: totalStats.skillsEconomicValue,
-        skillsTrainedCountTotal: totalStats.skillsTrainedCount,
-        skillsTrainedCountFiltered: totalStats.skillsTrainedCount
+        regionsTotal: totals.regions_total,
+        regionsFiltered: totals.regions_total,
+        eduAdminsTotal: totals.eduadmins_total,
+        eduAdminsFiltered: totals.eduadmins_total,
+        schoolsTotal: totals.schools_total,
+        schoolsFiltered: totals.schools_total,
+        reportsTotal: totals.reports_total,
+        reportsFiltered: totals.reports_total,
+        trainersTotal: totals.trainers_total,
+        trainersFiltered: totals.trainers_total,
+        volunteerHoursTotal: totals.volunteer_hours_total,
+        volunteerHoursFiltered: totals.volunteer_hours_total,
+        economicValueTotal: totals.economic_value_total,
+        economicValueFiltered: totals.economic_value_total,
+        volunteerOpportunitiesTotal: totals.volunteer_opportunities_total,
+        volunteerOpportunitiesFiltered: totals.volunteer_opportunities_total,
+        activitiesCountTotal: totals.activities_count_total,
+        activitiesCountFiltered: totals.activities_count_total,
+        volunteerCountTotal: totals.volunteer_count_total,
+        volunteerCountFiltered: totals.volunteer_count_total,
+        skillsEconomicValueTotal: totals.skills_economic_value_total,
+        skillsEconomicValueFiltered: totals.skills_economic_value_total,
+        skillsTrainedCountTotal: totals.skills_trained_count_total,
+        skillsTrainedCountFiltered: totals.skills_trained_count_total
     };
 }
 
+// UPDATED: Regional breakdown with correct trainer definition
 async function getRegionalBreakdown(dbUrl?: string) {
     const db = initializeDatabase(dbUrl);
 
-    // Get all data
-    const [regions, eduAdmins, schools, reports, users] = await Promise.all([
-        db.region.findMany(),
-        db.eduAdmin.findMany(),
-        db.school.findMany(),
-        db.report.findMany({ include: { user: true } }),
-        db.user.findMany()
-    ]);
+    const regionalStats = await db.$queryRaw`
+        SELECT 
+            r.id,
+            r.name,
+            COUNT(DISTINCT s.id)::INTEGER as "schoolsCount",
+            COUNT(DISTINCT CASE WHEN u.role = 'user' THEN u.id END)::INTEGER as "trainersCount",
+            COUNT(DISTINCT rep.id)::INTEGER as "reportsCount",
+            COALESCE(SUM(rep."volunteerHours"), 0)::INTEGER as "volunteerHours",
+            COALESCE(SUM(rep."economicValue"), 0)::INTEGER as "economicValue",
+            COALESCE(SUM(rep."volunteerOpportunities"), 0)::INTEGER as "volunteerOpportunities",
+            COALESCE(SUM(rep."activitiesCount"), 0)::INTEGER as "activitiesCount",
+            COALESCE(SUM(rep."volunteerCount"), 0)::INTEGER as "volunteerCount",
+            COALESCE(SUM(rep."skillsEconomicValue"), 0)::INTEGER as "skillsEconomicValue",
+            COALESCE(SUM(rep."skillsTrainedCount"), 0)::INTEGER as "skillsTrainedCount"
+        FROM "region" r
+        LEFT JOIN "eduAdministration" ea ON ea."regionId" = r.id
+        LEFT JOIN "school" s ON s."eduAdminId" = ea.id
+        LEFT JOIN public."user" u ON u."schoolId" = s.id
+        LEFT JOIN "report" rep ON rep."userId" = u.id
+        GROUP BY r.id, r.name
+        ORDER BY r.name
+    `;
 
-    // Calculate statistics for each region
-    const regionalStats = regions.map(region => {
-        // Get eduAdmins for this region
-        const regionEduAdmins = eduAdmins.filter(ea => ea.regionId === region.id);
-        const eduAdminIds = regionEduAdmins.map(ea => ea.id);
-        
-        // Get schools for this region
-        const regionSchools = schools.filter(school => 
-            eduAdminIds.includes(school.eduAdminId)
-        );
-        const schoolIds = regionSchools.map(school => school.id);
-        
-        // Get users for this region
-        const regionUsers = users.filter(user => schoolIds.includes(user.schoolId));
-        const regionTrainers = regionUsers.filter(user => 
-            user.role !== 'admin' && user.role !== 'supervisor'
-        );
-        
-        // Get reports for this region
-        const regionReports = reports.filter(report => 
-            regionUsers.some(user => user.id === report.userId)
-        );
-        
-        // Calculate totals
-        const stats = regionReports.reduce((acc, report) => ({
-            volunteerHours: acc.volunteerHours + (report.volunteerHours || 0),
-            economicValue: acc.economicValue + (report.economicValue || 0),
-            volunteerOpportunities: acc.volunteerOpportunities + (report.volunteerOpportunities || 0),
-            activitiesCount: acc.activitiesCount + (report.activitiesCount || 0),
-            volunteerCount: acc.volunteerCount + (report.volunteerCount || 0),
-            skillsEconomicValue: acc.skillsEconomicValue + (report.skillsEconomicValue || 0),
-            skillsTrainedCount: acc.skillsTrainedCount + (report.skillsTrainedCount || 0)
-        }), {
-            volunteerHours: 0,
-            economicValue: 0,
-            volunteerOpportunities: 0,
-            activitiesCount: 0,
-            volunteerCount: 0,
-            skillsEconomicValue: 0,
-            skillsTrainedCount: 0
-        });
-
-        return {
-            id: region.id,
-            name: region.name,
-            schoolsCount: regionSchools.length,
-            trainersCount: regionTrainers.length,
-            reportsCount: regionReports.length,
-            ...stats
-        };
-    });
-
-    return regionalStats;
+    return regionalStats.map((stat: any) => ({
+        id: stat.id,
+        name: stat.name,
+        schoolsCount: Number(stat.schoolsCount),
+        trainersCount: Number(stat.trainersCount),
+        reportsCount: Number(stat.reportsCount),
+        volunteerHours: Number(stat.volunteerHours),
+        economicValue: Number(stat.economicValue),
+        volunteerOpportunities: Number(stat.volunteerOpportunities),
+        activitiesCount: Number(stat.activitiesCount),
+        volunteerCount: Number(stat.volunteerCount),
+        skillsEconomicValue: Number(stat.skillsEconomicValue),
+        skillsTrainedCount: Number(stat.skillsTrainedCount)
+    }));
 }
 
+// UPDATED: EduAdmin breakdown with correct trainer definition
 async function getEduAdminBreakdown(dbUrl?: string) {
     const db = initializeDatabase(dbUrl);
 
-    // Get all data
-    const [eduAdmins, schools, reports, users] = await Promise.all([
-        db.eduAdmin.findMany(),
-        db.school.findMany(),
-        db.report.findMany({ include: { user: true } }),
-        db.user.findMany()
-    ]);
+    const eduAdminStats = await db.$queryRaw`
+        SELECT 
+            ea.id,
+            ea.name,
+            COUNT(DISTINCT s.id)::INTEGER as "schoolsCount",
+            COUNT(DISTINCT CASE WHEN u.role = 'user' THEN u.id END)::INTEGER as "trainersCount",
+            COUNT(DISTINCT rep.id)::INTEGER as "reportsCount",
+            COALESCE(SUM(rep."volunteerHours"), 0)::INTEGER as "volunteerHours",
+            COALESCE(SUM(rep."economicValue"), 0)::INTEGER as "economicValue",
+            COALESCE(SUM(rep."volunteerOpportunities"), 0)::INTEGER as "volunteerOpportunities",
+            COALESCE(SUM(rep."activitiesCount"), 0)::INTEGER as "activitiesCount",
+            COALESCE(SUM(rep."volunteerCount"), 0)::INTEGER as "volunteerCount",
+            COALESCE(SUM(rep."skillsEconomicValue"), 0)::INTEGER as "skillsEconomicValue",
+            COALESCE(SUM(rep."skillsTrainedCount"), 0)::INTEGER as "skillsTrainedCount"
+        FROM "eduAdministration" ea
+        LEFT JOIN "school" s ON s."eduAdminId" = ea.id
+        LEFT JOIN public."user" u ON u."schoolId" = s.id
+        LEFT JOIN "report" rep ON rep."userId" = u.id
+        GROUP BY ea.id, ea.name
+        ORDER BY ea.name
+    `;
 
-    // Calculate statistics for each eduAdmin
-    const eduAdminStats = eduAdmins.map(eduAdmin => {
-        // Get schools for this eduAdmin
-        const eduAdminSchools = schools.filter(school => school.eduAdminId === eduAdmin.id);
-        const schoolIds = eduAdminSchools.map(school => school.id);
-        
-        // Get users for this eduAdmin
-        const eduAdminUsers = users.filter(user => schoolIds.includes(user.schoolId));
-        const eduAdminTrainers = eduAdminUsers.filter(user => 
-            user.role !== 'admin' && user.role !== 'supervisor'
-        );
-        
-        // Get reports for this eduAdmin
-        const eduAdminReports = reports.filter(report => 
-            eduAdminUsers.some(user => user.id === report.userId)
-        );
-        
-        // Calculate totals
-        const stats = eduAdminReports.reduce((acc, report) => ({
-            volunteerHours: acc.volunteerHours + (report.volunteerHours || 0),
-            economicValue: acc.economicValue + (report.economicValue || 0),
-            volunteerOpportunities: acc.volunteerOpportunities + (report.volunteerOpportunities || 0),
-            activitiesCount: acc.activitiesCount + (report.activitiesCount || 0),
-            volunteerCount: acc.volunteerCount + (report.volunteerCount || 0),
-            skillsEconomicValue: acc.skillsEconomicValue + (report.skillsEconomicValue || 0),
-            skillsTrainedCount: acc.skillsTrainedCount + (report.skillsTrainedCount || 0)
-        }), {
-            volunteerHours: 0,
-            economicValue: 0,
-            volunteerOpportunities: 0,
-            activitiesCount: 0,
-            volunteerCount: 0,
-            skillsEconomicValue: 0,
-            skillsTrainedCount: 0
-        });
-
-        return {
-            id: eduAdmin.id,
-            name: eduAdmin.name,
-            schoolsCount: eduAdminSchools.length,
-            trainersCount: eduAdminTrainers.length,
-            reportsCount: eduAdminReports.length,
-            ...stats
-        };
-    });
-
-    return eduAdminStats;
+    return eduAdminStats.map((stat: any) => ({
+        id: stat.id,
+        name: stat.name,
+        schoolsCount: Number(stat.schoolsCount),
+        trainersCount: Number(stat.trainersCount),
+        reportsCount: Number(stat.reportsCount),
+        volunteerHours: Number(stat.volunteerHours),
+        economicValue: Number(stat.economicValue),
+        volunteerOpportunities: Number(stat.volunteerOpportunities),
+        activitiesCount: Number(stat.activitiesCount),
+        volunteerCount: Number(stat.volunteerCount),
+        skillsEconomicValue: Number(stat.skillsEconomicValue),
+        skillsTrainedCount: Number(stat.skillsTrainedCount)
+    }));
 }
 
 // Export the function
 const statisticsService = {
     getAdminDashboardDataStatistics,
-    getRegionalBreakdown,
-    getEduAdminBreakdown
+    getRegionalBreakdown,  // This one is now optimized
+    getEduAdminBreakdown   // This one is now optimized too
 };
 
 export default statisticsService;

@@ -141,12 +141,16 @@ export type SkillReport = {
 };
 
 export type Skill = {
-  id: string;
+  id?: string;
   name: string;
-  //description?: string; // Optional if not needed
+  description?: string;
   createdAt?: Date;
   updatedAt?: Date;
 };
+
+export interface SkillWithCount extends Skill {
+  usageCount: number;
+}
 
 export type CreateReportData = {
   userId: string;
@@ -169,7 +173,7 @@ export type Testimonial = {
   id?: string;
   name: string;
   comment: string;
-  rating: number;
+  rating?: number;
   createdAt?: Date;
   updatedAt?: Date;
   reports?: TestimonialReport[];
@@ -188,7 +192,7 @@ export type TestimonialReport = {
 export type CreateTestimonialData = {
   name: string;
   comment: string;
-  //rating: number; // Optional if you want to set a default rating in the backend
+  rating?: number; // Optional if you want to set a default rating in the backend
 };
 
 // Report statistics types
