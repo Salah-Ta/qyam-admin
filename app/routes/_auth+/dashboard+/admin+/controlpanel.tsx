@@ -271,7 +271,9 @@ export const ControlPanel = (): JSX.Element => {
     { name: "بنك الفرص التطوعية", id: "4" },
     { name: "أدوات التحفيز", id: "5" },
   ];
-  const data = useLoaderData<{ materials: Material[]; articles: Article[] } | null>();
+  // Use fetcher for revalidation after delete
+  const dataFetcher = useFetcher<{ materials: Material[]; articles: Article[] } | null>({ key: "materials-articles" });
+  const data = dataFetcher.data || useLoaderData<{ materials: Material[]; articles: Article[] } | null>();
   const materials = Array.isArray(data?.materials) ? data.materials : [];
   const articles = Array.isArray(data?.articles) ? data.articles : [];
   console.log("Materials loaded:", materials);
@@ -347,6 +349,13 @@ export const ControlPanel = (): JSX.Element => {
       itemTitle: "",
     });
   };
+
+  // Revalidate materials/articles after successful delete
+  useEffect(() => {
+    if (fetcher.data?.success === true && fetcher.state === "idle") {
+      dataFetcher.load(window.location.pathname);
+    }
+  }, [fetcher.data?.success, fetcher.state]);
 
   const deleteArticle = (id: string) => {
     const formData = new FormData();
