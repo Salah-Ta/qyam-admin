@@ -205,12 +205,16 @@ export const Skills = (): JSX.Element => {
       createdAt: string;
       updatedAt: string;
     }>;
-  }>();
+  } | null>();
+  
+  // Safe data access with fallbacks
+  const safeSkills = Array.isArray(loaderData?.skills) ? loaderData.skills : [];
+  const safeTestimonials = Array.isArray(loaderData?.testimonials) ? loaderData.testimonials : [];
 
-  // Transform skills data for the word cloud
-  const wordCloudData = loaderData?.skills?.map((skill) => ({
-    text: skill.name,
-    value: skill.usageCount || 1, // Ensure minimum value of 1
+  // Transform skills data for the word cloud with safe navigation
+  const wordCloudData = safeSkills.map((skill) => ({
+    text: skill?.name || 'مهارة غير محددة',
+    value: skill?.usageCount || 1, // Ensure minimum value of 1
   }));
 
   // Only use real data from database, no sample data fallback
@@ -219,8 +223,8 @@ export const Skills = (): JSX.Element => {
   // Debug logging for deployment issues
   console.log("=== WordCloud Debug Info ===");
   console.log("loaderData:", loaderData);
-  console.log("loaderData.skills:", loaderData?.skills);
-  console.log("loaderData.skills length:", loaderData?.skills?.length);
+  console.log("safeSkills:", safeSkills);
+  console.log("safeSkills length:", safeSkills.length);
   console.log("wordCloudData:", wordCloudData);
   console.log("finalWordCloudData:", finalWordCloudData);
   console.log("Is array:", Array.isArray(finalWordCloudData));
@@ -268,7 +272,7 @@ export const Skills = (): JSX.Element => {
         textAlign: "right",
       },
     },
-    getWordTooltip: (word: any) => `هذه المهارة ظهرت ${word.value} مرة`,
+    getWordTooltip: (word: any) => `هذه المهارة ظهرت ${word?.value || 0} مرة`,
   };
 
   // Console log the words that will be displayed in the word cloud
@@ -380,7 +384,10 @@ export const Skills = (): JSX.Element => {
                 words={finalWordCloudData}
                 width={900}
                 height={600}
-                fill={(word, index) => colors[index % (colors?.length || 8)]}
+                fill={(word, index) => {
+                  const safeIndex = typeof index === 'number' ? index : 0;
+                  return colors[safeIndex % (colors?.length || 8)];
+                }}
                 enableTooltip={true}
                 font="Arial, sans-serif"
                 fontWeight="normal"
@@ -388,7 +395,7 @@ export const Skills = (): JSX.Element => {
                   const minSize = 18;
                   const maxSize = 65;
                   const maxValue = Math.max(
-                    ...(finalWordCloudData?.map((w) => w.value) || [1])
+                    ...(Array.isArray(finalWordCloudData) ? finalWordCloudData.map((w) => w?.value || 1) : [1])
                   );
                   const scale = Math.sqrt(word.value / maxValue);
                   return Math.max(
@@ -398,7 +405,8 @@ export const Skills = (): JSX.Element => {
                 }}
                 rotate={(word, index) => {
                   const angles = [-45, 0, 45];
-                  return angles[index % (angles?.length || 3)];
+                  const safeIndex = typeof index === 'number' ? index : 0;
+                  return angles[safeIndex % (angles?.length || 3)];
                 }}
                 padding={3}
                 spiral="archimedean"
@@ -429,10 +437,8 @@ export const Skills = (): JSX.Element => {
             </p>
           </div>
         </div>
-        {loaderData?.testimonials &&
-        Array.isArray(loaderData.testimonials) &&
-        loaderData.testimonials.length > 0 ? (
-          <SmoothColumnTestimonials testimonials={loaderData.testimonials} />
+        {safeTestimonials.length > 0 ? (
+          <SmoothColumnTestimonials testimonials={safeTestimonials} />
         ) : (
           <div className="flex items-center justify-center py-12">
             <p className="text-gray-500 text-lg">لا توجد آراء متاحة حالياً</p>

@@ -271,9 +271,9 @@ export const ControlPanel = (): JSX.Element => {
     { name: "بنك الفرص التطوعية", id: "4" },
     { name: "أدوات التحفيز", id: "5" },
   ];
-  const data = useLoaderData<{ materials: Material[]; articles: Article[] }>();
-  const materials = data?.materials || [];
-  const articles = data?.articles || [];
+  const data = useLoaderData<{ materials: Material[]; articles: Article[] } | null>();
+  const materials = Array.isArray(data?.materials) ? data.materials : [];
+  const articles = Array.isArray(data?.articles) ? data.articles : [];
   console.log("Materials loaded:", materials);
   console.log("Articles loaded:", articles);
 
@@ -383,7 +383,8 @@ export const ControlPanel = (): JSX.Element => {
   };
 
   const updateArticle = (id: string) => {
-    const article = articles.find((a) => a.id === id);
+    if (!id || !Array.isArray(articles)) return;
+    const article = articles.find((a) => a?.id === id);
     if (article) {
       setEditForm({
         title: article.title || "",
@@ -399,11 +400,11 @@ export const ControlPanel = (): JSX.Element => {
   };
 
   const handleEditSubmit = () => {
-    if (!editDialog.article) return;
+    if (!editDialog?.article?.id) return;
 
     const formData = new FormData();
     formData.set("actionType", "updateArticle");
-    formData.set("id", editDialog.article.id!);
+    formData.set("id", editDialog.article.id);
     formData.set("title", editForm.title);
     formData.set("description", editForm.description);
     formData.set("content", editForm.content);
@@ -470,9 +471,9 @@ export const ControlPanel = (): JSX.Element => {
     setSelectedButton(buttonId);
   };
 
-  const filteredFiles = materials.filter(
-    (file) => file.categoryId === selectedButton
-  );
+  const filteredFiles = Array.isArray(materials) 
+    ? materials.filter((file) => file?.categoryId === selectedButton)
+    : [];
 
   return (
     <div>
@@ -549,7 +550,7 @@ export const ControlPanel = (): JSX.Element => {
 
               {/* Uploaded Files List */}
               <div className="flex flex-col md:flex-row gap-6 w-full mt-2 flex-wrap">
-                {filteredFiles && filteredFiles.length > 0 ? (
+                {Array.isArray(filteredFiles) && filteredFiles.length > 0 ? (
                   filteredFiles.map((m: any, i: number) => (
                     <Card
                       key={m.id || i}
@@ -557,19 +558,19 @@ export const ControlPanel = (): JSX.Element => {
                     >
                       <button
                         onClick={() =>
-                          confirmDelete(m.id!, "material", m.title)
+                          confirmDelete(m?.id || '', "material", m?.title || '')
                         }
                         className="w-[16.5px] h-[16.5px]"
                       >
                         <img src={deleteIcon} alt="Delete" />
                       </button>
                       <div className="font-normal text-black text-[13.8px] leading-[27.5px] whitespace-nowrap tracking-[0] [direction:rtl]">
-                        {m.title}
+                        {m?.title || 'ملف غير محدد'}
                       </div>
                       <a
                         className="w-[33px] h-[33px] flex items-center"
-                        href={`/download/${m.storageKey}`}
-                        download={sanitizeArabicFilenames(m.title)}
+                        href={`/download/${m?.storageKey || ''}`}
+                        download={sanitizeArabicFilenames(m?.title || '')}
                       >
                         <img
                           className="w-[33px] h-[33px]"
@@ -745,13 +746,14 @@ export const ControlPanel = (): JSX.Element => {
                 </Card>
 
                 {/* Existing Articles - Newest first (to the left of add card) */}
-                {articles &&
+                {Array.isArray(articles) &&
                   articles.length > 0 &&
                   articles
+                    .filter(article => article && article.id)
                     .sort(
                       (a, b) =>
-                        new Date(b.createdAt || 0).getTime() -
-                        new Date(a.createdAt || 0).getTime()
+                        new Date(b?.createdAt || 0).getTime() -
+                        new Date(a?.createdAt || 0).getTime()
                     )
                     .map((article: any, i: number) => (
                       <Card
@@ -764,23 +766,23 @@ export const ControlPanel = (): JSX.Element => {
                           {/* Article Title */}
                           <div>
                             <div className="w-full text-right font-bold text-[#1F2A37] border-none bg-transparent text-lg p-0">
-                              {article.title}
+                              {article?.title || 'مقال بدون عنوان'}
                             </div>
                           </div>
 
                           {/* Article Description */}
                           <div>
                             <div className="w-full text-right text-[#6B7280] border-none bg-transparent p-0">
-                              {article.description}
+                              {article?.description || 'لا يوجد وصف'}
                             </div>
                           </div>
 
                           {/* Article Image */}
                           <div className="relative">
-                            {article.image ? (
+                            {article?.image ? (
                               <img
                                 src={article.image}
-                                alt={article.title}
+                                alt={article?.title || 'صورة المقال'}
                                 className="w-full h-[120px] object-cover rounded-[5.89px]"
                               />
                             ) : (
@@ -805,7 +807,7 @@ export const ControlPanel = (): JSX.Element => {
                           {/* Article Content Preview */}
                           <div>
                             <div className="w-full h-20 text-right border-none bg-gray-50 resize-none text-sm p-2 rounded overflow-hidden">
-                              {article.content || "لا يوجد محتوى"}
+                              {article?.content || "لا يوجد محتوى"}
                             </div>
                           </div>
 
@@ -817,9 +819,9 @@ export const ControlPanel = (): JSX.Element => {
                               className="text-gray-600 text-xs px-3 py-1"
                               onClick={() =>
                                 confirmDelete(
-                                  article.id!,
+                                  article?.id || '',
                                   "article",
-                                  article.title
+                                  article?.title || ''
                                 )
                               }
                             >
@@ -828,7 +830,7 @@ export const ControlPanel = (): JSX.Element => {
                             <Button
                               size="sm"
                               className="bg-[#006173] text-white hover:bg-teal-800 transition text-xs px-3 py-1 flex items-center gap-1"
-                              onClick={() => updateArticle(article.id!)}
+                              onClick={() => updateArticle(article?.id || '')}
                             >
                               تعديل
                             </Button>
@@ -858,7 +860,7 @@ export const ControlPanel = (): JSX.Element => {
                       تأكيد الحذف
                     </h3>
                     <p className="text-gray-600 text-right mb-6">
-                      هل أنت متأكد من حذف "{deleteConfirmation.itemTitle}"؟ لا
+                      هل أنت متأكد من حذف "{deleteConfirmation?.itemTitle || 'العنصر'}"؟ لا
                       يمكن التراجع عن هذا الإجراء.
                     </p>
                     <div className="flex gap-3 justify-end">

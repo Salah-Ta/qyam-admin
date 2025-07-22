@@ -1,6 +1,7 @@
 import {
   StatusResponse,
-  CreateReportData
+  CreateReportData,
+  Report
 } from "~/types/types";
 import { client } from "../db-client.server";
 
@@ -323,6 +324,85 @@ async function getSchoolReports(schoolId: string, dbUrl?: string) {
     console.error("Error fetching school reports:", error);
     return { success: false, error: error.message };
   }
+
+  /**
+ * Get total statistics for a specific user from their reports
+ */
+async function getUserTotalStats(userId: string, dbUrl?: string) {
+  const db = initializeDatabase(dbUrl);
+
+  try {
+    // Fetch all reports for this specific user
+    const userReports = await db.report.findMany({
+      where: {
+        userId: userId
+      }
+    });
+
+    return { success: true, data: getTotalStatsFromReports(userReports) };
+  } catch (error: any) {
+    console.error("Error fetching user statistics:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+function getTotalStatsFromReports(reports: Report[]): {
+  reportCount: number;
+  volunteerHours: number;
+  economicValue: number;
+  volunteerOpportunities: number;
+  activitiesCount: number;
+  volunteerCount: number;
+  skillsEconomicValue: number;
+  skillsTrainedCount: number;
+} {
+  const totals = sumReportFields(reports);
+  return {
+    reportCount: reports.length,
+    ...totals
+  };
+}
+
+/**
+ * Helper function to sum report fields
+ */
+function sumReportFields(reports: Report[]): {
+  volunteerHours: number;
+  economicValue: number;
+  volunteerOpportunities: number;
+  activitiesCount: number;
+  volunteerCount: number;
+  skillsEconomicValue: number;
+  skillsTrainedCount: number;
+} {
+  let volunteerHours = 0;
+  let economicValue = 0;
+  let volunteerOpportunities = 0;
+  let activitiesCount = 0;
+  let volunteerCount = 0;
+  let skillsEconomicValue = 0;
+  let skillsTrainedCount = 0;
+
+  reports.forEach(report => {
+    volunteerHours += report.volunteerHours || 0;
+    economicValue += report.economicValue || 0;
+    volunteerOpportunities += report.volunteerOpportunities || 0;
+    activitiesCount += report.activitiesCount || 0;
+    volunteerCount += report.volunteerCount || 0;
+    skillsEconomicValue += report.skillsEconomicValue || 0;
+    skillsTrainedCount += report.skillsTrainedCount || 0;
+  });
+
+  return {
+    volunteerHours,
+    economicValue,
+    volunteerOpportunities,
+    activitiesCount,
+    volunteerCount,
+    skillsEconomicValue,
+    skillsTrainedCount
+  };
+}
 }
 
 export default {

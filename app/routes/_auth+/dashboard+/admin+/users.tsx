@@ -444,19 +444,20 @@ export const Users = (): React.JSX.Element => {
   // State and data
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
-  const users = useLoaderData<QUser[]>() || [];
+  const rawUsers = useLoaderData<QUser[]>();
+  const users = Array.isArray(rawUsers) ? rawUsers : [];
   console.log("Users data:", users);
   
 
   // Metrics calculation
   metricsData.students.value = users
-    .reduce((acc, user) => acc + (user.noStudents || 0), 0)
+    .reduce((acc, user) => acc + (user?.noStudents || 0), 0)
     .toString();
   metricsData.teachers.value = users
-    .filter((user) => user.role === "user")
+    .filter((user) => user?.role === "user")
     .length.toString();
   metricsData.supervisors.value = users
-    .filter((user) => ["مشرف", "supervisor", "SUPERVISOR"].includes(user.role))
+    .filter((user) => ["مشرف", "supervisor", "SUPERVISOR"].includes(user?.role || ''))
     .length.toString();
 
   // Filtering
@@ -468,11 +469,11 @@ export const Users = (): React.JSX.Element => {
   const filteredUsers = users;
   const filteredData = filteredUsers.filter((row) => {
     const matchesSearch =
-      row.name.toLowerCase().includes(search.toLowerCase()) ||
+      row?.name?.toLowerCase().includes(search.toLowerCase()) ||
       row?.phone?.toString().includes(search) ||
-      row.email.toLowerCase().includes(search.toLowerCase());
+      row?.email?.toLowerCase().includes(search.toLowerCase());
     const matchesAcceptance =
-      !acceptanceStateFilter || row.acceptenceState === acceptanceStateFilter;
+      !acceptanceStateFilter || row?.acceptenceState === acceptanceStateFilter;
     return matchesSearch && matchesAcceptance;
   });
 
@@ -585,8 +586,8 @@ export const Users = (): React.JSX.Element => {
 
   // TODO: Replace this with your actual logic to get the logged-in user's role
   // For example, from context, loader, or props
-  const { user } = useRouteLoaderData<any>("root");
-  const currentUserRole = user?.role || "supervisor"; // <-- Replace with real logic
+  const rootData = useRouteLoaderData<any>("root");
+  const currentUserRole = rootData?.user?.role || "supervisor"; // <-- Replace with real logic
 
   // Action handlers for admin actions (accept, deny, disable/reactivate, delete)
   const fetcher = useFetcher();
@@ -846,7 +847,7 @@ export const Users = (): React.JSX.Element => {
                       <TableRow
                         key={index}
                         className={`border-b border-[#e4e7ec] ${currentUserRole === "admin" ? "cursor-pointer hover:bg-gray-50 transition-colors" : ""}`}
-                        onClick={currentUserRole === "admin" ? () => window.location.href = `/supervisor/supervisorStatics/${row.id}` : undefined}
+                        onClick={currentUserRole === "admin" ? () => window.location.href = `/supervisor/supervisorStatics/${row?.id}` : undefined}
                       >
                         <TableCell className="py-1 px-2 mt-4">
                           <div className="flex justify-center gap-3.5" onClick={(e) => e.stopPropagation()}>
@@ -933,52 +934,52 @@ export const Users = (): React.JSX.Element => {
                           <Badge className="px-2.5 py-[3px] rounded-[100px] border border-solid border-[#1a7f37] bg-transparent">
                             <span className=" font-bold text-[#1a7f37] text-xs [direction:rtl] text-nowrap">
                               {/* {statusTranslation[row.acceptenceState as keyof typeof statusTranslation] ?? row.acceptenceState} */}
-                              {row?.acceptenceState}
+                              {row?.acceptenceState || 'غير محدد'}
                             </span>
                           </Badge>
                         </TableCell>
                         <TableCell className="py-1 px-2 text-right max-md:hidden ">
                           <span className=" font-medium text-[#027163] text-base [direction:rtl]">
-                            {row?.schoolId}
+                            {row?.schoolId || '-'}
                           </span>
                         </TableCell>
                         <TableCell className="py-1 px-2 text-right max-md:hidden ">
                           <span className=" font-medium text-[#027163] text-base [direction:rtl]">
-                            {row?.eduAdminId}
+                            {row?.eduAdminId || '-'}
                           </span>
                         </TableCell>
                         <TableCell className="py-1 px-2 text-right max-md:hidden ">
                           <span className=" font-medium text-[#027163] text-base [direction:rtl]">
-                            {row.region}
+                            {row?.region || '-'}
                           </span>
                         </TableCell>
                         <TableCell className="py-1 px-2 text-right max-md:hidden ">
                           <span className=" font-medium text-[#027163] text-base [direction:rtl]">
                             {roleTranslation[
-                              row.role as keyof typeof roleTranslation
-                            ] ?? row.role}
+                              row?.role as keyof typeof roleTranslation
+                            ] ?? row?.role ?? '-'}
                           </span>
                         </TableCell>
                         <TableCell className="py-1 px-2 text-right max-md:hidden ">
                           <span className="font-medium text-[#027163] text-base">
-                            {row.email}
+                            {row?.email || '-'}
                           </span>
                         </TableCell>
                         <TableCell className="py-1 px-2 text-right max-md:hidden ">
                           <span className="font-medium text-[#027163] text-base">
-                            {row.phone}
+                            {row?.phone || '-'}
                           </span>
                         </TableCell>
                         <TableCell className="py-1 px-2 text-right">
                           <span className=" font-medium text-[#027163] text-base [direction:rtl] mr-[23px]">
-                            {row.name}
+                            {row?.name || 'غير محدد'}
                           </span>
                         </TableCell>
                         <TableCell className="">
                           <div onClick={(e) => e.stopPropagation()}>
                             <Checkbox
-                              checked={checkedRows.includes(row.id)}
-                              onCheckedChange={() => handleCheckboxChange(row.id)}
+                              checked={checkedRows.includes(row?.id)}
+                              onCheckedChange={() => handleCheckboxChange(row?.id)}
                               className={
                                 row.isChecked
                                   ? "w-4 h-4 bg-[#0969da] rounded-[3px]"

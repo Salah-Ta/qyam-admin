@@ -82,15 +82,18 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   }
 }
 
-ChartJS.register(
-  ArcElement,
-  Tooltip,
-  Legend,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title
-);
+// Register Chart.js components on client side only
+if (typeof window !== 'undefined') {
+  ChartJS.register(
+    ArcElement,
+    Tooltip,
+    Legend,
+    CategoryScale,
+    LinearScale,
+    BarElement,
+    Title
+  );
+}
 
 export default function ProgramStatisticsContent(): JSX.Element {
   const navigate = useNavigate();
@@ -118,12 +121,15 @@ export default function ProgramStatisticsContent(): JSX.Element {
   const [chartsLoaded, setChartsLoaded] = useState<boolean>(false);
   const [isFiltering, setIsFiltering] = useState<boolean>(false);
 
-  // Set charts as loaded after component mounts
+  // Set charts as loaded after component mounts (client-side only)
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setChartsLoaded(true);
-    }, 500); // Small delay to show loading state
-    return () => clearTimeout(timer);
+    // Ensure we're on client side and Chart.js is available
+    if (typeof window !== 'undefined') {
+      const timer = setTimeout(() => {
+        setChartsLoaded(true);
+      }, 100); // Reduced delay to minimize hydration mismatch
+      return () => clearTimeout(timer);
+    }
   }, []);
 
   // Show loading when filters change
@@ -136,7 +142,7 @@ export default function ProgramStatisticsContent(): JSX.Element {
   }, [selectedRegion, selectedEduAdmin, selectedSchool]);
 
   // Handle potential error state
-  if ("error" in loaderData) {
+  if (!loaderData || "error" in loaderData) {
     return (
       <div className="bg-[#f9f9f9] p-6">
         <div className="text-center text-red-500">
@@ -147,17 +153,16 @@ export default function ProgramStatisticsContent(): JSX.Element {
   }
 
   const { statistics, regionalBreakdown, eduAdminBreakdown, schoolBreakdown } =
-    loaderData;
+    loaderData || {};
 
   // Safety checks for data arrays and statistics structure
-  const safeRegionalBreakdown = regionalBreakdown || [];
-  const safeEduAdminBreakdown = eduAdminBreakdown || [];
-  const safeSchoolBreakdown = schoolBreakdown || [];
+  const safeRegionalBreakdown = Array.isArray(regionalBreakdown) ? regionalBreakdown : [];
+  const safeEduAdminBreakdown = Array.isArray(eduAdminBreakdown) ? eduAdminBreakdown : [];
+  const safeSchoolBreakdown = Array.isArray(schoolBreakdown) ? schoolBreakdown : [];
 
   // Debug education departments data
   console.log("EduAdmin Breakdown:", safeEduAdminBreakdown);
-  console.log("Sample eduAdmin data:", safeEduAdminBreakdown[0]);
-  console.log("EduAdmin breakdown length:", safeEduAdminBreakdown.length);
+  console.log("Regional Breakdown:", safeRegionalBreakdown);
 
   // Ensure statistics has the proper structure with fallback values
   const safeStatistics = statistics || {
@@ -443,8 +448,8 @@ export default function ProgramStatisticsContent(): JSX.Element {
 
   // Create regions data from regional breakdown
   const regionsData = safeRegionalBreakdown.map((regionStat: any) => ({
-    name: regionStat.name,
-    value: Math.round(regionStat.volunteerHours || 0),
+    name: regionStat?.name || 'منطقة غير محددة',
+    value: Math.round(regionStat?.volunteerHours || 0),
   }));
 
   const barColors = [
@@ -622,8 +627,8 @@ export default function ProgramStatisticsContent(): JSX.Element {
             >
               <option value="">الكل</option>
               {safeRegionalBreakdown.map((region: any) => (
-                <option key={region.id} value={region.id}>
-                  {region.name}
+                <option key={region?.id || Math.random()} value={region?.id || ''}>
+                  {region?.name || 'منطقة غير محددة'}
                 </option>
               ))}
             </select>
@@ -651,8 +656,8 @@ export default function ProgramStatisticsContent(): JSX.Element {
             >
               <option value="">الكل</option>
               {filteredEduAdmins.map((eduAdmin) => (
-                <option key={eduAdmin.id} value={eduAdmin.id}>
-                  {eduAdmin.name}
+                <option key={eduAdmin?.id || Math.random()} value={eduAdmin?.id || ''}>
+                  {eduAdmin?.name || 'إدارة تعليم غير محددة'}
                 </option>
               ))}
             </select>
@@ -678,8 +683,8 @@ export default function ProgramStatisticsContent(): JSX.Element {
             >
               <option value="">الكل</option>
               {filteredSchools.map((school) => (
-                <option key={school.id} value={school.id}>
-                  {school.name}
+                <option key={school?.id || Math.random()} value={school?.id || ''}>
+                  {school?.name || 'مدرسة غير محددة'}
                 </option>
               ))}
             </select>

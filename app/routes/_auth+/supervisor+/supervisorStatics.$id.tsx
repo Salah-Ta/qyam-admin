@@ -1,4 +1,59 @@
-import React from "react";
+import React, { Component, ErrorInfo, ReactNode, useState, useEffect } from "react";
+
+// Error Boundary Component
+interface ErrorBoundaryProps {
+  children: ReactNode;
+  fallback?: ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error?: Error;
+}
+
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
+    console.error('SupervisorStatistics Error Boundary caught an error:', error, errorInfo);
+  }
+
+  render(): ReactNode {
+    if (this.state.hasError) {
+      return this.props.fallback || (
+        <div className="bg-[#f9f9f9] min-h-screen flex items-center justify-center">
+          <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full mx-4">
+            <div className="text-center">
+              <h2 className="text-xl font-bold text-red-600 mb-4">خطأ في عرض الصفحة</h2>
+              <p className="text-gray-600 mb-6">حدث خطأ غير متوقع. يرجى إعادة تحميل الصفحة.</p>
+              <button 
+                onClick={() => window.location.reload()}
+                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors mr-2"
+              >
+                إعادة تحميل
+              </button>
+              <button 
+                onClick={() => window.location.href = "/dashboard/admin/users"}
+                className="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                العودة
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 import content from "../../../assets/images/new-design/supervisor-profile.png";
 import verified from "../../../assets/icons/Verified-tick.svg";
 import students from "../../../assets/icons/students.svg";
@@ -21,54 +76,68 @@ import { cn } from "~/lib/utils";
 import { useNavigate } from "@remix-run/react";
 import { PlusIcon, ArrowLeftIcon } from "lucide-react";
 
-// Register Chart.js components
-ChartJS.register(
-  ArcElement,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend
-);
+// Client-only wrapper component to prevent hydration issues
+const ClientOnly: React.FC<{ children: React.ReactNode; fallback?: React.ReactNode }> = ({ 
+  children, 
+  fallback = null 
+}) => {
+  const [hasMounted, setHasMounted] = useState(false);
+  
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+  
+  if (!hasMounted) {
+    return fallback as React.ReactElement;
+  }
+  
+  return children as React.ReactElement;
+};
+
+// Ensure Chart.js is properly initialized on client side
+if (typeof window !== 'undefined') {
+  // Register Chart.js components
+  ChartJS.register(
+    ArcElement,
+    CategoryScale,
+    LinearScale,
+    BarElement,
+    Title,
+    Tooltip,
+    Legend
+  );
+}
+
+// Chart.js registration moved to imports section to prevent SSR issues
 
 // Add loader function to get the user data and statistics based on ID
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
-  const userId = params.id;
+  const userId = params?.id;
   
   if (!userId) {
     throw new Response("User ID is required", { status: 400 });
   }
   
-  // Import database functions
-  const userDB = (await import("~/db/user/user.server")).default;
-  const reportDB = (await import("~/db/report/report.server")).default;
-  
   try {
-    // Get user data
-    const userResult = await userDB.getUser(userId, context.cloudflare.env.DATABASE_URL);
+    // Import database functions with safe fallback
+    const userDB = (await import("~/db/user/user.server")).default;
+    const reportDB = (await import("~/db/report/report.server")).default;
     
-    if (userResult.status === "error" || !userResult.data) {
+    // Get user data with timeout protection
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Database operation timeout')), 10000)
+    );
+    
+    const userPromise = userDB.getUser(userId, context?.cloudflare?.env?.DATABASE_URL);
+    const userResult = await Promise.race([userPromise, timeoutPromise]) as any;
+    
+    if (!userResult || userResult.status === "error" || !userResult.data) {
       throw new Response("User not found", { status: 404 });
     }
     
-    // Get user statistics from reports
-    const statsResult = await reportDB.getUserTotalStats(userId, context.cloudflare.env.DATABASE_URL);
-    
-    console.log("Stats result:", statsResult);
-    
-    // Get user reports with skills
-    const reportsResult = await reportDB.getAllReports(context.cloudflare.env.DATABASE_URL);
-    
-    console.log("Reports result:", reportsResult);
-    
-    const userReports = reportsResult.success && reportsResult.data ? 
-      reportsResult.data.filter((report: any) => report.userId === userId) : [];
-    
-    console.log("User reports:", userReports);
-    
-    // If no statistics exist, provide default structure
-    const finalStatistics = statsResult.success && statsResult.data ? statsResult.data : {
+    // Get user statistics using the new getUserTotalStats function
+    let userReports = [];
+    let finalStatistics = {
       reportCount: 0,
       volunteerHours: 0,
       economicValue: 0,
@@ -79,6 +148,44 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
       skillsTrainedCount: 0
     };
     
+    try {
+      // Get user statistics from the new getUserTotalStats function
+      if (reportDB && typeof reportDB.getUserTotalStats === 'function') {
+        console.log('Fetching user statistics for userId:', userId);
+        const statsPromise = reportDB.getUserTotalStats(userId, context?.cloudflare?.env?.DATABASE_URL);
+        const statsResult = await Promise.race([statsPromise, timeoutPromise]) as any;
+        
+        console.log('User stats result:', statsResult);
+        
+        if (statsResult?.success && statsResult.data) {
+          finalStatistics = {
+            reportCount: statsResult.data.reportCount || 0,
+            volunteerHours: statsResult.data.volunteerHours || 0,
+            economicValue: statsResult.data.economicValue || 0,
+            volunteerOpportunities: statsResult.data.volunteerOpportunities || 0,
+            activitiesCount: statsResult.data.activitiesCount || 0,
+            volunteerCount: statsResult.data.volunteerCount || 0,
+            skillsEconomicValue: statsResult.data.skillsEconomicValue || 0,
+            skillsTrainedCount: statsResult.data.skillsTrainedCount || 0
+          };
+        }
+      }
+      
+      // Also get user reports for additional context if needed
+      if (reportDB && typeof reportDB.getAllReports === 'function') {
+        const reportsPromise = reportDB.getAllReports(context?.cloudflare?.env?.DATABASE_URL);
+        const reportsResult = await Promise.race([reportsPromise, timeoutPromise]) as any;
+        
+        if (reportsResult?.success && Array.isArray(reportsResult.data)) {
+          userReports = reportsResult.data.filter((report: any) => report?.userId === userId);
+          console.log('User reports:', userReports.length, 'reports found');
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching user statistics and reports:", error);
+      // Continue with default statistics and empty reports array
+    }
+    
     return Response.json({
       user: userResult.data,
       statistics: finalStatistics,
@@ -86,7 +193,23 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
     });
   } catch (error) {
     console.error("Error loading user data:", error);
-    throw new Response("Failed to load user data", { status: 500 });
+    
+    // Return a safe fallback instead of throwing
+    return Response.json({
+      user: null,
+      statistics: {
+        reportCount: 0,
+        volunteerHours: 0,
+        economicValue: 0,
+        volunteerOpportunities: 0,
+        activitiesCount: 0,
+        volunteerCount: 0,
+        skillsEconomicValue: 0,
+        skillsTrainedCount: 0
+      },
+      reports: [],
+      error: "Failed to load user data"
+    }, { status: 200 }); // Return 200 with error info instead of 500
   }
 }
 
@@ -170,13 +293,78 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 );
 
 export const SupervisorStatistics = (): JSX.Element => {
-  const loaderData = useLoaderData<typeof loader>() as any;
-  const userData = loaderData.user as QUser;
-  const statistics = loaderData.statistics;
-  const reports = loaderData.reports;
-  const params = useParams();
-  const navigate = useNavigate();
-  const userId = params.id;
+  // Track hydration state to prevent SSR/client mismatch
+  const [isHydrated, setIsHydrated] = useState(false);
+  
+  // Safe hooks usage with error handling
+  let loaderData: any = {};
+  let params: any = {};
+  let navigate: any = () => {};
+  
+  try {
+    loaderData = useLoaderData<typeof loader>() as any;
+    params = useParams();
+    navigate = useNavigate();
+  } catch (error) {
+    console.error('Hook usage failed:', error);
+    // Fallback to prevent hydration errors
+  }
+  
+  // Set hydrated state after component mounts (client-side only)
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
+  
+  const userData = loaderData?.user as QUser || null;
+  const statistics = loaderData?.statistics || {
+    reportCount: 0,
+    volunteerHours: 0,
+    economicValue: 0,
+    volunteerOpportunities: 0,
+    activitiesCount: 0,
+    volunteerCount: 0,
+    skillsEconomicValue: 0,
+    skillsTrainedCount: 0
+  };
+  const reports = Array.isArray(loaderData?.reports) ? loaderData.reports : [];
+  const userId = params?.id;
+  
+  // Debug logging to verify getUserTotalStats integration
+  console.log('SupervisorStatistics - Loaded data:', {
+    userId,
+    userName: userData?.name,
+    hasStatistics: !!statistics,
+    statisticsData: statistics,
+    reportsCount: reports.length,
+    timestamp: new Date().toISOString()
+  });
+  
+  // Handle error state
+  if (loaderData?.error && !userData) {
+    return (
+      <div className="bg-[#f9f9f9] min-h-screen flex items-center justify-center">
+        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full mx-4">
+          <div className="text-center">
+            <h2 className="text-xl font-bold text-red-600 mb-4">خطأ في تحميل البيانات</h2>
+            <p className="text-gray-600 mb-6">لم نتمكن من تحميل بيانات المستخدم. يرجى المحاولة مرة أخرى.</p>
+            <button 
+              onClick={() => {
+                try {
+                  navigate("/dashboard/admin/users");
+                } catch (e) {
+                  // Fallback navigation
+                  window.location.href = "/dashboard/admin/users";
+                }
+              }}
+              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              العودة إلى قائمة المستخدمين
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
     ({ className, image, fallback, ...props }, ref) => {
@@ -205,72 +393,87 @@ export const SupervisorStatistics = (): JSX.Element => {
     }
   );
 
-  // Data for metric cards using real statistics
+  // Data for metric cards using real statistics from getUserTotalStats
   const metricCards = [
     {
       label: "مهارة",
-      value: statistics?.skillsTrainedCount?.toString() || "0",
+      value: (statistics?.skillsTrainedCount || 0).toString(),
       unit: "",
       description: "المهارات المدرب عليها",
       color: "#68C35C",
+      percentage: Math.min(100, Math.max(5, (statistics?.skillsTrainedCount || 0) * 5)), // Scale for visualization
     },
     {
       label: "ساعة",
-      value: statistics?.volunteerHours?.toString() || "0",
+      value: Math.round(statistics?.volunteerHours || 0).toString(),
       unit: "",
       description: "الساعات التطوعية",
       color: "#68C35C",
+      percentage: Math.min(100, Math.max(5, (statistics?.volunteerHours || 0) / 5)), // Scale hours for visualization
     },
     {
       label: "نشاط",
-      value: statistics?.activitiesCount?.toString() || "0",
+      value: (statistics?.activitiesCount || 0).toString(),
       unit: "",
       description: "الأنشطة المنفذة",
       color: "#68C35C",
+      percentage: Math.min(100, Math.max(5, (statistics?.activitiesCount || 0) * 10)), // Scale activities for visualization
     },
     {
       label: "قيمة",
-      value: statistics?.skillsEconomicValue?.toString() || "0",
+      value: Math.round(statistics?.skillsEconomicValue || 0).toString(),
       unit: "ريال",
       description: "القيمة الاقتصادية للمهارات",
       color: "#68C35C",
+      percentage: Math.min(100, Math.max(5, (statistics?.skillsEconomicValue || 0) / 100)), // Scale economic value
     },
     {
       label: "فرصة",
-      value: statistics?.volunteerOpportunities?.toString() || "0",
+      value: (statistics?.volunteerOpportunities || 0).toString(),
       unit: "",
       description: "الفرص التطوعية",
       color: "#68C35C",
+      percentage: Math.min(100, Math.max(5, (statistics?.volunteerOpportunities || 0) * 20)), // Scale opportunities
     },
     {
       label: "قيمة",
-      value: statistics?.economicValue?.toString() || "0",
+      value: Math.round(statistics?.economicValue || 0).toString(),
       unit: "ريال",
       description: "القيمة الاقتصادية من التطوع",
       color: "#68C35C",
+      percentage: Math.min(100, Math.max(5, (statistics?.economicValue || 0) / 100)), // Scale economic value
     },
     {
       label: "متطوع",
-      value: statistics?.volunteerCount?.toString() || "0",
+      value: (statistics?.volunteerCount || 0).toString(),
       unit: "",
       description: "عدد المتطوعين",
       color: "#68C35C",
+      percentage: Math.min(100, Math.max(5, (statistics?.volunteerCount || 0) * 5)), // Scale volunteer count
     },
   ];
 
-  // Data for the regions chart - use real data from user's region
+  // Data for the regions chart - enhanced with real user data
+  const userRegionValue = statistics ? Math.min(100, Math.max(10, 
+    (statistics.activitiesCount || 0) * 8 + 
+    (statistics.volunteerHours || 0) / 20 + 
+    (statistics.reportCount || 0) * 5 +
+    (statistics.skillsTrainedCount || 0) * 3
+  )) : 40;
+  
   const regions = [
     { 
       name: userData?.region || "المنطقة الحالية", 
-      value: statistics ? Math.min(100, Math.max(10, statistics.activitiesCount * 10 + statistics.volunteerHours / 10)) : 40 
+      value: userRegionValue,
+      isUserRegion: true
     },
-    { name: "الرياض", value: 45 },
-    { name: "جدة", value: 53 },
-    { name: "الدمام", value: 25 },
-    { name: "المدينة", value: 54 },
-    { name: "مكة", value: 43 },
-    { name: "القصيم", value: 12 },
-    { name: "الشرقية", value: 50 },
+    { name: "الرياض", value: 45, isUserRegion: false },
+    { name: "جدة", value: 53, isUserRegion: false },
+    { name: "الدمام", value: 25, isUserRegion: false },
+    { name: "المدينة", value: 54, isUserRegion: false },
+    { name: "مكة", value: 43, isUserRegion: false },
+    { name: "القصيم", value: 12, isUserRegion: false },
+    { name: "الشرقية", value: 50, isUserRegion: false },
   ];
 
   const createDoughnutData = (value: any, color: string) => ({
@@ -423,11 +626,19 @@ export const SupervisorStatistics = (): JSX.Element => {
   };
 
   return (
-    <div className="bg-[#f9f9f9]">
+    <ErrorBoundary>
+      <div className="bg-[#f9f9f9]">
       {/* Return Arrow */}
       <div className="pt-6 pl-6">
         <button 
-          onClick={() => navigate("/supervisor/allTrainers")}
+          onClick={() => {
+            try {
+              navigate("/dashboard/admin/users");
+            } catch (e) {
+              // Fallback navigation
+              window.location.href = "/dashboard/admin/users";
+            }
+          }}
           className="flex items-center justify-center w-10 h-10 bg-white rounded-lg border border-gray-300 shadow-sm hover:bg-gray-50 transition-colors"
           aria-label="العودة إلى قائمة المدربين"
         >
@@ -462,10 +673,34 @@ export const SupervisorStatistics = (): JSX.Element => {
             <div className="flex flex-col items-end gap-0.5 relative self-stretch w-full">
               <div className="relative self-stretch mt-[-1.00px] font-bold text-[#181d27] text-xl tracking-[0] leading-[30px] [direction:rtl]">
                 {userData?.name || "اسم المستخدم"}
+                {/* Show report count if available */}
+                {statistics?.reportCount > 0 && (
+                  <span className="text-sm text-[#535861] font-normal"> - {statistics.reportCount} تقرير</span>
+                )}
               </div>
               <div className="self-stretch text-[#535861] text-base leading-6 relative font-normal tracking-[0] [direction:rtl]">
                 مدرسة {userData?.schoolId || "غير محددة"} - {userData?.region || "غير محددة"} - تعليم {userData?.eduAdminId || "غير محددة"}
               </div>
+              {/* Statistics Summary */}
+              {statistics && (statistics.reportCount > 0 || statistics.volunteerHours > 0) && (
+                <div className="flex flex-wrap items-center gap-2 mt-2 text-sm text-[#535861] [direction:rtl]">
+                  {statistics.reportCount > 0 && (
+                    <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded-full text-xs">
+                      {statistics.reportCount} تقرير
+                    </span>
+                  )}
+                  {statistics.volunteerHours > 0 && (
+                    <span className="bg-green-50 text-green-700 px-2 py-1 rounded-full text-xs">
+                      {Math.round(statistics.volunteerHours)} ساعة تطوعية
+                    </span>
+                  )}
+                  {statistics.skillsTrainedCount > 0 && (
+                    <span className="bg-purple-50 text-purple-700 px-2 py-1 rounded-full text-xs">
+                      {statistics.skillsTrainedCount} مهارة
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -545,6 +780,12 @@ export const SupervisorStatistics = (): JSX.Element => {
                           <div className="relative flex-1 mt-[-1.00px] font-bold text-[#181d27] text-5xl tracking-[0] leading-[38px] [direction:rtl]">
                             {userData?.noStudents || 0}
                           </div>
+                          {/* Show data freshness indicator */}
+                          {statistics && statistics.reportCount > 0 && (
+                            <div className="text-xs text-green-600 font-medium mt-1 [direction:rtl]">
+                              محدث من {statistics.reportCount} تقرير
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -552,12 +793,20 @@ export const SupervisorStatistics = (): JSX.Element => {
 
                   <div className="inline-flex items-start gap-4 relative flex-[0_0_auto] mt-[-13.00px] mb-[-13.00px]">
                     <div className="relative w-[120px] h-[120px]">
-                      <Doughnut
-                        data={createCircleChartData(
-                          statistics ? Math.min(100, Math.max(5, (userData?.noStudents || 0) * 2)) : 25
-                        )}
-                        options={circleChartOptions}
-                      />
+                      <ClientOnly 
+                        fallback={
+                          <div className="w-[120px] h-[120px] bg-gray-100 rounded-full flex items-center justify-center">
+                            <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                          </div>
+                        }
+                      >
+                        <Doughnut
+                          data={createCircleChartData(
+                            statistics ? Math.min(100, Math.max(5, (userData?.noStudents || 0) * 2)) : 25
+                          )}
+                          options={circleChartOptions}
+                        />
+                      </ClientOnly>
                     </div>
                   </div>
                 </CardContent>
@@ -578,13 +827,21 @@ export const SupervisorStatistics = (): JSX.Element => {
                           <div className="relative w-40 h-[88px]">
                             <div className="relative w-36 h-36">
                               <div className="absolute w-36 h-36">
-                                <Doughnut
-                                  data={createDoughnutData(
-                                    card.value,
-                                    card.color
-                                  )}
-                                  options={doughnutOptions}
-                                />
+                                <ClientOnly
+                                  fallback={
+                                    <div className="w-36 h-36 bg-gray-100 rounded-full flex items-center justify-center">
+                                      <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                                    </div>
+                                  }
+                                >
+                                  <Doughnut
+                                    data={createDoughnutData(
+                                      card.percentage || 0,
+                                      card.color
+                                    )}
+                                    options={doughnutOptions}
+                                  />
+                                </ClientOnly>
                                 <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center">
                                   <div className="text-xs text-[#535861] mb-2 mt-8">
                                     {card.label}
@@ -637,13 +894,25 @@ export const SupervisorStatistics = (): JSX.Element => {
 
             <div className="border border-[#e9eaeb] rounded-xl bg-white p-6">
               <div className="h-[228px]">
-                <Bar data={barChartData} options={barChartOptions} />
+                <ClientOnly
+                  fallback={
+                    <div className="h-[228px] bg-gray-100 rounded-lg flex items-center justify-center">
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                        <p className="text-gray-500 text-sm">جاري تحميل الرسم البياني...</p>
+                      </div>
+                    </div>
+                  }
+                >
+                  <Bar data={barChartData} options={barChartOptions} />
+                </ClientOnly>
               </div>
             </div>
           </section>
         </div>
       </div>
     </div>
+    </ErrorBoundary>
   );
 };
 

@@ -335,28 +335,29 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
 export const Admins = (): JSX.Element => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
-  const users = useLoaderData<QUser[]>() || []; // Fetch users from loader
+  const rawUsers = useLoaderData<QUser[]>();
+  const users = Array.isArray(rawUsers) ? rawUsers : []; // Fetch users from loader with safe navigation
   console.log("users from API:", users); // This will log the data returned from loader
 
   metricsData.students.value = users
-    .reduce((acc, user) => acc + (user.noStudents || 0), 0)
+    .reduce((acc, user) => acc + (user?.noStudents || 0), 0)
     .toString();
   metricsData.teachers.value = users
-    .filter((user) => user.role === "user")
+    .filter((user) => user?.role === "user")
     .length.toString();
   metricsData.supervisors.value = users
     .filter(
       (user) =>
-        user.role === "مشرف" ||
-        user.role === "supervisor" ||
-        user.role === "SUPERVISOR"
+        user?.role === "مشرف" ||
+        user?.role === "supervisor" ||
+        user?.role === "SUPERVISOR"
     )
     .length.toString();
 
   console.log("Metrics Data:", metricsData);
-  // filter users based on role user
+  // filter users based on role user with safe navigation
   const filteredUsers = users.filter(
-    (user) => user.role.toLowerCase() === "supervisor" || user.role === "مشرف"
+    (user) => user?.role?.toLowerCase() === "supervisor" || user?.role === "مشرف"
   );
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
 
@@ -369,12 +370,12 @@ export const Admins = (): JSX.Element => {
 
   const filteredData = filteredUsers.filter((row) => {
     const matchesSearch =
-      row.name.toLowerCase().includes(search.toLowerCase()) ||
+      row?.name?.toLowerCase().includes(search.toLowerCase()) ||
       row?.phone?.toString().includes(search) ||
-      row.email.toLowerCase().includes(search.toLowerCase());
+      row?.email?.toLowerCase().includes(search.toLowerCase());
 
     const matchesAcceptance =
-      !acceptanceStateFilter || row.acceptenceState === acceptanceStateFilter;
+      !acceptanceStateFilter || row?.acceptenceState === acceptanceStateFilter;
 
     return matchesSearch && matchesAcceptance;
   });
@@ -628,8 +629,8 @@ export const Admins = (): JSX.Element => {
                           <Badge className="px-2.5 py-[3px] rounded-[100px] border border-solid border-[#1a7f37] bg-transparent">
                             <span className=" font-bold text-[#1a7f37] text-xs [direction:rtl]">
                               {statusTranslation[
-                                row.acceptenceState as keyof typeof statusTranslation
-                              ] ?? row.acceptenceState}
+                                row?.acceptenceState as keyof typeof statusTranslation
+                              ] ?? row?.acceptenceState ?? 'غير محدد'}
                             </span>
                           </Badge>
                         </TableCell>
@@ -645,29 +646,29 @@ export const Admins = (): JSX.Element => {
                         </TableCell>
                         <TableCell className="py-1 px-2 text-right max-md:hidden ">
                           <span className=" font-medium text-[#027163] text-base [direction:rtl]">
-                            {row.region}
+                            {row?.region || '-'}
                           </span>
                         </TableCell>
                         <TableCell className="py-1 px-2 text-right max-md:hidden ">
                           <span className=" font-medium text-[#027163] text-base [direction:rtl]">
                             {roleTranslation[
-                              row.role as keyof typeof roleTranslation
-                            ] ?? row.role}
+                              row?.role as keyof typeof roleTranslation
+                            ] ?? row?.role ?? '-'}
                           </span>
                         </TableCell>
                         <TableCell className="py-1 px-2 text-right max-md:hidden ">
                           <span className="font-medium text-[#027163] text-base">
-                            {row.email}
+                            {row?.email || '-'}
                           </span>
                         </TableCell>
                         <TableCell className="py-1 px-2 text-right max-md:hidden ">
                           <span className="font-medium text-[#027163] text-base">
-                            {row.phone}
+                            {row?.phone || '-'}
                           </span>
                         </TableCell>
                         <TableCell className="py-1 px-2 text-right">
                           <span className=" font-medium text-[#027163] text-base [direction:rtl] mr-[23px]">
-                            {row.name}
+                            {row?.name || 'غير محدد'}
                           </span>
                         </TableCell>
                         <TableCell className="">

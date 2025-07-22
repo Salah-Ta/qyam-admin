@@ -1,4 +1,22 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
+
+// Client-only wrapper component to prevent hydration issues
+const ClientOnly: React.FC<{ children: React.ReactNode; fallback?: React.ReactNode }> = ({ 
+  children, 
+  fallback = null 
+}) => {
+  const [hasMounted, setHasMounted] = useState(false);
+  
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+  
+  if (!hasMounted) {
+    return fallback as React.ReactElement;
+  }
+  
+  return children as React.ReactElement;
+};
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { json, LoaderFunctionArgs } from "@remix-run/cloudflare";
@@ -172,6 +190,9 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
 // Main Supervisor Component
 export const Skills = (): JSX.Element => {
+  // Track hydration state to prevent SSR/client mismatch
+  const [isHydrated, setIsHydrated] = useState(false);
+  
   const loaderData = useLoaderData<{
     skills: Array<{
       id: string;
@@ -190,15 +211,22 @@ export const Skills = (): JSX.Element => {
       updatedAt: string;
     }>;
   }>();
+  
+  // Set hydrated state after component mounts (client-side only)
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
 
-  // Transform skills data for the word cloud
-  const wordCloudData = loaderData?.skills?.map((skill) => ({
-    text: skill.name,
-    value: skill.usageCount || 1, // Ensure minimum value of 1
-  }));
+  // Transform skills data for the word cloud with safe navigation
+  const wordCloudData = (loaderData?.skills && Array.isArray(loaderData.skills)) 
+    ? loaderData.skills.map((skill) => ({
+        text: skill?.name || 'مهارة غير محددة',
+        value: skill?.usageCount || 1, // Ensure minimum value of 1
+      }))
+    : [];
 
   // Only use real data from database, no sample data fallback
-  const finalWordCloudData = wordCloudData;
+  const finalWordCloudData = Array.isArray(wordCloudData) ? wordCloudData : [];
 
   // Debug logging for deployment issues
   console.log("=== WordCloud Debug Info ===");
@@ -341,35 +369,54 @@ export const Skills = (): JSX.Element => {
             </p>
           </div>
 
-          <div className="relative w-full flex justify-center items-center">
-            {finalWordCloudData && Array.isArray(finalWordCloudData) && finalWordCloudData?.length > 0 ? (
-              <WordCloud
-                words={finalWordCloudData}
-                width={900}
-                height={600}
-                fill={(word, index) => colors[index % (colors?.length || 8)]}
-                enableTooltip={true}
-                font="Arial, sans-serif"
-                fontWeight="normal"
-                fontSize={(word) => {
-                  const minSize = 18;
-                  const maxSize = 65;
-                  const maxValue = Math.max(...(finalWordCloudData?.map(w => w.value) || [1]));
-                  const scale = Math.sqrt(word.value / maxValue);
-                  return Math.max(minSize, Math.min(maxSize, minSize + (maxSize - minSize) * scale));
-                }}
-                rotate={(word, index) => {
-                  const angles = [-45, 0, 45];
-                  return angles[index % (angles?.length || 3)];
-                }}
-                padding={3}
-                spiral="archimedean"
-              />
+          <div className="relative w-full flex justify-center items-center min-h-[400px]">
+            {finalWordCloudData && Array.isArray(finalWordCloudData) && finalWordCloudData.length > 0 ? (
+              <ClientOnly
+                fallback={
+                  <div className="flex items-center justify-center h-full">
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="w-8 h-8 border-2 border-[#1f77b4] border-t-transparent rounded-full animate-spin"></div>
+                      <p className="text-gray-500 text-xl">جاري تحميل بيانات المهارات...</p>
+                    </div>
+                  </div>
+                }
+              >
+                <WordCloud
+                  words={finalWordCloudData}
+                  width={900}
+                  height={600}
+                  fill={(word, index) => colors[index % (colors?.length || 8)]}
+                  enableTooltip={true}
+                  font="Arial, sans-serif"
+                  fontWeight="normal"
+                  fontSize={(word) => {
+                    const minSize = 18;
+                    const maxSize = 65;
+                    const safeWordCloudData = Array.isArray(finalWordCloudData) ? finalWordCloudData : [];
+                    const maxValue = Math.max(...(safeWordCloudData.map(w => w?.value || 1)));
+                    const scale = Math.sqrt((word?.value || 1) / Math.max(maxValue, 1));
+                    return Math.max(minSize, Math.min(maxSize, minSize + (maxSize - minSize) * scale));
+                  }}
+                  rotate={(word, index) => {
+                    const angles = [-45, 0, 45];
+                    return angles[index % angles.length];
+                  }}
+                  padding={3}
+                  spiral="archimedean"
+                />
+              </ClientOnly>
             ) : (
               <div className="flex items-center justify-center h-full">
                 <div className="flex flex-col items-center gap-4">
-                  <div className="w-8 h-8 border-2 border-[#1f77b4] border-t-transparent rounded-full animate-spin"></div>
-                  <p className="text-gray-500 text-xl">جاري تحميل بيانات المهارات...</p>
+                  {/* Show different message if data exists but empty vs loading */}
+                  {isHydrated && loaderData && Array.isArray(loaderData.skills) && loaderData.skills.length === 0 ? (
+                    <p className="text-gray-500 text-xl">لا توجد مهارات متاحة حالياً</p>
+                  ) : (
+                    <>
+                      <div className="w-8 h-8 border-2 border-[#1f77b4] border-t-transparent rounded-full animate-spin"></div>
+                      <p className="text-gray-500 text-xl">جاري تحميل بيانات المهارات...</p>
+                    </>
+                  )}
                 </div>
               </div>
             )}
@@ -389,11 +436,21 @@ export const Skills = (): JSX.Element => {
             </p>
           </div>
         </div>
-        {loaderData?.testimonials && Array.isArray(loaderData.testimonials) && loaderData.testimonials.length > 0 ? (
+        {(loaderData?.testimonials && Array.isArray(loaderData.testimonials) && loaderData.testimonials.length > 0) ? (
           <SmoothColumnTestimonials testimonials={loaderData.testimonials} />
         ) : (
           <div className="flex items-center justify-center py-12">
-            <p className="text-gray-500 text-lg">لا توجد آراء متاحة حالياً</p>
+            <div className="flex flex-col items-center gap-4">
+              {/* Show different message if we know testimonials are empty vs loading */}
+              {loaderData && Array.isArray(loaderData.testimonials) && loaderData.testimonials.length === 0 ? (
+                <p className="text-gray-500 text-lg">لا توجد آراء متاحة حالياً</p>
+              ) : (
+                <>
+                  <div className="w-6 h-6 border-2 border-[#1f77b4] border-t-transparent rounded-full animate-spin"></div>
+                  <p className="text-gray-500 text-lg">جاري تحميل الآراء...</p>
+                </>
+              )}
+            </div>
           </div>
         )}
       </section>

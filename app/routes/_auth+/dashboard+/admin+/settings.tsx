@@ -160,7 +160,15 @@ export const ManageData = (): JSX.Element => {
     regions: EntityItem[];
     eduAdmins: EntityItem[];
     schools: EntityItem[];
+  } | null;
+  
+  // Safe data access with fallbacks
+  const safeData = {
+    regions: data?.regions || [],
+    eduAdmins: data?.eduAdmins || [],
+    schools: data?.schools || []
   };
+  
   console.log("Loader data:", data);
 
   const actionData = useActionData() as
@@ -212,17 +220,19 @@ export const ManageData = (): JSX.Element => {
     }
   }, [actionData, revalidator]);
 
-  // Helper functions
+  // Helper functions with safe navigation
   const getEduAdminsForRegion = (regionId: string): EntityItem[] => {
-    return (
-      data.eduAdmins.filter((eduAdmin) => eduAdmin.regionId === regionId) || []
-    );
+    if (!Array.isArray(safeData.eduAdmins) || !regionId) {
+      return [];
+    }
+    return safeData.eduAdmins.filter((eduAdmin) => eduAdmin?.regionId === regionId);
   };
 
   const getSchoolsForEduAdmin = (eduAdminId: string): EntityItem[] => {
-    return (
-      data.schools.filter((school) => school.eduAdminId === eduAdminId) || []
-    );
+    if (!Array.isArray(safeData.schools) || !eduAdminId) {
+      return [];
+    }
+    return safeData.schools.filter((school) => school?.eduAdminId === eduAdminId);
   };
 
   // Handle region expansion
@@ -451,7 +461,7 @@ export const ManageData = (): JSX.Element => {
           ))}
 
           {/* Existing Regions - Each region gets its own card */}
-          {data.regions.map((region) => (
+          {Array.isArray(safeData.regions) && safeData.regions.map((region) => (
             <Card
               key={region.id}
               className="w-full flex flex-col items-center justify-center gap-6 p-4 bg-white rounded-xl border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs"
@@ -472,13 +482,13 @@ export const ManageData = (): JSX.Element => {
                 </div>
                 <div className="flex flex-col items-start gap-0.5 flex-1 grow mt-[-4px] mb-[-4px]">
                   <span className="relative self-stretch mt-[-1px] font-bold text-white text-base tracking-[0] leading-6 [direction:rtl]">
-                    {region.name}
+                    {region?.name || 'منطقة غير محددة'}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => handleDeleteClick("region", region.id, region.name)}
+                    onClick={() => handleDeleteClick("region", region?.id || '', region?.name || '')}
                   >
                     <MinusCircleIcon className="w-4 h-4 cursor-pointer text-white hover:text-red-300 transition-colors" />
                   </button>
@@ -491,12 +501,12 @@ export const ManageData = (): JSX.Element => {
               </div>
 
               {/* Expanded Region Content - EduAdmins */}
-              {expandedRegions.has(region.id) && (
+              {region?.id && expandedRegions.has(region.id) && (
                 <CardContent className="p-0 w-full mt-3">
                   <div className="space-y-3">
                     {/* Add EduAdmin Form - Only show if there are inputs */}
-                    {newEduAdmins[region.id] &&
-                    newEduAdmins[region.id].length > 0 ? (
+                    {region?.id && newEduAdmins[region.id] &&
+                    Array.isArray(newEduAdmins[region.id]) && newEduAdmins[region.id].length > 0 ? (
                       <Form method="post">
                         <input type="hidden" name="actionType" value="create" />
                         <input
@@ -781,7 +791,7 @@ export const ManageData = (): JSX.Element => {
             </Card>
           ))}
 
-          {data.regions.length === 0 && (
+          {safeData.regions.length === 0 && (
             <div className="text-center text-[#717680] py-8 [direction:rtl]">
               لا توجد مناطق متاحة
             </div>
