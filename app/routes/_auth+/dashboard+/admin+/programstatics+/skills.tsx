@@ -1,20 +1,20 @@
 import React, { useState, useEffect } from "react";
 
 // Client-only wrapper component to prevent hydration issues
-const ClientOnly: React.FC<{ children: React.ReactNode; fallback?: React.ReactNode }> = ({ 
-  children, 
-  fallback = null 
-}) => {
+const ClientOnly: React.FC<{
+  children: React.ReactNode;
+  fallback?: React.ReactNode;
+}> = ({ children, fallback = null }) => {
   const [hasMounted, setHasMounted] = useState(false);
-  
+
   useEffect(() => {
     setHasMounted(true);
   }, []);
-  
+
   if (!hasMounted) {
     return fallback as React.ReactElement;
   }
-  
+
   return children as React.ReactElement;
 };
 import { clsx } from "clsx";
@@ -23,8 +23,8 @@ import { json, LoaderFunctionArgs } from "@remix-run/cloudflare";
 import { useLoaderData } from "@remix-run/react";
 import skillDb from "~/db/skill/skill.server";
 import testimonialDb from "~/db/testimonial/testimonial.server";
-// import ClientWordCloud from "../../../../../components/ClientWordCloud";
-// import WordCloudErrorBoundary from "../../../../../components/WordCloudErrorBoundary";
+import ClientWordCloud from "../../../../../components/ClientWordCloud";
+import WordCloudErrorBoundary from "../../../../../components/WordCloudErrorBoundary";
 import { WordCloud } from "@isoterik/react-word-cloud";
 import SmoothColumnTestimonials from "../../../../../components/SmoothColumnTestimonials";
 import { getAuthenticated } from "~/lib/get-authenticated.server";
@@ -34,130 +34,52 @@ const cn = (...inputs: any[]) => {
   return twMerge(clsx(inputs));
 };
 
-// Component interfaces
-interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "default" | "ghost" | "outline";
-  size?: "default" | "icon";
-  asChild?: boolean;
-}
 
-interface AvatarProps extends React.HTMLAttributes<HTMLDivElement> {
-  image?: string;
-  fallback?: string;
-}
-
-// Components
-const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  (
-    {
-      className,
-      variant = "default",
-      size = "default",
-      asChild = false,
-      ...props
-    },
-    ref
-  ) => {
-    const Comp = asChild ? "slot" : "button";
-    return (
-      <button
-        className={cn(
-          "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background",
-          {
-            "bg-primary text-primary-foreground hover:bg-primary/90":
-              variant === "default",
-            "bg-transparent hover:bg-accent hover:text-accent-foreground":
-              variant === "ghost",
-            "border border-input hover:bg-accent hover:text-accent-foreground":
-              variant === "outline",
-            "h-10 px-4 py-2": size === "default",
-            "h-10 w-10": size === "icon",
-          },
-          className
-        )}
-        ref={ref}
-        {...props}
-      />
-    );
-  }
-);
-
-const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
-  ({ className, image, fallback, ...props }, ref) => {
-    return (
-      <div
-        ref={ref}
-        className={cn(
-          "relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full",
-          className
-        )}
-        {...props}
-      >
-        {image ? (
-          <img
-            src={image}
-            alt="Avatar"
-            className="aspect-square h-full w-full"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center bg-neutral-100 text-[#717680]">
-            {fallback}
-          </div>
-        )}
-      </div>
-    );
-  }
-);
 
 // Loader function to fetch skills data
 export async function loader({ request, context }: LoaderFunctionArgs) {
   try {
-    console.log("=== Loader Debug Info ===");
-    console.log("Environment:", typeof context?.cloudflare?.env);
-    console.log("Has DATABASE_URL:", !!context?.cloudflare?.env?.DATABASE_URL);
-    
     // Check authentication
     const user = await getAuthenticated({ request, context });
     if (!user) {
-      console.log("Authentication failed");
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
-    console.log("User authenticated:", !!user);
-
     const dbUrl = context.cloudflare.env.DATABASE_URL;
-    console.log("DB URL exists:", !!dbUrl);
 
     // Fetch skills with usage counts first
-    console.log("Fetching skills data...");
     let skillsResult;
     try {
       skillsResult = await skillDb.getSkillsWithUsageCount(dbUrl);
-      console.log("Skills fetch completed:", skillsResult);
-      console.log("Skills success:", skillsResult.success);
-      console.log("Skills data length:", skillsResult.data?.length);
     } catch (skillsError) {
       console.error("Skills fetch error:", skillsError);
-      console.error("Skills error stack:", skillsError instanceof Error ? skillsError.stack : 'No stack trace');
+      console.error(
+        "Skills error stack:",
+        skillsError instanceof Error ? skillsError.stack : "No stack trace"
+      );
       return Response.json(
-        { 
-          error: "Failed to fetch skills", 
-          details: skillsError instanceof Error ? skillsError.message : 'Unknown error'
+        {
+          error: "Failed to fetch skills",
+          details:
+            skillsError instanceof Error
+              ? skillsError.message
+              : "Unknown error",
         },
         { status: 500 }
       );
     }
 
     // Fetch testimonials separately
-    console.log("Fetching testimonials data...");
     let testimonialsResult;
     try {
       testimonialsResult = await testimonialDb.getAllTestimonials(dbUrl);
-      console.log("Testimonials fetch completed:", testimonialsResult);
-      console.log("Testimonials success:", testimonialsResult.success);
-      console.log("Testimonials data length:", testimonialsResult.data?.length);
     } catch (testimonialsError) {
       console.error("Testimonials fetch error:", testimonialsError);
-      console.error("Testimonials error stack:", testimonialsError instanceof Error ? testimonialsError.stack : 'No stack trace');
+      console.error(
+        "Testimonials error stack:",
+        testimonialsError instanceof Error
+          ? testimonialsError.stack
+          : "No stack trace"
+      );
       // Don't fail the whole request if testimonials fail
       testimonialsResult = { success: false, data: [] };
     }
@@ -176,14 +98,14 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         ? testimonialsResult.data || []
         : [],
     };
-    
-    console.log("Final response:", response);
-    console.log("=== End Loader Debug Info ===");
-    
+
     return Response.json(response);
   } catch (error) {
     console.error("Error in skills loader:", error);
-    console.error("Error stack:", error instanceof Error ? error.stack : 'No stack trace');
+    console.error(
+      "Error stack:",
+      error instanceof Error ? error.stack : "No stack trace"
+    );
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -192,7 +114,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 export const Skills = (): JSX.Element => {
   // Track hydration state to prevent SSR/client mismatch
   const [isHydrated, setIsHydrated] = useState(false);
-  
+
   const loaderData = useLoaderData<{
     skills: Array<{
       id: string;
@@ -211,70 +133,65 @@ export const Skills = (): JSX.Element => {
       updatedAt: string;
     }>;
   }>();
-  
+
   // Set hydrated state after component mounts (client-side only)
   useEffect(() => {
     setIsHydrated(true);
   }, []);
 
   // Transform skills data for the word cloud with safe navigation
-  const wordCloudData = (loaderData?.skills && Array.isArray(loaderData.skills)) 
-    ? loaderData.skills.map((skill) => ({
-        text: skill?.name || 'مهارة غير محددة',
-        value: skill?.usageCount || 1, // Ensure minimum value of 1
-      }))
-    : [];
+  const wordCloudData =
+    loaderData?.skills && Array.isArray(loaderData.skills)
+      ? loaderData.skills.map((skill) => ({
+          text: skill?.name || "مهارة غير محددة",
+          value: skill?.usageCount || 1, // Ensure minimum value of 1
+        }))
+      : [];
 
   // Only use real data from database, no sample data fallback
   const finalWordCloudData = Array.isArray(wordCloudData) ? wordCloudData : [];
 
-  // Debug logging for deployment issues
-  console.log("=== WordCloud Debug Info ===");
-  console.log("loaderData:", loaderData);
-  console.log("loaderData.skills:", loaderData?.skills);
-  console.log("loaderData.skills length:", loaderData?.skills?.length);
-  console.log("wordCloudData:", wordCloudData);
-  console.log("finalWordCloudData:", finalWordCloudData);
-  console.log("Is array:", Array.isArray(finalWordCloudData));
-  console.log("Has length > 0:", finalWordCloudData && finalWordCloudData.length > 0);
-  console.log("=== End Debug Info ===");
-
   // Word cloud configuration
-  const colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f'];
-  
+  const colors = [
+    "#1f77b4",
+    "#ff7f0e",
+    "#2ca02c",
+    "#d62728",
+    "#9467bd",
+    "#8c564b",
+    "#e377c2",
+    "#7f7f7f",
+  ];
+
   const options = {
     colors: colors,
     enableTooltip: true,
     deterministic: false,
-    fontFamily: 'Arial, sans-serif',
+    fontFamily: "Arial, sans-serif",
     fontSizes: [18, 65] as [number, number],
-    fontStyle: 'normal',
-    fontWeight: 'normal',
+    fontStyle: "normal",
+    fontWeight: "normal",
     padding: 3,
     rotations: 3,
     rotationAngles: [-45, 45] as [number, number],
-    scale: 'sqrt' as const,
-    spiral: 'archimedean' as const,
+    scale: "sqrt" as const,
+    spiral: "archimedean" as const,
     transitionDuration: 1000,
     tooltipOptions: {
       style: {
-        backgroundColor: '#333',
-        color: '#fff',
-        padding: '8px 12px',
-        borderRadius: '4px',
-        fontSize: '14px',
-        fontFamily: 'Arial, sans-serif',
-        direction: 'rtl',
-        textAlign: 'right',
-      }
+        backgroundColor: "#333",
+        color: "#fff",
+        padding: "8px 12px",
+        borderRadius: "4px",
+        fontSize: "14px",
+        fontFamily: "Arial, sans-serif",
+        direction: "rtl",
+        textAlign: "right",
+      },
     },
     getWordTooltip: (word: any) => `هذه المهارة ظهرت ${word.value} مرة`,
   };
 
-  // Console log the words that will be displayed in the word cloud
-  console.log("WordCloud Data:", finalWordCloudData);
-  console.log("Has database data:", finalWordCloudData && finalWordCloudData?.length > 0);
-  console.log("Total words:", finalWordCloudData?.length || 0);
 
   return (
     <div>
@@ -369,39 +286,52 @@ export const Skills = (): JSX.Element => {
             </p>
           </div>
 
-          <div className="relative w-full flex justify-center items-center min-h-[400px]">
-            {finalWordCloudData && Array.isArray(finalWordCloudData) && finalWordCloudData.length > 0 ? (
+          <div className="relative w-2/3 flex justify-center items-center min-h-[250px] sm:min-h-[300px] md:min-h-[350px]">
+            {finalWordCloudData &&
+            Array.isArray(finalWordCloudData) &&
+            finalWordCloudData.length > 0 ? (
               <ClientOnly
                 fallback={
                   <div className="flex items-center justify-center h-full">
                     <div className="flex flex-col items-center gap-4">
                       <div className="w-8 h-8 border-2 border-[#1f77b4] border-t-transparent rounded-full animate-spin"></div>
-                      <p className="text-gray-500 text-xl">جاري تحميل بيانات المهارات...</p>
+                      <p className="text-gray-500 text-xl">
+                        جاري تحميل بيانات المهارات...
+                      </p>
                     </div>
                   </div>
                 }
               >
                 <WordCloud
                   words={finalWordCloudData}
-                  width={900}
-                  height={600}
+                  width={450}
+                  height={350}
                   fill={(word, index) => colors[index % (colors?.length || 8)]}
                   enableTooltip={true}
                   font="Arial, sans-serif"
                   fontWeight="normal"
                   fontSize={(word) => {
-                    const minSize = 18;
-                    const maxSize = 65;
-                    const safeWordCloudData = Array.isArray(finalWordCloudData) ? finalWordCloudData : [];
-                    const maxValue = Math.max(...(safeWordCloudData.map(w => w?.value || 1)));
-                    const scale = Math.sqrt((word?.value || 1) / Math.max(maxValue, 1));
-                    return Math.max(minSize, Math.min(maxSize, minSize + (maxSize - minSize) * scale));
+                    const minSize = 10;
+                    const maxSize = 30;
+                    const safeWordCloudData = Array.isArray(finalWordCloudData)
+                      ? finalWordCloudData
+                      : [];
+                    const maxValue = Math.max(
+                      ...safeWordCloudData.map((w) => w?.value || 1)
+                    );
+                    const scale = Math.sqrt(
+                      (word?.value || 1) / Math.max(maxValue, 1)
+                    );
+                    return Math.max(
+                      minSize,
+                      Math.min(maxSize, minSize + (maxSize - minSize) * scale)
+                    );
                   }}
                   rotate={(word, index) => {
                     const angles = [-45, 0, 45];
                     return angles[index % angles.length];
                   }}
-                  padding={3}
+                  padding={2}
                   spiral="archimedean"
                 />
               </ClientOnly>
@@ -409,12 +339,19 @@ export const Skills = (): JSX.Element => {
               <div className="flex items-center justify-center h-full">
                 <div className="flex flex-col items-center gap-4">
                   {/* Show different message if data exists but empty vs loading */}
-                  {isHydrated && loaderData && Array.isArray(loaderData.skills) && loaderData.skills.length === 0 ? (
-                    <p className="text-gray-500 text-xl">لا توجد مهارات متاحة حالياً</p>
+                  {isHydrated &&
+                  loaderData &&
+                  Array.isArray(loaderData.skills) &&
+                  loaderData.skills.length === 0 ? (
+                    <p className="text-gray-500 text-xl">
+                      لا توجد مهارات متاحة حالياً
+                    </p>
                   ) : (
                     <>
                       <div className="w-8 h-8 border-2 border-[#1f77b4] border-t-transparent rounded-full animate-spin"></div>
-                      <p className="text-gray-500 text-xl">جاري تحميل بيانات المهارات...</p>
+                      <p className="text-gray-500 text-xl">
+                        جاري تحميل بيانات المهارات...
+                      </p>
                     </>
                   )}
                 </div>
@@ -436,14 +373,20 @@ export const Skills = (): JSX.Element => {
             </p>
           </div>
         </div>
-        {(loaderData?.testimonials && Array.isArray(loaderData.testimonials) && loaderData.testimonials.length > 0) ? (
+        {loaderData?.testimonials &&
+        Array.isArray(loaderData.testimonials) &&
+        loaderData.testimonials.length > 0 ? (
           <SmoothColumnTestimonials testimonials={loaderData.testimonials} />
         ) : (
           <div className="flex items-center justify-center py-12">
             <div className="flex flex-col items-center gap-4">
               {/* Show different message if we know testimonials are empty vs loading */}
-              {loaderData && Array.isArray(loaderData.testimonials) && loaderData.testimonials.length === 0 ? (
-                <p className="text-gray-500 text-lg">لا توجد آراء متاحة حالياً</p>
+              {loaderData &&
+              Array.isArray(loaderData.testimonials) &&
+              loaderData.testimonials.length === 0 ? (
+                <p className="text-gray-500 text-lg">
+                  لا توجد آراء متاحة حالياً
+                </p>
               ) : (
                 <>
                   <div className="w-6 h-6 border-2 border-[#1f77b4] border-t-transparent rounded-full animate-spin"></div>
