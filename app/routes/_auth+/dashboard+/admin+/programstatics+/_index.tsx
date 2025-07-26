@@ -21,6 +21,8 @@ import regionIcon from "../../../../../assets/icons/region.svg";
 import usersIcon from "../../../../../assets/icons/users-03.svg";
 
 import statisticsService from "~/db/statistics/statistics.server";
+import eduAdminService from "~/db/eduAdmin/eduAdmin.server";
+import schoolService from "~/db/school/school.server";
 import { getAuthenticated } from "~/lib/get-authenticated.server";
 import { DashStatistics, School, QUser } from "~/types/types";
 
@@ -59,15 +61,19 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         schoolId,
       }),
       statisticsService.getRegionalBreakdown(dbUrl),
-      statisticsService.getEduAdminBreakdown(dbUrl),
-      // statisticsService.getSchoolBreakdown(dbUrl),
+      regionId 
+        ? eduAdminService.getEduAdminsByRegion(regionId, dbUrl).then(res => res.data || [])
+        : statisticsService.getEduAdminBreakdown(dbUrl),
+      eduAdminId 
+        ? schoolService.getSchoolsByEduAdmin(eduAdminId, dbUrl).then(res => res.data || [])
+        : Promise.resolve([]),
     ]);
 
     return Response.json({
       statistics: dashStatistics,
       regionalBreakdown,
       eduAdminBreakdown,
-      // schoolBreakdown,
+      schoolBreakdown,
       filters: { regionId, eduAdminId, schoolId },
     });
   } catch (error) {
@@ -229,15 +235,11 @@ export default function ProgramStatisticsContent(): JSX.Element {
     navigate(`?${params.toString()}`, { replace: true });
   };
 
-  // Filter eduAdmins based on selected region - since we don't have region relationships, show all
+  // Filter eduAdmins based on selected region
   const filteredEduAdmins = safeEduAdminBreakdown;
 
-  // Filter schools based on selected eduAdmin
-  const filteredSchools = selectedEduAdmin
-    ? safeSchoolBreakdown.filter(
-        (school: any) => school.eduAdminId === selectedEduAdmin
-      )
-    : [];
+  // Filter schools based on selected eduAdmin - now comes from server
+  const filteredSchools = safeSchoolBreakdown;
 
   // Calculate stats data from real data
   const statsData = [
@@ -446,11 +448,16 @@ export default function ProgramStatisticsContent(): JSX.Element {
     },
   ];
 
-  // Create regions data from regional breakdown
-  const regionsData = safeRegionalBreakdown.map((regionStat: any) => ({
-    name: regionStat?.name || 'منطقة غير محددة',
-    value: Math.round(regionStat?.volunteerHours || 0),
-  }));
+  // Create regions data from regional breakdown with max values
+  const maxVolunteerHours = Math.max(...safeRegionalBreakdown.map((region: any) => region?.volunteerHours || 0), 1);
+  const regionsData = safeRegionalBreakdown.map((regionStat: any) => {
+    const volunteerHours = Math.round(regionStat?.volunteerHours || 0);
+    return {
+      name: regionStat?.name || 'منطقة غير محددة',
+      value: volunteerHours,
+      maxValue: maxVolunteerHours,
+    };
+  });
 
   const barColors = [
     "#006173",
@@ -539,7 +546,7 @@ export default function ProgramStatisticsContent(): JSX.Element {
       },
       {
         label: "Gray Segment",
-        data: regionsData.map((region: any) => Math.max(10, region.value - 15)),
+        data: regionsData.map((region: any) => Math.max(0, region.maxValue - region.value)),
         backgroundColor: "#E9EAEB",
         borderRadius: {
           topLeft: 10,
@@ -562,10 +569,10 @@ export default function ProgramStatisticsContent(): JSX.Element {
     scales: {
       y: {
         beginAtZero: true,
-        max: 100,
+        max: maxVolunteerHours,
         stacked: true,
         ticks: {
-          stepSize: 20,
+          stepSize: Math.ceil(maxVolunteerHours / 5),
           font: {
             size:
               typeof window !== "undefined" && window.innerWidth < 768
@@ -604,7 +611,7 @@ export default function ProgramStatisticsContent(): JSX.Element {
         callbacks: {
           label: function (context: any) {
             if (context.datasetIndex === 0) {
-              return `${context.parsed.y}%`;
+              return `${context.parsed.y} ساعة تطوعية`;
             }
             return "";
           },
