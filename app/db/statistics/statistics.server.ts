@@ -425,11 +425,66 @@ async function getEduAdminBreakdown(dbUrl?: string) {
     }));
 }
 
+async function getUserStatisticsById(userId: string, dbUrl?: string): 
+Promise<UserStatistics> {
+    const db = initializeDatabase(dbUrl);
+
+    const [userStatsResult] = await db.$queryRaw<Array<{
+        reports_count: bigint;
+        volunteer_hours: bigint;
+        economic_value: bigint;
+        volunteer_opportunities: bigint;
+        activities_count: bigint;
+        volunteer_count: bigint;
+        skills_economic_value: bigint;
+        skills_trained_count: bigint;
+    }>>`
+        SELECT 
+            COUNT(id)::INTEGER AS reports_count,
+            COALESCE(SUM("volunteerHours"), 0)::INTEGER AS volunteer_hours,
+            COALESCE(SUM("economicValue"), 0)::INTEGER AS economic_value,
+            COALESCE(SUM("volunteerOpportunities"), 0)::INTEGER AS volunteer_opportunities,
+            COALESCE(SUM("activitiesCount"), 0)::INTEGER AS activities_count,
+            COALESCE(SUM("volunteerCount"), 0)::INTEGER AS volunteer_count,
+            COALESCE(SUM("skillsEconomicValue"), 0)::INTEGER AS skills_economic_value,
+            COALESCE(SUM("skillsTrainedCount"), 0)::INTEGER AS skills_trained_count
+        FROM "report"
+        WHERE "userId" = ${userId}
+    `;
+
+    // If the user has no reports, return a zeroed object
+    if (!userStatsResult) {
+        return {
+            reportsCount: 0,
+            volunteerHours: 0,
+            economicValue: 0,
+            volunteerOpportunities: 0,
+            activitiesCount: 0,
+            volunteerCount: 0,
+            skillsEconomicValue: 0,
+            skillsTrainedCount: 0,
+        };
+    }
+
+    // Convert BigInt results to Number before returning
+    return {
+        reportsCount: (userStatsResult.reports_count),
+        volunteerHours: (userStatsResult.volunteer_hours),
+        economicValue: (userStatsResult.economic_value),
+        volunteerOpportunities: (userStatsResult.volunteer_opportunities),
+        activitiesCount: (userStatsResult.activities_count),
+        volunteerCount: (userStatsResult.volunteer_count),
+        skillsEconomicValue: (userStatsResult.skills_economic_value),
+        skillsTrainedCount: (userStatsResult.skills_trained_count),
+    };
+}
+
 // Export the function
 const statisticsService = {
     getAdminDashboardDataStatistics,
     getRegionalBreakdown,  // This one is now optimized
-    getEduAdminBreakdown   // This one is now optimized too
+    getEduAdminBreakdown,   // This one is now optimized too
+    getUserStatisticsById   // This one is now optimized
 };
 
 export default statisticsService;

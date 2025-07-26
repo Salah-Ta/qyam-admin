@@ -10,7 +10,8 @@ const initializeDatabase = (dbUrl?: string) => {
   return db;
 };
 
-const getAllSchools = (dbUrl?: string): Promise<StatusResponse<School[]>> => {
+const getAllSchools = (dbUrl?: string): 
+Promise<StatusResponse<School[]>> => {
   
   const db = initializeDatabase(dbUrl);
   
@@ -43,7 +44,9 @@ const getAllSchools = (dbUrl?: string): Promise<StatusResponse<School[]>> => {
   });
 };
 
-const getSchool = (id: string, dbUrl?: string): Promise<StatusResponse<School>> => {
+const getSchool = 
+(id: string, dbUrl?: string): 
+Promise<StatusResponse<School>> => {
   
   const db = initializeDatabase(dbUrl);
   
@@ -69,7 +72,9 @@ const getSchool = (id: string, dbUrl?: string): Promise<StatusResponse<School>> 
   });
 };
 
-const createSchool = (name: string, address: string, dbUrl?: string, eduAdminId?: string): Promise<StatusResponse<null>> => {
+const createSchool = 
+(name: string, address: string, dbUrl?: string, eduAdminId?: string): 
+Promise<StatusResponse<School>> => {
   
   const db = initializeDatabase(dbUrl);
   
@@ -82,9 +87,10 @@ const createSchool = (name: string, address: string, dbUrl?: string, eduAdminId?
           eduAdminId: eduAdminId || null
         }
       })
-      .then(() => {
+      .then((res) => {
         resolve({
           status: "success",
+          data: res,
           message: "تم إضافة المدرسة بنجاح",
         });
       })
@@ -98,7 +104,9 @@ const createSchool = (name: string, address: string, dbUrl?: string, eduAdminId?
   });
 };
 
-const updateSchool = (id: string, name: string, address: string, dbUrl?: string, eduAdminId?: string): Promise<StatusResponse<null>> => {
+const updateSchool = 
+(id: string, name: string, address: string, dbUrl?: string, eduAdminId?: string): 
+Promise<StatusResponse<School>> => {
 
   const db = initializeDatabase(dbUrl);
   
@@ -112,9 +120,10 @@ const updateSchool = (id: string, name: string, address: string, dbUrl?: string,
           eduAdminId: eduAdminId || null
         }
       })
-      .then(() => {
+      .then((res) => {
         resolve({
           status: "success",
+          data: res,
           message: "تم تحديث المدرسة بنجاح",
         });
       })
@@ -128,7 +137,9 @@ const updateSchool = (id: string, name: string, address: string, dbUrl?: string,
   });
 };
 
-const deleteSchool = (id: string, dbUrl?: string): Promise<StatusResponse<null>> => {
+const deleteSchool = 
+(id: string, dbUrl?: string): 
+Promise<StatusResponse<null>> => {
   
   const db = initializeDatabase(dbUrl);
 
@@ -153,9 +164,46 @@ const deleteSchool = (id: string, dbUrl?: string): Promise<StatusResponse<null>>
   });
 };
 
+const getSchoolsByEduAdmin = 
+(eduAdminId: string, dbUrl?: string): 
+Promise<StatusResponse<School[]>> => {
+  
+  const db = initializeDatabase(dbUrl);
+  
+  return new Promise((resolve, reject) => {
+    db.school
+      .findMany({
+        where: { eduAdminId },
+        include: {
+          eduAdmin: {
+            select: {
+              id: true,
+              name: true,
+              regionId: true,
+            }
+          }
+        },
+        orderBy: {
+          name: 'asc'
+        }
+      })
+      .then((res) => {
+        resolve({ status: "success", data: res });
+      })
+      .catch((error: any) => {
+        console.log("ERROR [getSchoolsByEduAdmin]: ", error);
+        reject({
+          status: "error",
+          message: "فشل جلب المدارس للإدارة التعليمية",
+        });
+      });
+  });
+};
+
 export default {
   getAllSchools,
   getSchool,
+  getSchoolsByEduAdmin,
   createSchool,
   updateSchool,
   deleteSchool

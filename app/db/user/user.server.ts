@@ -11,12 +11,20 @@ const initializeDatabase = (dbUrl?: string) => {
   return db;
 };
 
+const transformUser = (user: any) => {
+  if (!user) return null;
+  return {
+    ...user,
+    phone: user.phone?.toString() || null
+  };
+};
+
 const editUserRegisteration = (userId: string, status: AcceptenceState, dbUrl?: string, emailConfig?: {
   resendApi: string;
   mainEmail: string;
   userEmail: string;
 },
-previousStatus?: AcceptenceState) => {
+  previousStatus?: AcceptenceState) => {
 
   const db = initializeDatabase(dbUrl);
 
@@ -31,7 +39,7 @@ previousStatus?: AcceptenceState) => {
     }).then(async () => {
       // Send email notification if status is accepted or denied
       if ((status === "accepted" || status === "denied" || status === "pending" || status === "idle") && emailConfig) {
-        
+
         let emailText;
         switch (status) {
           case "accepted":
@@ -108,8 +116,56 @@ const getAllUsers = (dbUrl?: string): Promise<StatusResponse<QUser[]>> => {
           name: 'asc'
         }
       })
-      .then((res) => {
-        resolve({ status: "success", data: res });
+      .then(async (users) => {
+        // Get all unique IDs for batch fetching
+        const regionIds = [...new Set(
+          users.map(u => u.regionId)
+            .filter((id): id is string => id !== null && id !== undefined)
+        )];
+
+        const eduAdminIds = [...new Set(
+          users.map(u => u.eduAdminId)
+            .filter((id): id is string => id !== null && id !== undefined)
+        )];
+
+        const schoolIds = [...new Set(
+          users.map(u => u.schoolId)
+            .filter((id): id is string => id !== null && id !== undefined)
+        )];
+        // Fetch all related data in parallel
+        const [regions, eduAdmins, schools] = await Promise.all([
+          regionIds.length > 0 ? db.region.findMany({
+            where: { id: { in: regionIds } },
+            select: { id: true, name: true }
+          }) : [],
+          eduAdminIds.length > 0 ? db.eduAdmin.findMany({
+            where: { id: { in: eduAdminIds } },
+            select: { id: true, name: true }
+          }) : [],
+          schoolIds.length > 0 ? db.school.findMany({
+            where: { id: { in: schoolIds } },
+            select: { id: true, name: true }
+          }) : []
+        ]);
+
+        // Create lookup maps for O(1) access
+        const regionMap = new Map(regions.map(r => [r.id, r.name]));
+        const eduAdminMap = new Map(eduAdmins.map(e => [e.id, e.name]));
+        const schoolMap = new Map(schools.map(s => [s.id, s.name]));
+
+        // Transform users with names
+        const transformedUsers = users.map(user => ({
+          ...user,
+          regionName: user.regionId ? regionMap.get(user.regionId) || null : null,
+          eduAdminName: user.eduAdminId ? eduAdminMap.get(user.eduAdminId) || null : null,
+          schoolName: user.schoolId ? schoolMap.get(user.schoolId) || null : null,
+          // Create relation objects for compatibility with your test page
+          userRegion: user.regionId ? { id: user.regionId, name: regionMap.get(user.regionId) || null } : null,
+          userEduAdmin: user.eduAdminId ? { id: user.eduAdminId, name: eduAdminMap.get(user.eduAdminId) || null } : null,
+          userSchool: user.schoolId ? { id: user.schoolId, name: schoolMap.get(user.schoolId) || null } : null
+        })) as QUser[];
+
+        resolve({ status: "success", data: transformedUsers });
       })
       .catch((error: any) => {
         console.log("ERROR [getAllUsers]: ", error);
@@ -121,7 +177,9 @@ const getAllUsers = (dbUrl?: string): Promise<StatusResponse<QUser[]>> => {
   });
 };
 
-const getUser = (id: string, dbUrl?: string): Promise<StatusResponse<QUser>> => {
+const getUser = 
+(id: string, dbUrl?: string): 
+Promise<StatusResponse<QUser>> => {
 
   const db = initializeDatabase(dbUrl);
 
@@ -137,8 +195,41 @@ const getUser = (id: string, dbUrl?: string): Promise<StatusResponse<QUser>> => 
       .findFirstOrThrow({
         where: { id },
       })
-      .then((res) => {
-        resolve({ status: "success", data: res });
+      .then( async (res) => {
+        // If regionId exists, fetch region name
+        let regionName: string | null = null;
+        if (res.regionId) {
+          const region = await db.region.findUnique({
+            where: { id: res.regionId },
+            select: { name: true }
+          });
+          regionName = region?.name || null;
+        }
+
+        // If eduAdminId exists, fetch eduAdmin name
+        let eduAdminName: string | null = null;
+        if (res.eduAdminId) {
+          const eduAdmin = await db.eduAdmin.findUnique({
+            where: { id: res.eduAdminId },
+            select: { name: true }
+          });
+          eduAdminName = eduAdmin?.name || null;
+        }
+        // If schoolId exists, fetch school name
+        let schoolName: string | null = null;
+        if (res.schoolId) {
+          const school = await db.school.findUnique({
+            where: { id: res.schoolId },
+            select: { name: true }
+          });
+          schoolName = school?.name || null;
+        }
+        // Attach names to user object
+        (res as QUser).regionName = regionName;
+        (res as QUser).eduAdminName = eduAdminName;
+        (res as QUser).schoolName = schoolName;
+        const transformedUser = transformUser(res) as QUser;
+        resolve({ status: "success", data: transformedUser });
       })
       .catch((error: any) => {
         console.log("ERROR [getUser]: ", error);

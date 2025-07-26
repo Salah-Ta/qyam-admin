@@ -48,16 +48,20 @@ export type QUser = {
   id?: string;
   email: string;
   name: string;
+  image?: string | null;
   password?: string;
-  role: string;
-  phone?: string;
-  regionId?: string;
-  //userRegion?: Region; // Match the field name from Prisma schema
-  eduAdminId?: string;
-  //userEduAdmin?: EduAdmin; // Match the field name from Prisma schema
-  schoolId?: string;
-  //userSchool?: School; // Match the field name from Prisma schema
-  reports?: Report[];
+  role: string | null;
+  phone?: string | null;
+  regionId?: string | null; 
+  regionName?: string | null; // Nullable if not required
+  //userRegion?: Region; 
+  eduAdminId?: string | null;
+  eduAdminName?: string | null; // Nullable if not required
+  //userEduAdmin?: EduAdmin; 
+  schoolId?: string | null;
+  schoolName?: string | null; // Nullable if not required
+  //userSchool?: School; 
+  reports?: Report[] | null; // Nullable if no reports
   createdAt?: Date;
   updatedAt?: Date;
   sentMessages?: Message[];
@@ -90,7 +94,7 @@ export type Region = {
 export type EduAdmin = {
   id?: string;
   name: string;
-  regionId?: string;
+  regionId?: string | null; // Nullable if not required
   region?: Region;
   users?: QUser[]; // Add users relation
   schools?: School[];
@@ -102,8 +106,8 @@ export type School = {
   id?: string;
   name: string;
   address: string;
-  eduAdminId?: string;
-  eduAdmin?: EduAdmin;
+  eduAdminId?: string | null; // Nullable if not required
+  eduAdmin?: EduAdmin | null; // Nullable if not required
   users?: QUser[]; // Add users relation
   createdAt?: Date;
   updatedAt?: Date;
@@ -318,10 +322,10 @@ export type Message = {
   readAt?: Date | null;
   isDeleted: boolean;
   deletedAt?: Date | null;
-  fromUserId: string;
+  fromUserId: string ;
   toUserId: string;
-  fromUser?: QUser;
-  toUser?: QUser;
+  fromUser?: QUser | null;
+  toUser?: QUser | null;
 };
 
 // For creating a new message

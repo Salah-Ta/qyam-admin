@@ -10,8 +10,10 @@ const initializeDatabase = (dbUrl?: string) => {
   return db;
 };
 
-const createEduAdmin = (name: string, dbUrl?: string, regionId?: string): Promise<StatusResponse<null>> => {
-  
+const createEduAdmin = 
+(name: string, dbUrl?: string, regionId?: string): 
+Promise<StatusResponse<EduAdmin>> => {
+
   const db = initializeDatabase(dbUrl);
 
   console.log("Creating EduAdmin:", name, "with regionId:", regionId);
@@ -21,15 +23,15 @@ const createEduAdmin = (name: string, dbUrl?: string, regionId?: string): Promis
   return new Promise((resolve, reject) => {
     db.eduAdmin
       .create({
-        data: { 
+        data: {
           name,
-          // Temporarily commented out until migration is complete
           regionId: regionId || null
         }
       })
-      .then(() => {
+      .then((res) => {
         resolve({
           status: "success",
+          data: res,
           message: "تم إضافة الإدارة التعليمية بنجاح",
         });
       })
@@ -44,7 +46,7 @@ const createEduAdmin = (name: string, dbUrl?: string, regionId?: string): Promis
 };
 
 const getAllEduAdmins = (dbUrl?: string): Promise<StatusResponse<EduAdmin[]>> => {
-  
+
   const db = initializeDatabase(dbUrl);
 
   return new Promise((resolve, reject) => {
@@ -64,9 +66,9 @@ const getAllEduAdmins = (dbUrl?: string): Promise<StatusResponse<EduAdmin[]>> =>
 };
 
 const getEduAdmin = (id: string, dbUrl?: string): Promise<StatusResponse<EduAdmin>> => {
-  
+
   const db = initializeDatabase(dbUrl);
-  
+
   return new Promise((resolve, reject) => {
     db.eduAdmin
       .findFirstOrThrow({
@@ -86,10 +88,12 @@ const getEduAdmin = (id: string, dbUrl?: string): Promise<StatusResponse<EduAdmi
   });
 };
 
-const updateEduAdmin = (id: string, data: { name: string; regionId?: string }, dbUrl?: string): Promise<StatusResponse<null>> => {
-  
+const updateEduAdmin = 
+(id: string, data: { name: string; regionId?: string }, 
+  dbUrl?: string): Promise<StatusResponse<EduAdmin>> => {
+
   const db = initializeDatabase(dbUrl);
-  
+
   return new Promise((resolve, reject) => {
     db.eduAdmin
       .update({
@@ -99,9 +103,10 @@ const updateEduAdmin = (id: string, data: { name: string; regionId?: string }, d
           regionId: data.regionId || null
         }
       })
-      .then(() => {
+      .then((res) => {
         resolve({
           status: "success",
+          data: res,
           message: "تم تحديث الإدارة التعليمية بنجاح",
         });
       })
@@ -115,7 +120,9 @@ const updateEduAdmin = (id: string, data: { name: string; regionId?: string }, d
   });
 };
 
-const deleteEduAdmin = (id: string, dbUrl?: string): Promise<StatusResponse<null>> => {
+const deleteEduAdmin = 
+(id: string, dbUrl?: string): 
+Promise<StatusResponse<null>> => {
 
   const db = initializeDatabase(dbUrl);
 
@@ -140,10 +147,38 @@ const deleteEduAdmin = (id: string, dbUrl?: string): Promise<StatusResponse<null
   });
 };
 
+const getEduAdminsByRegion =
+  (regionId: string, dbUrl?: string):
+    Promise<StatusResponse<EduAdmin[]>> => {
+
+    const db = initializeDatabase(dbUrl);
+
+    return new Promise((resolve, reject) => {
+      db.eduAdmin
+        .findMany({
+          where: { regionId },
+          orderBy: {
+            name: 'asc'
+          }
+        })
+        .then((res) => {
+          resolve({ status: "success", data: res });
+        })
+        .catch((error: any) => {
+          console.log("ERROR [getEduAdminsByRegion]: ", error);
+          reject({
+            status: "error",
+            message: "فشل جلب الإدارات التعليمية للمنطقة",
+          });
+        });
+    });
+  };
+
 export default {
   createEduAdmin,
   getAllEduAdmins,
   getEduAdmin,
+  getEduAdminsByRegion,
   updateEduAdmin,
   deleteEduAdmin
 };
