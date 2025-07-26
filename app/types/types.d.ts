@@ -53,10 +53,13 @@ export type QUser = {
   role: string | null;
   phone?: string | null;
   regionId?: string | null; 
+  regionName?: string | null; // Nullable if not required
   //userRegion?: Region; 
   eduAdminId?: string | null;
+  eduAdminName?: string | null; // Nullable if not required
   //userEduAdmin?: EduAdmin; 
   schoolId?: string | null;
+  schoolName?: string | null; // Nullable if not required
   //userSchool?: School; 
   reports?: Report[] | null; // Nullable if no reports
   createdAt?: Date;
