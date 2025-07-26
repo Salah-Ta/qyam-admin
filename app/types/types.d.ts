@@ -336,3 +336,14 @@ export type CreateMessageData = {
 
 // Response type consistent with your other response types
 export type MessageResponse = StatusResponse<Message>;
+
+export type UserStatistics = {
+  reportsCount: number;
+  volunteerHours: number;
+  economicValue: number;
+  volunteerOpportunities: number;
+  activitiesCount: number;
+  volunteerCount: number;
+  skillsEconomicValue: number;
+  skillsTrainedCount: number;
+};

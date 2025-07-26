@@ -57,9 +57,10 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 import content from "../../../assets/images/new-design/supervisor-profile.png";
 import verified from "../../../assets/icons/Verified-tick.svg";
 import students from "../../../assets/icons/students.svg";
-import { LoaderFunctionArgs } from "@remix-run/cloudflare";
-import { useLoaderData, useParams } from "@remix-run/react";
-import { QUser } from "~/types/types";
+import { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/cloudflare";
+import { useLoaderData, useParams, useFetcher } from "@remix-run/react";
+import { QUser, UserStatistics } from "~/types/types";
+import { getAuthenticated } from "~/lib/get-authenticated.server";
 
 import {
   Chart as ChartJS,
@@ -121,7 +122,7 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
   try {
     // Import database functions with safe fallback
     const userDB = (await import("~/db/user/user.server")).default;
-    const reportDB = (await import("~/db/report/report.server")).default;
+    const statisticsDB = (await import("~/db/statistics/statistics.server")).default;
     
     // Get user data with timeout protection
     const timeoutPromise = new Promise((_, reject) => 
@@ -135,10 +136,9 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
       throw new Response("User not found", { status: 404 });
     }
     
-    // Get user statistics using the new getUserTotalStats function
-    let userReports = [];
-    let finalStatistics = {
-      reportCount: 0,
+    // Get user statistics using the new getUserStatisticsById function
+    let finalStatistics: UserStatistics = {
+      reportsCount: 0,
       volunteerHours: 0,
       economicValue: 0,
       volunteerOpportunities: 0,
@@ -149,47 +149,25 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
     };
     
     try {
-      // Get user statistics from the new getUserTotalStats function
-      if (reportDB && typeof reportDB.getUserTotalStats === 'function') {
-        console.log('Fetching user statistics for userId:', userId);
-        const statsPromise = reportDB.getUserTotalStats(userId, context?.cloudflare?.env?.DATABASE_URL);
-        const statsResult = await Promise.race([statsPromise, timeoutPromise]) as any;
-        
-        console.log('User stats result:', statsResult);
-        
-        if (statsResult?.success && statsResult.data) {
-          finalStatistics = {
-            reportCount: statsResult.data.reportCount || 0,
-            volunteerHours: statsResult.data.volunteerHours || 0,
-            economicValue: statsResult.data.economicValue || 0,
-            volunteerOpportunities: statsResult.data.volunteerOpportunities || 0,
-            activitiesCount: statsResult.data.activitiesCount || 0,
-            volunteerCount: statsResult.data.volunteerCount || 0,
-            skillsEconomicValue: statsResult.data.skillsEconomicValue || 0,
-            skillsTrainedCount: statsResult.data.skillsTrainedCount || 0
-          };
-        }
-      }
+      // Get user statistics from the statistics service
+      console.log('Fetching user statistics for userId:', userId);
+      const statsPromise = statisticsDB.getUserStatisticsById(userId, context?.cloudflare?.env?.DATABASE_URL);
+      const statsResult = await Promise.race([statsPromise, timeoutPromise]) as UserStatistics;
       
-      // Also get user reports for additional context if needed
-      if (reportDB && typeof reportDB.getAllReports === 'function') {
-        const reportsPromise = reportDB.getAllReports(context?.cloudflare?.env?.DATABASE_URL);
-        const reportsResult = await Promise.race([reportsPromise, timeoutPromise]) as any;
-        
-        if (reportsResult?.success && Array.isArray(reportsResult.data)) {
-          userReports = reportsResult.data.filter((report: any) => report?.userId === userId);
-          console.log('User reports:', userReports.length, 'reports found');
-        }
+      console.log('User stats result:', statsResult);
+      
+      if (statsResult) {
+        finalStatistics = statsResult;
       }
     } catch (error) {
-      console.error("Error fetching user statistics and reports:", error);
-      // Continue with default statistics and empty reports array
+      console.error("Error fetching user statistics:", error);
+      // Continue with default statistics
     }
     
     return Response.json({
       user: userResult.data,
       statistics: finalStatistics,
-      reports: userReports
+      reports: [] // We don't need individual reports anymore since we have aggregated stats
     });
   } catch (error) {
     console.error("Error loading user data:", error);
@@ -198,7 +176,7 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
     return Response.json({
       user: null,
       statistics: {
-        reportCount: 0,
+        reportsCount: 0,
         volunteerHours: 0,
         economicValue: 0,
         volunteerOpportunities: 0,
@@ -211,6 +189,69 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
       error: "Failed to load user data"
     }, { status: 200 }); // Return 200 with error info instead of 500
   }
+}
+
+export async function action({ request, context, params }: ActionFunctionArgs) {
+  const currentUser = await getAuthenticated({ request, context });
+  
+  if (!currentUser) {
+    return Response.json({ 
+      status: "error", 
+      message: "غير مخول للوصول" 
+    }, { status: 401 });
+  }
+
+  const formData = await request.formData();
+  const actionType = formData.get("actionType");
+  
+  if (actionType === "sendMessage") {
+    const messageContent = formData.get("messageContent")?.toString()?.trim();
+    const toUserId = params.id; // The teacher ID from the URL
+    
+    if (!messageContent) {
+      return Response.json({
+        status: "error",
+        message: "محتوى الرسالة مطلوب"
+      }, { status: 400 });
+    }
+    
+    if (!toUserId) {
+      return Response.json({
+        status: "error", 
+        message: "معرف المستخدم المستقبل مطلوب"
+      }, { status: 400 });
+    }
+
+    try {
+      const messageDB = (await import("~/db/message/message.server")).default;
+      
+      const result = await messageDB.sendMessage(
+        {
+          content: messageContent,
+          toUserId: toUserId
+        },
+        currentUser.id,
+        context?.cloudflare?.env?.DATABASE_URL
+      );
+
+      return Response.json({
+        status: "success",
+        message: "تم إرسال الرسالة بنجاح",
+        data: result
+      });
+    } catch (error) {
+      console.error("Error sending message:", error);
+      return Response.json({
+        status: "error",
+        message: "فشل في إرسال الرسالة"
+      }, { status: 500 });
+    }
+  }
+
+  return Response.json({
+    status: "error",
+    message: "إجراء غير صالح"
+  }, { status: 400 });
 }
 
 // Card components
@@ -295,16 +336,21 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 export const SupervisorStatistics = (): JSX.Element => {
   // Track hydration state to prevent SSR/client mismatch
   const [isHydrated, setIsHydrated] = useState(false);
+  // Message state
+  const [messageContent, setMessageContent] = useState("");
+  const [isMessageSending, setIsMessageSending] = useState(false);
   
   // Safe hooks usage with error handling
   let loaderData: any = {};
   let params: any = {};
   let navigate: any = () => {};
+  let fetcher: any = {};
   
   try {
     loaderData = useLoaderData<typeof loader>() as any;
     params = useParams();
     navigate = useNavigate();
+    fetcher = useFetcher();
   } catch (error) {
     console.error('Hook usage failed:', error);
     // Fallback to prevent hydration errors
@@ -314,10 +360,41 @@ export const SupervisorStatistics = (): JSX.Element => {
   useEffect(() => {
     setIsHydrated(true);
   }, []);
+
+  // Handle message sending response
+  useEffect(() => {
+    if (fetcher.data) {
+      if (fetcher.data.status === "success") {
+        setMessageContent("");
+        setIsMessageSending(false);
+        // You can add a toast notification here if you have a toast system
+        console.log("Message sent successfully:", fetcher.data.message);
+      } else if (fetcher.data.status === "error") {
+        setIsMessageSending(false);
+        console.error("Message sending failed:", fetcher.data.message);
+      }
+    }
+  }, [fetcher.data]);
+
+  // Handle message sending
+  const handleSendMessage = () => {
+    if (!messageContent.trim()) {
+      console.error("Message content is required");
+      return;
+    }
+    
+    setIsMessageSending(true);
+    
+    const formData = new FormData();
+    formData.append("actionType", "sendMessage");
+    formData.append("messageContent", messageContent);
+    
+    fetcher.submit(formData, { method: "POST" });
+  };
   
   const userData = loaderData?.user as QUser || null;
   const statistics = loaderData?.statistics || {
-    reportCount: 0,
+    reportsCount: 0,
     volunteerHours: 0,
     economicValue: 0,
     volunteerOpportunities: 0,
@@ -332,7 +409,7 @@ export const SupervisorStatistics = (): JSX.Element => {
   // Debug logging to verify getUserTotalStats integration
   console.log('SupervisorStatistics - Loaded data:', {
     userId,
-    userName: userData?.name,
+    userName: userData,
     hasStatistics: !!statistics,
     statisticsData: statistics,
     reportsCount: reports.length,
@@ -457,7 +534,7 @@ export const SupervisorStatistics = (): JSX.Element => {
   const userRegionValue = statistics ? Math.min(100, Math.max(10, 
     (statistics.activitiesCount || 0) * 8 + 
     (statistics.volunteerHours || 0) / 20 + 
-    (statistics.reportCount || 0) * 5 +
+    (statistics.reportsCount || 0) * 5 +
     (statistics.skillsTrainedCount || 0) * 3
   )) : 40;
   
@@ -674,19 +751,19 @@ export const SupervisorStatistics = (): JSX.Element => {
               <div className="relative self-stretch mt-[-1.00px] font-bold text-[#181d27] text-xl tracking-[0] leading-[30px] [direction:rtl]">
                 {userData?.name || "اسم المستخدم"}
                 {/* Show report count if available */}
-                {statistics?.reportCount > 0 && (
-                  <span className="text-sm text-[#535861] font-normal"> - {statistics.reportCount} تقرير</span>
+                {statistics?.reportsCount > 0 && (
+                  <span className="text-sm text-[#535861] font-normal"> - {statistics.reportsCount} تقرير</span>
                 )}
               </div>
               <div className="self-stretch text-[#535861] text-base leading-6 relative font-normal tracking-[0] [direction:rtl]">
-                مدرسة {userData?.schoolId || "غير محددة"} - {userData?.region || "غير محددة"} - تعليم {userData?.eduAdminId || "غير محددة"}
+                مدرسة {userData?.schoolName || "غير محددة"} - {userData?.regionName || "غير محددة"} - تعليم {userData?.eduAdminName || "غير محددة"}
               </div>
               {/* Statistics Summary */}
-              {statistics && (statistics.reportCount > 0 || statistics.volunteerHours > 0) && (
+              {statistics && (statistics.reportsCount > 0 || statistics.volunteerHours > 0) && (
                 <div className="flex flex-wrap items-center gap-2 mt-2 text-sm text-[#535861] [direction:rtl]">
-                  {statistics.reportCount > 0 && (
+                  {statistics.reportsCount > 0 && (
                     <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded-full text-xs">
-                      {statistics.reportCount} تقرير
+                      {statistics.reportsCount} تقرير
                     </span>
                   )}
                   {statistics.volunteerHours > 0 && (
@@ -720,12 +797,11 @@ export const SupervisorStatistics = (): JSX.Element => {
                   </div>
                   <textarea
                     className="self-stretch mt-[-1.00px] text-[#414651] text-sm leading-5 relative font-normal tracking-[0] [direction:rtl] bg-transparent border-none focus:outline-none resize-none"
-                    defaultValue="نص الرسالة يكتب هنا"
+                    placeholder="اكتب رسالتك هنا..."
+                    value={messageContent}
                     rows={3}
-                    onChange={(e) => {
-                      // Handle input change here
-                      console.log(e.target.value);
-                    }}
+                    onChange={(e) => setMessageContent(e.target.value)}
+                    disabled={isMessageSending}
                   />
                 </div>
               </div>
@@ -737,10 +813,12 @@ export const SupervisorStatistics = (): JSX.Element => {
               <Button
                 variant="outline"
                 className="inline-flex items-center justify-center gap-1 px-3 py-2 bg-white rounded-md rotate-180 shadow-shadows-shadow-xs-skeuomorphic"
+                onClick={handleSendMessage}
+                disabled={isMessageSending || !messageContent.trim()}
               >
                 <PlusIcon className="w-5 h-5 -rotate-180" />
                 <span className="font-bold text-[#414651] text-sm text-left tracking-[0] leading-5 whitespace-nowrap [direction:rtl]">
-                  رسالة جديدة
+                  {isMessageSending ? "جاري الإرسال..." : "إرسال الرسالة"}
                 </span>
               </Button>
             </div>
@@ -781,9 +859,9 @@ export const SupervisorStatistics = (): JSX.Element => {
                             {userData?.noStudents || 0}
                           </div>
                           {/* Show data freshness indicator */}
-                          {statistics && statistics.reportCount > 0 && (
+                          {statistics && statistics.reportsCount > 0 && (
                             <div className="text-xs text-green-600 font-medium mt-1 [direction:rtl]">
-                              محدث من {statistics.reportCount} تقرير
+                              محدث من {statistics.reportsCount} تقرير
                             </div>
                           )}
                         </div>
