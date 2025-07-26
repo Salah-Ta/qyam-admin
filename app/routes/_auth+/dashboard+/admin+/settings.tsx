@@ -161,14 +161,14 @@ export const ManageData = (): JSX.Element => {
     eduAdmins: EntityItem[];
     schools: EntityItem[];
   } | null;
-  
+
   // Safe data access with fallbacks
   const safeData = {
     regions: data?.regions || [],
     eduAdmins: data?.eduAdmins || [],
-    schools: data?.schools || []
+    schools: data?.schools || [],
   };
-  
+
   console.log("Loader data:", data);
 
   const actionData = useActionData() as
@@ -225,14 +225,18 @@ export const ManageData = (): JSX.Element => {
     if (!Array.isArray(safeData.eduAdmins) || !regionId) {
       return [];
     }
-    return safeData.eduAdmins.filter((eduAdmin) => eduAdmin?.regionId === regionId);
+    return safeData.eduAdmins.filter(
+      (eduAdmin) => eduAdmin?.regionId === regionId
+    );
   };
 
   const getSchoolsForEduAdmin = (eduAdminId: string): EntityItem[] => {
     if (!Array.isArray(safeData.schools) || !eduAdminId) {
       return [];
     }
-    return safeData.schools.filter((school) => school?.eduAdminId === eduAdminId);
+    return safeData.schools.filter(
+      (school) => school?.eduAdminId === eduAdminId
+    );
   };
 
   // Handle region expansion
@@ -330,7 +334,11 @@ export const ManageData = (): JSX.Element => {
   };
 
   // Handle delete confirmation
-  const handleDeleteClick = (entityType: string, entityId: string, entityName: string) => {
+  const handleDeleteClick = (
+    entityType: string,
+    entityId: string,
+    entityName: string
+  ) => {
     let hasChildren = false;
     let childrenType = "";
     let childrenCount = 0;
@@ -354,36 +362,36 @@ export const ManageData = (): JSX.Element => {
       entityName,
       hasChildren,
       childrenType,
-      childrenCount
+      childrenCount,
     });
   };
 
   const confirmDelete = async () => {
     if (!deleteConfirmation) return;
-    
+
     try {
       // Create form data
       const formData = new FormData();
-      formData.append('actionType', 'delete');
-      formData.append('entityType', deleteConfirmation.entityType);
-      formData.append('entityId', deleteConfirmation.entityId);
-      
+      formData.append("actionType", "delete");
+      formData.append("entityType", deleteConfirmation.entityType);
+      formData.append("entityId", deleteConfirmation.entityId);
+
       // Send delete request
       const response = await fetch(window.location.pathname, {
-        method: 'POST',
+        method: "POST",
         body: formData,
       });
-      
+
       if (response.ok) {
         // Revalidate data without page refresh
         revalidator.revalidate();
         setDeleteConfirmation(null);
       } else {
-        console.error('Delete failed:', response.statusText);
+        console.error("Delete failed:", response.statusText);
         // You could add error handling here
       }
     } catch (error) {
-      console.error('Delete error:', error);
+      console.error("Delete error:", error);
       // You could add error handling here
     }
   };
@@ -461,67 +469,147 @@ export const ManageData = (): JSX.Element => {
           ))}
 
           {/* Existing Regions - Each region gets its own card */}
-          {Array.isArray(safeData.regions) && safeData.regions.map((region) => (
-            <Card
-              key={region.id}
-              className="w-full flex flex-col items-center justify-center gap-6 p-4 bg-white rounded-xl border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs"
-            >
-              <div className="flex w-full h-14 items-center justify-center gap-3 p-5 bg-[#006173] rounded-xl shadow-shadows-shadow-xs">
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => toggleRegionExpansion(region.id)}
-                    className="text-white hover:text-gray-200 transition-colors"
-                  >
-                    <ChevronRightIcon
-                      className={`w-4 h-4 transition-transform ${
-                        expandedRegions.has(region.id) ? "rotate-90" : ""
-                      }`}
-                    />
-                  </button>
-                </div>
-                <div className="flex flex-col items-start gap-0.5 flex-1 grow mt-[-4px] mb-[-4px]">
-                  <span className="relative self-stretch mt-[-1px] font-bold text-white text-base tracking-[0] leading-6 [direction:rtl]">
-                    {region?.name || 'منطقة غير محددة'}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteClick("region", region?.id || '', region?.name || '')}
-                  >
-                    <MinusCircleIcon className="w-4 h-4 cursor-pointer text-white hover:text-red-300 transition-colors" />
-                  </button>
-                  <div className="relative w-8 h-8 mt-[-8px] mb-[-8px] bg-white rounded-md overflow-hidden border border-solid border-[#e9e9eb] shadow-shadows-shadow-xs-skeuomorphic max-md:hidden">
-                    <div className="absolute w-4 h-4 top-2 left-2">
-                      <img src={UserIcon} alt="" />
+          {Array.isArray(safeData.regions) &&
+            safeData.regions.map((region) => (
+              <Card
+                key={region.id}
+                className="w-full flex flex-col items-center justify-center gap-6 p-4 bg-white rounded-xl border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs"
+              >
+                <div className="flex w-full h-14 items-center justify-center gap-3 p-5 bg-[#006173] rounded-xl shadow-shadows-shadow-xs">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => toggleRegionExpansion(region.id)}
+                      className="text-white hover:text-gray-200 transition-colors"
+                    >
+                      <ChevronRightIcon
+                        className={`w-4 h-4 transition-transform ${
+                          expandedRegions.has(region.id) ? "rotate-90" : ""
+                        }`}
+                      />
+                    </button>
+                  </div>
+                  <div className="flex flex-col items-start gap-0.5 flex-1 grow mt-[-4px] mb-[-4px]">
+                    <span className="relative self-stretch mt-[-1px] font-bold text-white text-base tracking-[0] leading-6 [direction:rtl]">
+                      {region?.name || "منطقة غير محددة"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleDeleteClick(
+                          "region",
+                          region?.id || "",
+                          region?.name || ""
+                        )
+                      }
+                    >
+                      <MinusCircleIcon className="w-4 h-4 cursor-pointer text-white hover:text-red-300 transition-colors" />
+                    </button>
+                    <div className="relative w-8 h-8 mt-[-8px] mb-[-8px] bg-white rounded-md overflow-hidden border border-solid border-[#e9e9eb] shadow-shadows-shadow-xs-skeuomorphic max-md:hidden">
+                      <div className="absolute w-4 h-4 top-2 left-2">
+                        <img src={UserIcon} alt="" />
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Expanded Region Content - EduAdmins */}
-              {region?.id && expandedRegions.has(region.id) && (
-                <CardContent className="p-0 w-full mt-3">
-                  <div className="space-y-3">
-                    {/* Add EduAdmin Form - Only show if there are inputs */}
-                    {region?.id && newEduAdmins[region.id] &&
-                    Array.isArray(newEduAdmins[region.id]) && newEduAdmins[region.id].length > 0 ? (
-                      <Form method="post">
-                        <input type="hidden" name="actionType" value="create" />
-                        <input
-                          type="hidden"
-                          name="entityType"
-                          value="eduAdmin"
-                        />
-                        <input
-                          type="hidden"
-                          name="parentId"
-                          value={region.id}
-                        />
+                {/* Expanded Region Content - EduAdmins */}
+                {region?.id && expandedRegions.has(region.id) && (
+                  <CardContent className="p-0 w-full mt-3">
+                    <div className="space-y-3">
+                      {/* Add EduAdmin Form - Only show if there are inputs */}
+                      {region?.id &&
+                      newEduAdmins[region.id] &&
+                      Array.isArray(newEduAdmins[region.id]) &&
+                      newEduAdmins[region.id].length > 0 ? (
+                        <Form method="post">
+                          <input
+                            type="hidden"
+                            name="actionType"
+                            value="create"
+                          />
+                          <input
+                            type="hidden"
+                            name="entityType"
+                            value="eduAdmin"
+                          />
+                          <input
+                            type="hidden"
+                            name="parentId"
+                            value={region.id}
+                          />
 
+                          <div className="bg-[#f8f9fa] p-3 rounded-lg border border-[#e9ecef]">
+                            <div className="flex items-center flex-row-reverse gap-2 mb-3">
+                              <span className="text-sm font-medium text-[#495057] [direction:rtl]">
+                                إضافة إدارة تعليمية
+                              </span>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  handleAddEduAdminInput(region.id)
+                                }
+                                className="ml-auto"
+                              >
+                                <img
+                                  src={plusImg}
+                                  alt="plus"
+                                  className="w-3 h-3"
+                                />
+                              </Button>
+                              <Button
+                                type="submit"
+                                size="sm"
+                                className="bg-[#006173] hover:bg-[#004a5a]"
+                              >
+                                حفظ
+                              </Button>
+                            </div>
+
+                            <div className="space-y-2">
+                              {newEduAdmins[region.id].map(
+                                (eduAdmin, index) => (
+                                  <div
+                                    key={index}
+                                    className="flex items-center gap-2"
+                                  >
+                                    <Input
+                                      className="flex-1 text-sm [direction:rtl]"
+                                      placeholder="اكتب اسم الإدارة التعليمية"
+                                      name="itemName"
+                                      value={eduAdmin}
+                                      onChange={(e) =>
+                                        handleEduAdminInputChange(
+                                          region.id,
+                                          index,
+                                          e.target.value
+                                        )
+                                      }
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleRemoveEduAdminInput(
+                                          region.id,
+                                          index
+                                        )
+                                      }
+                                    >
+                                      <MinusCircleIcon className="w-4 h-4 text-[#A4A7AE]" />
+                                    </button>
+                                  </div>
+                                )
+                              )}
+                            </div>
+                          </div>
+                        </Form>
+                      ) : (
                         <div className="bg-[#f8f9fa] p-3 rounded-lg border border-[#e9ecef]">
-                          <div className="flex items-center flex-row-reverse gap-2 mb-3">
+                          <div className="flex items-center flex-row-reverse gap-2">
                             <span className="text-sm font-medium text-[#495057] [direction:rtl]">
                               إضافة إدارة تعليمية
                             </span>
@@ -530,7 +618,7 @@ export const ManageData = (): JSX.Element => {
                               variant="outline"
                               size="sm"
                               onClick={() => handleAddEduAdminInput(region.id)}
-                              className="ml-auto"
+                              className="mr-auto"
                             >
                               <img
                                 src={plusImg}
@@ -538,126 +626,141 @@ export const ManageData = (): JSX.Element => {
                                 className="w-3 h-3"
                               />
                             </Button>
-                            <Button
-                              type="submit"
-                              size="sm"
-                              className="bg-[#006173] hover:bg-[#004a5a]"
-                            >
-                              حفظ
-                            </Button>
                           </div>
+                        </div>
+                      )}
 
-                          <div className="space-y-2">
-                            {newEduAdmins[region.id].map((eduAdmin, index) => (
-                              <div
-                                key={index}
-                                className="flex items-center gap-2"
+                      {/* Existing EduAdmins */}
+                      {getEduAdminsForRegion(region.id).map((eduAdmin) => (
+                        <div key={eduAdmin.id} className="space-y-2">
+                          {/* EduAdmin Header */}
+                          <div className="flex items-center gap-2 px-3 py-2 bg-[#f8f9fa] rounded-md border border-[#e9ecef]">
+                            <div className="flex-1 text-sm font-medium text-[#495057] [direction:rtl]">
+                              {eduAdmin.name}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  toggleEduAdminExpansion(eduAdmin.id)
+                                }
+                                className="text-[#006173] hover:text-[#004a5a] transition-colors"
                               >
-                                <Input
-                                  className="flex-1 text-sm [direction:rtl]"
-                                  placeholder="اكتب اسم الإدارة التعليمية"
-                                  name="itemName"
-                                  value={eduAdmin}
-                                  onChange={(e) =>
-                                    handleEduAdminInputChange(
-                                      region.id,
-                                      index,
-                                      e.target.value
-                                    )
-                                  }
+                                <ChevronRightIcon
+                                  className={`w-4 h-4 transition-transform ${
+                                    expandedEduAdmins.has(eduAdmin.id)
+                                      ? "rotate-90"
+                                      : ""
+                                  }`}
                                 />
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleRemoveEduAdminInput(region.id, index)
-                                  }
-                                >
-                                  <MinusCircleIcon className="w-4 h-4 text-[#A4A7AE]" />
-                                </button>
-                              </div>
-                            ))}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleDeleteClick(
+                                    "eduAdmin",
+                                    eduAdmin.id,
+                                    eduAdmin.name
+                                  )
+                                }
+                              >
+                                <MinusCircleIcon className="w-4 h-4 cursor-pointer text-[#A4A7AE] hover:text-red-500 transition-colors" />
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      </Form>
-                    ) : (
-                      <div className="bg-[#f8f9fa] p-3 rounded-lg border border-[#e9ecef]">
-                        <div className="flex items-center flex-row-reverse gap-2">
-                          <span className="text-sm font-medium text-[#495057] [direction:rtl]">
-                            إضافة إدارة تعليمية
-                          </span>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleAddEduAdminInput(region.id)}
-                            className="mr-auto"
-                          >
-                            <img src={plusImg} alt="plus" className="w-3 h-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    )}
 
-                    {/* Existing EduAdmins */}
-                    {getEduAdminsForRegion(region.id).map((eduAdmin) => (
-                      <div key={eduAdmin.id} className="space-y-2">
-                        {/* EduAdmin Header */}
-                        <div className="flex items-center gap-2 px-3 py-2 bg-[#f8f9fa] rounded-md border border-[#e9ecef]">
-                          <div className="flex-1 text-sm font-medium text-[#495057] [direction:rtl]">
-                            {eduAdmin.name}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                toggleEduAdminExpansion(eduAdmin.id)
-                              }
-                              className="text-[#006173] hover:text-[#004a5a] transition-colors"
-                            >
-                              <ChevronRightIcon
-                                className={`w-4 h-4 transition-transform ${
-                                  expandedEduAdmins.has(eduAdmin.id)
-                                    ? "rotate-90"
-                                    : ""
-                                }`}
-                              />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleDeleteClick("eduAdmin", eduAdmin.id, eduAdmin.name)
-                              }
-                            >
-                              <MinusCircleIcon className="w-4 h-4 cursor-pointer text-[#A4A7AE] hover:text-red-500 transition-colors" />
-                            </button>
-                          </div>
-                        </div>
+                          {/* Expanded EduAdmin Content - Schools */}
+                          {expandedEduAdmins.has(eduAdmin.id) && (
+                            <div className="mr-6 space-y-2">
+                              {/* Add School Form - Only show if there are inputs */}
+                              {newSchools[eduAdmin.id] &&
+                              newSchools[eduAdmin.id].length > 0 ? (
+                                <Form method="post">
+                                  <input
+                                    type="hidden"
+                                    name="actionType"
+                                    value="create"
+                                  />
+                                  <input
+                                    type="hidden"
+                                    name="entityType"
+                                    value="school"
+                                  />
+                                  <input
+                                    type="hidden"
+                                    name="parentId"
+                                    value={eduAdmin.id}
+                                  />
 
-                        {/* Expanded EduAdmin Content - Schools */}
-                        {expandedEduAdmins.has(eduAdmin.id) && (
-                          <div className="mr-6 space-y-2">
-                            {/* Add School Form - Only show if there are inputs */}
-                            {newSchools[eduAdmin.id] &&
-                            newSchools[eduAdmin.id].length > 0 ? (
-                              <Form method="post">
-                                <input
-                                  type="hidden"
-                                  name="actionType"
-                                  value="create"
-                                />
-                                <input
-                                  type="hidden"
-                                  name="entityType"
-                                  value="school"
-                                />
-                                <input
-                                  type="hidden"
-                                  name="parentId"
-                                  value={eduAdmin.id}
-                                />
+                                  <div className="bg-[#f1f3f4] p-3 rounded-lg border border-[#dee2e6]">
+                                    <div className="flex items-center gap-2 mb-3">
+                                      <span className="text-xs font-medium text-[#6c757d] [direction:rtl]">
+                                        إضافة مدرسة
+                                      </span>
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() =>
+                                          handleAddSchoolInput(eduAdmin.id)
+                                        }
+                                        className="ml-auto"
+                                      >
+                                        <img
+                                          src={plusImg}
+                                          alt="plus"
+                                          className="w-3 h-3"
+                                        />
+                                      </Button>
+                                      <Button
+                                        type="submit"
+                                        size="sm"
+                                        className="bg-[#006173] hover:bg-[#004a5a]"
+                                      >
+                                        حفظ
+                                      </Button>
+                                    </div>
 
+                                    <div className="space-y-2">
+                                      {newSchools[eduAdmin.id].map(
+                                        (school, index) => (
+                                          <div
+                                            key={index}
+                                            className="flex items-center gap-2"
+                                          >
+                                            <Input
+                                              className="flex-1 text-xs [direction:rtl]"
+                                              placeholder="اكتب اسم المدرسة"
+                                              name="itemName"
+                                              value={school}
+                                              onChange={(e) =>
+                                                handleSchoolInputChange(
+                                                  eduAdmin.id,
+                                                  index,
+                                                  e.target.value
+                                                )
+                                              }
+                                            />
+                                            <button
+                                              type="button"
+                                              onClick={() =>
+                                                handleRemoveSchoolInput(
+                                                  eduAdmin.id,
+                                                  index
+                                                )
+                                              }
+                                            >
+                                              <MinusCircleIcon className="w-3 h-3 text-[#A4A7AE]" />
+                                            </button>
+                                          </div>
+                                        )
+                                      )}
+                                    </div>
+                                  </div>
+                                </Form>
+                              ) : (
                                 <div className="bg-[#f1f3f4] p-3 rounded-lg border border-[#dee2e6]">
-                                  <div className="flex items-center gap-2 mb-3">
+                                  <div className="flex items-center gap-2">
                                     <span className="text-xs font-medium text-[#6c757d] [direction:rtl]">
                                       إضافة مدرسة
                                     </span>
@@ -676,120 +779,57 @@ export const ManageData = (): JSX.Element => {
                                         className="w-3 h-3"
                                       />
                                     </Button>
-                                    <Button
-                                      type="submit"
-                                      size="sm"
-                                      className="bg-[#006173] hover:bg-[#004a5a]"
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Existing Schools */}
+                              {getSchoolsForEduAdmin(eduAdmin.id).map(
+                                (school) => (
+                                  <div
+                                    key={school.id}
+                                    className="flex items-center gap-2 px-2 py-1 bg-[#f1f3f4] rounded border border-[#dee2e6]"
+                                  >
+                                    <div className="flex-1 text-xs text-[#6c757d] [direction:rtl]">
+                                      {school.name}
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleDeleteClick(
+                                          "school",
+                                          school.id,
+                                          school.name
+                                        )
+                                      }
                                     >
-                                      حفظ
-                                    </Button>
+                                      <MinusCircleIcon className="w-3 h-3 cursor-pointer text-[#A4A7AE] hover:text-red-500 transition-colors" />
+                                    </button>
                                   </div>
+                                )
+                              )}
 
-                                  <div className="space-y-2">
-                                    {newSchools[eduAdmin.id].map(
-                                      (school, index) => (
-                                        <div
-                                          key={index}
-                                          className="flex items-center gap-2"
-                                        >
-                                          <Input
-                                            className="flex-1 text-xs [direction:rtl]"
-                                            placeholder="اكتب اسم المدرسة"
-                                            name="itemName"
-                                            value={school}
-                                            onChange={(e) =>
-                                              handleSchoolInputChange(
-                                                eduAdmin.id,
-                                                index,
-                                                e.target.value
-                                              )
-                                            }
-                                          />
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              handleRemoveSchoolInput(
-                                                eduAdmin.id,
-                                                index
-                                              )
-                                            }
-                                          >
-                                            <MinusCircleIcon className="w-3 h-3 text-[#A4A7AE]" />
-                                          </button>
-                                        </div>
-                                      )
-                                    )}
-                                  </div>
+                              {getSchoolsForEduAdmin(eduAdmin.id).length ===
+                                0 && (
+                                <div className="text-center text-[#6c757d] text-xs py-2 [direction:rtl]">
+                                  لا توجد مدارس
                                 </div>
-                              </Form>
-                            ) : (
-                              <div className="bg-[#f1f3f4] p-3 rounded-lg border border-[#dee2e6]">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs font-medium text-[#6c757d] [direction:rtl]">
-                                    إضافة مدرسة
-                                  </span>
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() =>
-                                      handleAddSchoolInput(eduAdmin.id)
-                                    }
-                                    className="ml-auto"
-                                  >
-                                    <img
-                                      src={plusImg}
-                                      alt="plus"
-                                      className="w-3 h-3"
-                                    />
-                                  </Button>
-                                </div>
-                              </div>
-                            )}
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))}
 
-                            {/* Existing Schools */}
-                            {getSchoolsForEduAdmin(eduAdmin.id).map(
-                              (school) => (
-                                <div
-                                  key={school.id}
-                                  className="flex items-center gap-2 px-2 py-1 bg-[#f1f3f4] rounded border border-[#dee2e6]"
-                                >
-                                  <div className="flex-1 text-xs text-[#6c757d] [direction:rtl]">
-                                    {school.name}
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      handleDeleteClick("school", school.id, school.name)
-                                    }
-                                  >
-                                    <MinusCircleIcon className="w-3 h-3 cursor-pointer text-[#A4A7AE] hover:text-red-500 transition-colors" />
-                                  </button>
-                                </div>
-                              )
-                            )}
-
-                            {getSchoolsForEduAdmin(eduAdmin.id).length ===
-                              0 && (
-                              <div className="text-center text-[#6c757d] text-xs py-2 [direction:rtl]">
-                                لا توجد مدارس
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-
-                    {getEduAdminsForRegion(region.id).length === 0 && (
-                      <div className="text-center text-[#6c757d] text-sm py-4 [direction:rtl]">
-                        لا توجد إدارات تعليمية
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              )}
-            </Card>
-          ))}
+                      {getEduAdminsForRegion(region.id).length === 0 && (
+                        <div className="text-center text-[#6c757d] text-sm py-4 [direction:rtl]">
+                          لا توجد إدارات تعليمية
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                )}
+              </Card>
+            ))}
 
           {safeData.regions.length === 0 && (
             <div className="text-center text-[#717680] py-8 [direction:rtl]">
@@ -813,14 +853,12 @@ export const ManageData = (): JSX.Element => {
                     هل أنت متأكد من حذف "{deleteConfirmation.entityName}"؟
                     <br />
                     <span className="text-red-600 font-medium">
-                      تحذير: سيتم حذف جميع {deleteConfirmation.childrenType} المرتبطة 
-                      ({deleteConfirmation.childrenCount} عنصر) أيضاً.
+                      تحذير: سيتم حذف جميع {deleteConfirmation.childrenType}{" "}
+                      المرتبطة ({deleteConfirmation.childrenCount} عنصر) أيضاً.
                     </span>
                   </>
                 ) : (
-                  <>
-                    هل أنت متأكد من حذف "{deleteConfirmation.entityName}"؟
-                  </>
+                  <>هل أنت متأكد من حذف "{deleteConfirmation.entityName}"؟</>
                 )}
               </p>
             </div>
@@ -844,6 +882,164 @@ export const ManageData = (): JSX.Element => {
           </div>
         </div>
       )}
+
+      {/* Single Region Add Section - As shown in image.png */}
+      <div className="w-full bg-white rounded-2xl border border-solid border-[#d0d5dd] mt-8">
+        <div className="p-6">
+          <Form method="post" className="space-y-4">
+            <input type="hidden" name="actionType" value="create" />
+            <input type="hidden" name="entityType" value="region" />
+
+            {/* Header Section - Teal background with save button and title */}
+            <div className="flex w-full h-14 items-center justify-between gap-3 p-5 bg-[#006173] rounded-xl shadow-shadows-shadow-xs">
+              <div className="flex items-center gap-2">
+                <button
+                  type="submit"
+                  className="py-1.5 px-8 bg-white border border-[#D5D7DA] rounded-lg text-[#535861] font-medium hover:bg-gray-100 transition-colors"
+                >
+                  حفظ
+                </button>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="relative w-8 h-8 bg-white rounded-md overflow-hidden border border-solid border-[#e9e9eb] shadow-shadows-shadow-xs-skeuomorphic">
+                  <div className="absolute w-4 h-4 top-2 left-2">
+                    <img src={UserIcon} alt="" />
+                  </div>
+                </div>
+                <span className="font-bold text-white text-base tracking-[0] leading-6">
+                  منطقة الرياض
+                </span>
+              </div>
+            </div>
+
+            {/* Input Section */}
+            <div className="space-y-3">
+              <div className="flex justify-end">
+                <label className="text-[#535861] font-medium text-sm">
+                  المنطقة <span className="text-red-500">*</span>
+                </label>
+              </div>
+              <div className="flex [direction:rtl]">
+                <input
+                  type="text"
+                  name="itemName"
+                  placeholder="اكتب المنطقة المراد اضافتها"
+                  className="flex-1 px-4 py-3 bg-white border border-[#D5D7DA] rounded-lg text-right text-[#535861] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#17b169] focus:border-transparent"
+                  required
+                />
+              </div>
+            </div>
+          </Form>
+        </div>
+      </div>
+
+      {/* Simple Add Forms Section - As shown in Figma design */}
+      <div className="w-full bg-white rounded-2xl border border-solid border-[#d0d5dd] mt-8">
+        <div className="p-6">
+          {/* Region Section - Parent Card */}
+          <div className="bg-white rounded-xl border border-[#e4e7ec] p-6">
+            <Form method="post" className="space-y-4 mb-8">
+              <input type="hidden" name="actionType" value="create" />
+              <input type="hidden" name="entityType" value="region" />
+
+              <div className="flex items-center justify-between mb-6">
+                <button
+                  type="submit"
+                  className="px-6 py-3 bg-[#F8F9FA] border border-[#D5D7DA] rounded-lg text-[#535861] font-medium hover:bg-gray-100 transition-colors"
+                >
+                  حفظ
+                </button>
+                <div className="flex items-center gap-3">
+                  <div className="w-6 h-6 bg-[#17b169] rounded flex items-center justify-center">
+                    <span className="text-white text-sm font-bold">+</span>
+                  </div>
+                  <h3 className="text-lg font-bold text-[#181d27]">المنطقة</h3>
+                </div>
+              </div>
+
+              <div className="flex [direction:rtl]">
+                <input
+                  type="text"
+                  name="itemName"
+                  placeholder="اكتب اسم المنطقة المراد اضافتها"
+                  className="flex-1 px-4 py-3 bg-white border border-[#D5D7DA] rounded-lg text-right text-[#535861] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#17b169] focus:border-transparent"
+                  required
+                />
+              </div>
+            </Form>
+
+            {/* Administration Section - Inside Region */}
+            <div className="bg-white rounded-2xl border border-solid border-[#d0d5dd] p-8">
+              <Form method="post" className="space-y-4 mb-8">
+                <input type="hidden" name="actionType" value="create" />
+                <input type="hidden" name="entityType" value="eduAdmin" />
+
+                <div className="flex items-center justify-between mb-6">
+                  <button
+                    type="submit"
+                    className="px-6 py-3 bg-[#F8F9FA] border border-[#D5D7DA] rounded-lg text-[#535861] font-medium hover:bg-gray-100 transition-colors"
+                  >
+                    حفظ
+                  </button>
+                  <div className="flex items-center gap-3">
+                    <div className="w-6 h-6 bg-[#17b169] rounded flex items-center justify-center">
+                      <span className="text-white text-sm font-bold">+</span>
+                    </div>
+                    <h3 className="text-lg font-bold text-[#181d27]">الإدارة</h3>
+                  </div>
+                </div>
+
+                <div className="flex [direction:rtl]">
+                  <input
+                    type="text"
+                    name="itemName"
+                    placeholder="اكتب اسم الإدارة المراد اضافتها"
+                    className="flex-1 px-4 py-3 bg-white border border-[#D5D7DA] rounded-lg text-right text-[#535861] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#17b169] focus:border-transparent"
+                    required
+                  />
+                </div>
+              </Form>
+
+              {/* School Section - Inside Administration */}
+              <div className="pr-8">
+                <Form method="post" className="space-y-4">
+                  <input type="hidden" name="actionType" value="create" />
+                  <input type="hidden" name="entityType" value="school" />
+
+                  <div className="flex items-center justify-between mb-6">
+                    <button
+                      type="submit"
+                      className="px-6 py-3 bg-[#F8F9FA] border border-[#D5D7DA] rounded-lg text-[#535861] font-medium hover:bg-gray-100 transition-colors"
+                    >
+                      حفظ
+                    </button>
+                    <div className="flex items-center gap-3">
+                      <div className="w-6 h-6 bg-[#17b169] rounded flex items-center justify-center">
+                        <span className="text-white text-sm font-bold">+</span>
+                      </div>
+                      <h3 className="text-lg font-bold text-[#181d27]">المدرسة</h3>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    {/* Multiple school input rows as shown in design */}
+                    {[1, 2, 3, 4].map((index) => (
+                      <div key={index} className="flex [direction:rtl]">
+                        <input
+                          type="text"
+                          name="itemName"
+                          placeholder="اكتب اسم المدرسة المراد اضافتها"
+                          className="flex-1 px-4 py-3 bg-white border border-[#D5D7DA] rounded-lg text-right text-[#535861] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#17b169] focus:border-transparent"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </Form>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
