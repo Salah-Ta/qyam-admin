@@ -129,7 +129,120 @@ export const action = async ({ request, context }: LoaderFunctionArgs) => {
         }
       }
 
-      return json({ status: "success", message: "تم الإنشاء بنجاح", results });
+      return json({ 
+        status: "success", 
+        message: "تم الإنشاء بنجاح", 
+        results,
+        createdEntityType: entityType,
+        createdParentId: parentId
+      });
+    }
+
+    // Handle batch save action
+    if (actionType === "batchSave") {
+      console.log("Batch saving for", entityType);
+      let results = [];
+      
+      // First, update the main entity if needed
+      if (names.length > 0 && typeof names[0] === "string" && names[0].trim() !== "") {
+        let updateResult;
+        switch (entityType) {
+          case "region":
+            updateResult = await regionDB.updateRegion(entityId as string, names[0].trim(), dbUrl);
+            break;
+          case "eduAdmin":
+            updateResult = await eduAdminDB.updateEduAdmin(entityId as string, names[0].trim(), dbUrl);
+            break;
+          default:
+            return json(
+              { status: "error", message: "Invalid entity type for batch save" },
+              { status: 400 }
+            );
+        }
+        results.push(updateResult);
+      }
+
+      // Handle new eduAdmins (only for region batch save)
+      if (entityType === "region") {
+        const newEduAdminsData = formData.getAll("newEduAdmins");
+        const createdEduAdmins = []; // Track created eduAdmins for schools
+        
+        for (let i = 0; i < newEduAdminsData.length; i++) {
+          const eduAdminData = newEduAdminsData[i];
+          try {
+            const parsedEduAdmin = JSON.parse(eduAdminData as string);
+            if (parsedEduAdmin.name && parsedEduAdmin.regionId) {
+              const result = await eduAdminDB.createEduAdmin(
+                parsedEduAdmin.name,
+                dbUrl,
+                parsedEduAdmin.regionId
+              );
+              results.push(result);
+              
+              // Store the created eduAdmin with its index for school assignment
+              if (result.success && result.data) {
+                createdEduAdmins.push({
+                  index: i,
+                  id: result.data.id
+                });
+              }
+            }
+          } catch (error) {
+            console.error("Error parsing eduAdmin data:", error);
+          }
+        }
+
+        // Handle schools for new eduAdmins
+        const newSchoolsForNewEduAdminsData = formData.getAll("newSchoolsForNewEduAdmins");
+        for (const schoolData of newSchoolsForNewEduAdminsData) {
+          try {
+            const parsedSchool = JSON.parse(schoolData as string);
+            if (parsedSchool.name && parsedSchool.newEduAdminIndex !== undefined) {
+              // Find the created eduAdmin by index
+              const createdEduAdmin = createdEduAdmins.find(
+                ea => ea.index === parsedSchool.newEduAdminIndex
+              );
+              
+              if (createdEduAdmin) {
+                const result = await schoolDB.createSchool(
+                  parsedSchool.name,
+                  "",
+                  dbUrl,
+                  createdEduAdmin.id
+                );
+                results.push(result);
+              }
+            }
+          } catch (error) {
+            console.error("Error parsing school data for new eduAdmin:", error);
+          }
+        }
+      }
+
+      // Handle new schools (for both region and eduAdmin batch save)
+      const newSchoolsData = formData.getAll("newSchools");
+      for (const schoolData of newSchoolsData) {
+        try {
+          const parsedSchool = JSON.parse(schoolData as string);
+          if (parsedSchool.name && parsedSchool.eduAdminId) {
+            const result = await schoolDB.createSchool(
+              parsedSchool.name,
+              "",
+              dbUrl,
+              parsedSchool.eduAdminId
+            );
+            results.push(result);
+          }
+        } catch (error) {
+          console.error("Error parsing school data:", error);
+        }
+      }
+
+      return json({ 
+        status: "success", 
+        message: "تم الحفظ بنجاح", 
+        results
+      });
     }
 
     return json(
@@ -176,6 +289,8 @@ export const ManageData = (): JSX.Element => {
         status: string;
         message?: string;
         results?: any[];
+        createdEntityType?: string;
+        createdParentId?: string;
       }
     | undefined;
 
@@ -212,10 +327,6 @@ export const ManageData = (): JSX.Element => {
   // Update data when action returns success
   useEffect(() => {
     if (actionData?.status === "success") {
-      // Handle different entity creation types
-      const formData = new FormData();
-      // We need to track what was just created to auto-add children
-      
       // Clear current input states
       setNewRegions([]);
       setNewEduAdmins({});
@@ -225,30 +336,32 @@ export const ManageData = (): JSX.Element => {
       // Revalidate to get updated data
       revalidator.revalidate();
       
-      // Auto-add empty inputs after a short delay to allow data to load
-      setTimeout(() => {
-        // If we have regions and the last one was just created, add empty eduAdmin
-        if (safeData.regions && safeData.regions.length > 0) {
-          const latestRegion = safeData.regions
-            .slice()
-            .sort((a, b) => {
-              if (a.createdAt && b.createdAt) {
-                return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-              }
-              return b.id.localeCompare(a.id, undefined, { numeric: true });
-            })[0];
-          
-          // Add empty eduAdmin input for the latest region
-          if (latestRegion) {
-            setNewEduAdmins(prev => ({
-              ...prev,
-              [latestRegion.id]: [""]
-            }));
+      // Auto-add empty inputs based on what was just created
+      if (actionData.createdEntityType && actionData.results && actionData.results.length > 0) {
+        setTimeout(() => {
+          if (actionData.createdEntityType === "region") {
+            // When a region is created, auto-add empty eduAdmin input
+            const newRegionResult = actionData.results[0];
+            if (newRegionResult?.success && newRegionResult.data?.id) {
+              setNewEduAdmins(prev => ({
+                ...prev,
+                [newRegionResult.data.id]: [""]
+              }));
+            }
+          } else if (actionData.createdEntityType === "eduAdmin" && actionData.createdParentId) {
+            // When an eduAdmin is created, auto-add empty school input
+            const newEduAdminResult = actionData.results[0];
+            if (newEduAdminResult?.success && newEduAdminResult.data?.id) {
+              setNewSchools(prev => ({
+                ...prev,
+                [newEduAdminResult.data.id]: [""]
+              }));
+            }
           }
-        }
-      }, 100);
+        }, 100);
+      }
     }
-  }, [actionData, revalidator, safeData.regions]);
+  }, [actionData, revalidator]);
 
   // Helper functions with safe navigation
   const getEduAdminsForRegion = (regionId: string): EntityItem[] => {
@@ -502,9 +615,54 @@ export const ManageData = (): JSX.Element => {
               <div key={region.id} className="bg-white rounded-xl border-2 border-[#D5D7DA] shadow-lg p-6 mb-8">
                 {/* Region Form - Using region data */}
                 <Form method="post" className="space-y-4 mb-8">
-                  <input type="hidden" name="actionType" value="update" />
+                  <input type="hidden" name="actionType" value="batchSave" />
                   <input type="hidden" name="entityType" value="region" />
                   <input type="hidden" name="entityId" value={region.id} />
+
+                  {/* Include all new eduAdmins for this region */}
+                  {newEduAdmins[region.id] && newEduAdmins[region.id].map((eduAdminName, index) => (
+                    eduAdminName.trim() && (
+                      <input
+                        key={index}
+                        type="hidden"
+                        name="newEduAdmins"
+                        value={JSON.stringify({ name: eduAdminName.trim(), regionId: region.id })}
+                      />
+                    )
+                  ))}
+
+                  {/* Include all new schools for existing eduAdmins in this region */}
+                  {getEduAdminsForRegion(region.id).map((eduAdmin) => (
+                    newSchools[eduAdmin.id] && newSchools[eduAdmin.id].map((schoolName, index) => (
+                      schoolName.trim() && (
+                        <input
+                          key={`${eduAdmin.id}-${index}`}
+                          type="hidden"
+                          name="newSchools"
+                          value={JSON.stringify({ name: schoolName.trim(), eduAdminId: eduAdmin.id })}
+                        />
+                      )
+                    ))
+                  ))}
+
+                  {/* Include all new schools for new eduAdmins in this region */}
+                  {newEduAdmins[region.id] && newEduAdmins[region.id].map((eduAdminName, eduAdminIndex) => (
+                    newSchools[`new-eduadmin-${region.id}-${eduAdminIndex}`] && 
+                    newSchools[`new-eduadmin-${region.id}-${eduAdminIndex}`].map((schoolName, schoolIndex) => (
+                      schoolName.trim() && (
+                        <input
+                          key={`new-${region.id}-${eduAdminIndex}-${schoolIndex}`}
+                          type="hidden"
+                          name="newSchoolsForNewEduAdmins"
+                          value={JSON.stringify({ 
+                            name: schoolName.trim(), 
+                            newEduAdminIndex: eduAdminIndex,
+                            regionId: region.id 
+                          })}
+                        />
+                      )
+                    ))
+                  ))}
 
                   <div className="flex items-center justify-between mb-6">
                     <button
@@ -635,10 +793,22 @@ export const ManageData = (): JSX.Element => {
                   <div key={eduAdmin.id} className="bg-white rounded-2xl border border-solid border-[#d0d5dd] p-8 mb-6">
                     {/* EduAdmin Form - Using eduAdmin data */}
                     <Form method="post" className="space-y-4 mb-8">
-                      <input type="hidden" name="actionType" value="update" />
+                      <input type="hidden" name="actionType" value="batchSave" />
                       <input type="hidden" name="entityType" value="eduAdmin" />
                       <input type="hidden" name="entityId" value={eduAdmin.id} />
                       <input type="hidden" name="parentId" value={region.id} />
+                      
+                      {/* Include all new schools for this eduAdmin */}
+                      {newSchools[eduAdmin.id] && newSchools[eduAdmin.id].map((schoolName, index) => (
+                        schoolName.trim() && (
+                          <input
+                            key={index}
+                            type="hidden"
+                            name="newSchools"
+                            value={JSON.stringify({ name: schoolName.trim(), eduAdminId: eduAdmin.id })}
+                          />
+                        )
+                      ))}
 
                       <div className="flex items-center justify-between mb-6">
                         <button
@@ -655,9 +825,13 @@ export const ManageData = (): JSX.Element => {
                           >
                             <XIcon className="w-4 h-4 text-white" />
                           </button>
-                          <div className="w-6 h-6 bg-[#17b169] rounded flex items-center justify-center">
+                          <button
+                            type="button"
+                            onClick={() => handleAddSchoolInput(eduAdmin.id)}
+                            className="w-6 h-6 bg-[#17b169] rounded flex items-center justify-center hover:bg-[#15a062] transition-colors"
+                          >
                             <span className="text-white text-sm font-bold">+</span>
-                          </div>
+                          </button>
                           <h3 className="text-lg font-bold text-[#181d27]">{eduAdmin.name}</h3>
                         </div>
                       </div>
@@ -694,25 +868,14 @@ export const ManageData = (): JSX.Element => {
                         {/* New School Inputs - Show first */}
                         {newSchools[eduAdmin.id] &&
                         newSchools[eduAdmin.id].map((schoolName, index) => (
-                          <Form key={index} method="post" className="flex items-center gap-2 [direction:rtl]">
-                            <input type="hidden" name="actionType" value="create" />
-                            <input type="hidden" name="entityType" value="school" />
-                            <input type="hidden" name="parentId" value={eduAdmin.id} />
-                            
+                          <div key={index} className="flex items-center gap-2 [direction:rtl]">
                             <input
                               type="text"
-                              name="itemName"
                               value={schoolName}
                               onChange={(e) => handleSchoolInputChange(eduAdmin.id, index, e.target.value)}
                               placeholder="اكتب اسم المدرسة المراد اضافتها"
                               className="flex-1 px-4 py-3 bg-white border border-[#D5D7DA] rounded-lg text-right text-[#535861] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#17b169] focus:border-transparent"
                             />
-                            <button
-                              type="submit"
-                              className="px-3 py-2 bg-[#17b169] text-white rounded-lg hover:bg-[#15a062] transition-colors"
-                            >
-                              حفظ
-                            </button>
                             <button
                               type="button"
                               onClick={() => handleRemoveSchoolInput(eduAdmin.id, index)}
@@ -720,7 +883,7 @@ export const ManageData = (): JSX.Element => {
                             >
                               <XIcon className="w-4 h-4 text-white" />
                             </button>
-                          </Form>
+                          </div>
                         ))}
 
                         {/* Show existing schools */}
