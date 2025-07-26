@@ -73,251 +73,9 @@ export async function loader({ context }: LoaderFunctionArgs) {
   }
 }
 
-// export async function action({ request, context }: ActionFunctionArgs) {
-//   const contentType = request.headers.get("Content-Type") || "";
-//   const formData = await request.formData();
-//   const actionType = formData.get("actionType") as string;
-
-//   // Handle article operations
-//   if (actionType === "deleteArticle") {
-//     try {
-//       await articleDB.deleteArticle(
-//         formData.get("id") as string,
-//         context.cloudflare.env.DATABASE_URL
-//       );
-//       return Response.json(
-//         { success: true },
-//         {
-//           headers: await createToastHeaders({
-//             description: "",
-//             title: `تم حذف المقال بنجاح`,
-//             type: "success",
-//           }),
-//         }
-//       );
-//     } catch {
-//       return Response.json(
-//         { success: false },
-//         {
-//           headers: await createToastHeaders({
-//             description: "",
-//             title: `فشلت عملية حذف المقال`,
-//             type: "error",
-//           }),
-//         }
-//       );
-//     }
-//   }
-
-//   if (actionType === "updateArticle") {
-//     try {
-//       await articleDB.updateArticle(
-//         {
-//           id: formData.get("id") as string,
-//           title: formData.get("title") as string,
-//           description: formData.get("description") as string,
-//           content: formData.get("content") as string,
-//           image: formData.get("image") as string,
-//         },
-//         context.cloudflare.env.DATABASE_URL
-//       );
-//       return Response.json(
-//         { success: true },
-//         {
-//           headers: await createToastHeaders({
-//             description: "",
-//             title: `تم تحديث المقال بنجاح`,
-//             type: "success",
-//           }),
-//         }
-//       );
-//     } catch {
-//       return Response.json(
-//         { success: false },
-//         {
-//           headers: await createToastHeaders({
-//             description: "",
-//             title: `فشلت عملية تحديث المقال`,
-//             type: "error",
-//           }),
-//         }
-//       );
-//     }
-//   }
-
-//   if (actionType === "createArticle") {
-//     try {
-//       await articleDB.createArticle(
-//         {
-//           title: formData.get("title") as string,
-//           description: formData.get("description") as string,
-//           content: formData.get("content") as string,
-//           image: formData.get("image") as string,
-//         },
-//         context.cloudflare.env.DATABASE_URL
-//       );
-//       return Response.json(
-//         { success: true },
-//         {
-//           headers: await createToastHeaders({
-//             description: "",
-//             title: `تم إنشاء المقال بنجاح`,
-//             type: "success",
-//           }),
-//         }
-//       );
-//     } catch {
-//       return Response.json(
-//         { success: false },
-//         {
-//           headers: await createToastHeaders({
-//             description: "",
-//             title: `فشلت عملية إنشاء المقال`,
-//             type: "error",
-//           }),
-//         }
-//       );
-//     }
-//   }
-
-//   // Handle file uploads
-//   if (contentType.includes("multipart/form-data")) {
-//     try {
-//       const formData = await request.clone().formData();
-//       const categoryId = formData.get("categoryId");
-//       const uploadHandler = async ({ data, filename, contentType }: any) => {
-//         const key = `${Date.now()}-${createId()}.${filename?.split(".")[1]}`;
-//         const dataArray: any[] = [];
-//         for await (const x of data) dataArray.push(x);
-//         const file = new File(dataArray, filename, { type: contentType });
-//         const buffer = await file.arrayBuffer();
-//         await context.cloudflare.env.QYAM_BUCKET.put(key, buffer, {
-//           httpMetadata: { contentType },
-//         });
-//         await materialDB.createMaterial(
-//           {
-//             title: filename,
-//             storageKey: key,
-//             categoryId: categoryId as string,
-//             published: true,
-//           },
-//           context.cloudflare.env.DATABASE_URL
-//         );
-//         return true;
-//       };
-//       await unstable_parseMultipartFormData(request, uploadHandler as any);
-//       return Response.json(
-//         { success: true },
-//         {
-//           headers: await createToastHeaders({
-//             description: "",
-//             title: `تم رفع الملفات  بنجاح`,
-//             type: "success",
-//           }),
-//         }
-//       );
-//     } catch (error) {
-//       console.error("Upload error:", error);
-//       return Response.json(
-//         { success: false },
-//         {
-//           headers: await createToastHeaders({
-//             description: "",
-//             title: `فشل رفع الملفات`,
-//             type: "error",
-//           }),
-//         }
-//       );
-//     }
-//   } else {
-//     // Handle material delete
-//     try {
-//       const formData = await request.formData();
-//       await materialDB.deleteMaterial(
-//         formData.get("id") as string,
-//         context.cloudflare.env.DATABASE_URL
-//       );
-//       return Response.json(
-//         { success: true },
-//         {
-//           headers: await createToastHeaders({
-//             description: "",
-//             title: `تم حذف الملف  بنجاح`,
-//             type: "success",
-//           }),
-//         }
-//       );
-//     } catch {
-//       return Response.json(
-//         { success: false },
-//         {
-//           headers: await createToastHeaders({
-//             description: "",
-//             title: `فشلت عملية حذف  الملفات`,
-//             type: "error",
-//           }),
-//         }
-//       );
-//     }
-//   }
-// }
-
 export async function action({ request, context }: ActionFunctionArgs) {
-
-  const uploadHandler = async ({ data, filename, contentType }: any) => {
-        const key = `${Date.now()}-${createId()}.${filename?.split(".")[1]}`;
-        const dataArray: any[] = [];
-        for await (const x of data) dataArray.push(x);
-        const file = new File(dataArray, filename, { type: contentType });
-        const buffer = await file.arrayBuffer();
-        await context.cloudflare.env.QYAM_BUCKET.put(key, buffer, {
-          httpMetadata: { contentType },
-        });
-        await materialDB.createMaterial(
-          {
-            title: filename,
-            storageKey: key,
-            categoryId: "1",
-            published: true,
-          },
-          context.cloudflare.env.DATABASE_URL
-        );
-        return true;
-      };
-      
   const contentType = request.headers.get("Content-Type") || "";
-  // Handle file uploads
-  if (contentType.includes("multipart/form-data")) {
-    try {
-      const formData = await request.clone().formData();
-      const categoryId = formData.get("categoryId");
-      
-      await unstable_parseMultipartFormData(request, uploadHandler as any);
-      return Response.json(
-        { success: true },
-        {
-          headers: await createToastHeaders({
-            description: "",
-            title: 'تم رفع الملفات  بنجاح',
-            type: "success",
-          }),
-        }
-      );
-    } catch (error) {
-      console.error("Upload error:", error);
-      return Response.json(
-        { success: false },
-        {
-          headers: await createToastHeaders({
-            description: "",
-            title: 'فشل رفع الملفات',
-            type: "error",
-          }),
-        }
-      );
-    }
-  } else {
-      const formData = await request.formData();
+  const formData = await request.formData();
   const actionType = formData.get("actionType") as string;
 
   // Handle article operations
@@ -332,7 +90,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         {
           headers: await createToastHeaders({
             description: "",
-            title: 'تم حذف المقال بنجاح',
+            title: `تم حذف المقال بنجاح`,
             type: "success",
           }),
         }
@@ -343,7 +101,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         {
           headers: await createToastHeaders({
             description: "",
-            title: 'فشلت عملية حذف المقال',
+            title: `فشلت عملية حذف المقال`,
             type: "error",
           }),
         }
@@ -368,7 +126,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         {
           headers: await createToastHeaders({
             description: "",
-            title: 'تم تحديث المقال بنجاح',
+            title: `تم تحديث المقال بنجاح`,
             type: "success",
           }),
         }
@@ -379,7 +137,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         {
           headers: await createToastHeaders({
             description: "",
-            title: 'فشلت عملية تحديث المقال',
+            title: `فشلت عملية تحديث المقال`,
             type: "error",
           }),
         }
@@ -403,7 +161,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         {
           headers: await createToastHeaders({
             description: "",
-            title: 'تم إنشاء المقال بنجاح',
+            title: `تم إنشاء المقال بنجاح`,
             type: "success",
           }),
         }
@@ -414,7 +172,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         {
           headers: await createToastHeaders({
             description: "",
-            title: 'فشلت عملية إنشاء المقال',
+            title: `فشلت عملية إنشاء المقال`,
             type: "error",
           }),
         }
@@ -422,11 +180,61 @@ export async function action({ request, context }: ActionFunctionArgs) {
     }
   }
 
-  // Handle material delete
-  try {
-    const formData = await request.formData();
-    await materialDB.deleteMaterial(
-      formData.get("id") as string,
+  // Handle file uploads
+  if (contentType.includes("multipart/form-data")) {
+    try {
+      const formData = await request.clone().formData();
+      const categoryId = formData.get("categoryId");
+      const uploadHandler = async ({ data, filename, contentType }: any) => {
+        const key = `${Date.now()}-${createId()}.${filename?.split(".")[1]}`;
+        const dataArray: any[] = [];
+        for await (const x of data) dataArray.push(x);
+        const file = new File(dataArray, filename, { type: contentType });
+        const buffer = await file.arrayBuffer();
+        await context.cloudflare.env.QYAM_BUCKET.put(key, buffer, {
+          httpMetadata: { contentType },
+        });
+        await materialDB.createMaterial(
+          {
+            title: filename,
+            storageKey: key,
+            categoryId: categoryId as string,
+            published: true,
+          },
+          context.cloudflare.env.DATABASE_URL
+        );
+        return true;
+      };
+      await unstable_parseMultipartFormData(request, uploadHandler as any);
+      return Response.json(
+        { success: true },
+        {
+          headers: await createToastHeaders({
+            description: "",
+            title: `تم رفع الملفات  بنجاح`,
+            type: "success",
+          }),
+        }
+      );
+    } catch (error) {
+      console.error("Upload error:", error);
+      return Response.json(
+        { success: false },
+        {
+          headers: await createToastHeaders({
+            description: "",
+            title: `فشل رفع الملفات`,
+            type: "error",
+          }),
+        }
+      );
+    }
+  } else {
+    // Handle material delete
+    try {
+      const formData = await request.formData();
+      await materialDB.deleteMaterial(
+        formData.get("id") as string,
         context.cloudflare.env.DATABASE_URL
       );
       return Response.json(
@@ -434,7 +242,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         {
           headers: await createToastHeaders({
             description: "",
-            title: 'تم حذف الملف بنجاح',
+            title: `تم حذف الملف  بنجاح`,
             type: "success",
           }),
         }
@@ -445,7 +253,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         {
           headers: await createToastHeaders({
             description: "",
-            title: 'فشلت عملية حذف الملفات',
+            title: `فشلت عملية حذف  الملفات`,
             type: "error",
           }),
         }
