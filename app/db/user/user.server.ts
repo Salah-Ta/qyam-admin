@@ -19,14 +19,39 @@ const transformUser = (user: any) => {
   };
 };
 
-const editUserRegisteration = (userId: string, status: AcceptenceState, dbUrl?: string, emailConfig?: {
+const editUserRegisteration = 
+(userId: string, status: AcceptenceState, 
+  dbUrl?: string, emailConfig?: {
   resendApi: string;
   mainEmail: string;
   userEmail: string;
-},
-  previousStatus?: AcceptenceState) => {
+}) => {
 
   const db = initializeDatabase(dbUrl);
+  // Check if emailConfig is provided, if not, set it to an empty object
+    emailConfig = emailConfig || {
+      resendApi: process.env.RESEND_API || "",
+      mainEmail: process.env.MAIN_EMAIL || "",
+      userEmail: "" // This will be set later if not provided
+    };
+
+    // Get the user email from the database if not provided
+    if (!emailConfig?.userEmail) {
+      db.user.findUnique({
+        where: { id: userId },
+        select: { email: true }
+      }).then(user => {
+        if (user) {
+          emailConfig = {
+            resendApi: emailConfig?.resendApi || "",
+            mainEmail: emailConfig?.mainEmail || "",
+            userEmail: user.email
+          };
+        }
+      }).catch(error => {
+        console.error("Error fetching user email:", error);
+      });
+    }
 
   return new Promise((resolve, reject) => {
     db.user.update({
@@ -34,36 +59,24 @@ const editUserRegisteration = (userId: string, status: AcceptenceState, dbUrl?: 
       where: { id: userId }
     }).then(async () => {
       // Send email notification if status is accepted or denied
-      if ((status === "accepted" || status === "denied" || status === "pending" || status === "idle") && emailConfig) {
+        if (status && emailConfig) {
+          // Console log the emailConfig & userEmail & status for debugging
+          console.log("Email Config:", emailConfig);
+          console.log("User Email:", emailConfig.userEmail);
+          console.log("Status:", status);
+          // Send email
+          await sendEmail({
+            to: emailConfig!.userEmail,
+            subject: glossary.email.program_status_subject,
+            template: "program-status",
+            props: { status, name: "" },
+            text: '',
+          },
+            emailConfig!.resendApi,
+            emailConfig!.mainEmail);
 
-        let emailText;
-        switch (status) {
-          case "accepted":
-            emailText = previousStatus === "idle" ? glossary.email.reactivation_message : glossary.email.acceptance_message;
-            break;
-          case "denied":
-            emailText = glossary.email.rejection_message;
-            break;
-          case "pending":
-            emailText = glossary.email.registration_message;
-            break;
-          case "idle":
-            emailText = glossary.email.suspension_message;
-            break;
+          console.log("✅ Email sent successfully");
         }
-        // Send email
-        await sendEmail({
-          to: emailConfig!.userEmail,
-          subject: glossary.email.program_status_subject,
-          template: "program-status",
-          props: { status, name: "" },
-          text: emailText,
-        },
-          emailConfig!.resendApi,
-          emailConfig!.mainEmail);
-
-        console.log("✅ Email sent successfully");
-      }
     }).then(() => {
       resolve({ status: "success", message: glossary.status_response.success[status === "accepted" ? "user_accepted" : "user_denied"] })
     }).catch((error: any) => {
@@ -219,6 +232,31 @@ Promise<StatusResponse<QUser>> => {
   });
 };
 
+const getUserByEmail = (email: string, dbUrl?: string): Promise<StatusResponse<QUser | null>> => {
+  const db = initializeDatabase(dbUrl);
+
+  return new Promise((resolve, reject) => {
+    db.user
+      .findUnique({
+        where: { email },
+      })
+      .then((user) => {
+        if (!user) {
+          resolve({ status: "error", message: "لم يتم العثور على المستخدم", data: null });
+        } else {
+          resolve({ status: "success", data: user });
+        }
+      })
+      .catch((error: any) => {
+        console.log("ERROR [getUserByEmail]: ", error);
+        reject({
+          status: "error",
+          message: glossary.status_response.error.general,
+        });
+      });
+  });
+};
+
 const createUser = (userData: {
   name: string,
   email: string,
@@ -228,7 +266,7 @@ const createUser = (userData: {
   regionId?: string,
   eduAdminId?: string,
   schoolId?: string
-}, dbUrl?: string): Promise<StatusResponse<null>> => {
+}, dbUrl?: string, emailConfig?: { resendApi: string, mainEmail: string }): Promise<StatusResponse<null>> => {
 
   const db = initializeDatabase(dbUrl);
 
@@ -238,6 +276,21 @@ const createUser = (userData: {
         data: userData
       })
       .then(() => {
+        // Send email notification if email is provided
+        if (userData.email) {
+          // Check if emailConfig is provided, if not, set it to an empty object
+          emailConfig = emailConfig || {
+            resendApi: process.env.RESEND_API || "",
+            mainEmail: process.env.MAIN_EMAIL || "",
+          };
+          await sendEmail({
+            to: userData.email,
+            subject: glossary.email.program_status_subject,
+            template: "user-registration",
+            props: { name: userData.name },
+            text: '',
+          }, emailConfig.resendApi, emailConfig.mainEmail);
+        }
         resolve({
           status: "success",
           message: "تم إنشاء المستخدم بنجاح",
@@ -475,6 +528,7 @@ export default {
   bulkEditUserRegisteration,
   getAllUsers,
   getUser,
+  getUserByEmail,
   createUser,
   updateUser,
   deleteUser,

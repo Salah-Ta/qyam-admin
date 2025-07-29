@@ -292,3 +292,60 @@ export const statusTemplate = (props: { status: string; name: string }) => `<!DO
 </div>
 </body>
 </html>`
+
+export const registerTemplate = (props: { name: string }) => `<!DOCTYPE html>
+<html dir="rtl">
+<head>
+    <meta name="x-apple-disable-message-reformatting">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        @font-face {
+            font-family: 'notosansarabic';
+            src: url('https://fonts.gstatic.com/s/notosansarabic/v28/nwpCtLGrOAZMl5nJ_wfgRg3DrWFZWsnVBJ_sS6tlqHHFlj4wv4rqxzLI.woff2') format('woff2');
+            font-weight: 400;
+            font-style: normal;
+        }
+    </style>
+</head>
+<body>
+    <div style="max-width: 600px; margin: 0 auto; padding: 16px;">
+        <h1 style="font-size: 1.5rem; text-align: center;">مرحبًا ${props.name}!</h1>
+        <p style="font-size: 1rem; text-align: center;">شكرًا لتسجيلك في خدمتنا.</p>
+        <p style="font-size: 1rem; text-align: center;"> سيتم مراجعة طلبك قريبًا.</p>
+    </div>
+</body>
+</html>`
+
+export const userUpdateTemplate = (props: { name: string; status: string }) => `<!DOCTYPE html>
+<html dir="rtl">
+<head>
+    <meta name="x-apple-disable-message-reformatting">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        @font-face {
+            font-family: 'notosansarabic';
+            src: url('https://fonts.gstatic.com/s/notosansarabic/v28/nwpCtLGrOAZMl5nJ_wfgRg3DrWFZWsnVBJ_sS6tlqHHFlj4wv4rqxzLI.woff2') format('woff2');
+            font-weight: 400;
+            font-style: normal;
+        }
+    </style>
+</head>
+<body style="font-family: sans-serif; margin: 0; padding: 0;">
+    <div style="max-width: 600px; margin: 0 auto; padding: 16px;">
+        <h1 style="font-size: 1.5rem; text-align: center;">تحديث حالة المستخدم</h1>
+        <p style="font-size: 1rem; text-align: center;">مرحبًا ${props.name}،</p>
+        <p style="font-size: 1rem; text-align: center;">لقد تم تحديث حالة طلبك إلى: ${props.status}</p>
+        ${props.status === 'accepted' ? (
+            `<p style="font-size: 1rem; text-align: center;">تهانينا! تم قبول طلبك.</p>`
+        ) : props.status === 'denied' ? (
+            `<p style="font-size: 1rem; text-align: center;">نأسف، تم رفض طلبك.</p>`
+        ) : props.status === 'pending' ? (
+            `<p style="font-size: 1rem; text-align: center;">حالة طلبك قيد المراجعة.</p>`
+        ) : props.status === 'rejected' ? (
+            `<p style="font-size: 1rem; text-align: center;">تم رفض طلبك.</p>`
+        ) : props.status === 'idle' ? (
+            `<p style="font-size: 1rem; text-align: center;">حالة طلبك غير نشطة.</p>`
+        ) : null}
+    </div>
+</body>
+</html>`
