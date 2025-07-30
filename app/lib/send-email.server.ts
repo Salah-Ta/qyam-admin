@@ -1,5 +1,5 @@
 import { Resend } from "resend";
-import { resetTemplate, statusTemplate } from "~/components/emails/constants";
+import { registerTemplate, resetTemplate, statusTemplate } from "~/components/emails/constants";
 // import ProgramStatus from "~/components/emails/programStatus";
 // import PasswordResetEmail from "~/components/emails/passwordResetEmail";
 // import { render } from "@react-email/render";
@@ -12,7 +12,7 @@ const getResendObject = (key: string) => {
   return resend;
 };
 
-type EmailTemplate = "program-status" | "password-reset" | "contact";
+type EmailTemplate = "user-registration" | "program-status" | "password-reset" | "contact";
 
 interface SendEmailProps {
   to: string | string[];
@@ -32,6 +32,9 @@ export const sendEmail = async ({
   const resend = getResendObject(apiKey);
   let emailComponent="";
   switch (template) {
+    case "user-registration":
+      emailComponent = registerTemplate(props)
+      break;
     case "program-status":
       emailComponent =statusTemplate(props)
       break;
