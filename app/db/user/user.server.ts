@@ -304,7 +304,7 @@ const createUser = (userData: {
       .create({
         data: userData
       })
-      .then(() => {
+      .then(async () => {
         // Send email notification if email is provided
         if (userData.email) {
           // Check if emailConfig is provided, if not, set it to an empty object

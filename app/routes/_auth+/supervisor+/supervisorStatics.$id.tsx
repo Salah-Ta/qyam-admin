@@ -1,4 +1,10 @@
-import React, { Component, ErrorInfo, ReactNode, useState, useEffect } from "react";
+import React, {
+  Component,
+  ErrorInfo,
+  ReactNode,
+  useState,
+  useEffect,
+} from "react";
 
 // Error Boundary Component
 interface ErrorBoundaryProps {
@@ -22,39 +28,51 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    console.error('SupervisorStatistics Error Boundary caught an error:', error, errorInfo);
+    console.error(
+      "SupervisorStatistics Error Boundary caught an error:",
+      error,
+      errorInfo
+    );
   }
 
   render(): ReactNode {
     if (this.state.hasError) {
-      return this.props.fallback || (
-        <div className="bg-[#f9f9f9] min-h-screen flex items-center justify-center">
-          <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full mx-4">
-            <div className="text-center">
-              <h2 className="text-xl font-bold text-red-600 mb-4">خطأ في عرض الصفحة</h2>
-              <p className="text-gray-600 mb-6">حدث خطأ غير متوقع. يرجى إعادة تحميل الصفحة.</p>
-              <button 
-                onClick={() => window.location.reload()}
-                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors mr-2"
-              >
-                إعادة تحميل
-              </button>
-              <button 
-                onClick={() => window.location.href = "/dashboard/admin/users"}
-                className="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition-colors"
-              >
-                العودة
-              </button>
+      return (
+        this.props.fallback || (
+          <div className="bg-[#f9f9f9] min-h-screen flex items-center justify-center">
+            <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full mx-4">
+              <div className="text-center">
+                <h2 className="text-xl font-bold text-red-600 mb-4">
+                  خطأ في عرض الصفحة
+                </h2>
+                <p className="text-gray-600 mb-6">
+                  حدث خطأ غير متوقع. يرجى إعادة تحميل الصفحة.
+                </p>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors mr-2"
+                >
+                  إعادة تحميل
+                </button>
+                <button
+                  onClick={() =>
+                    (window.location.href = "/dashboard/admin/users")
+                  }
+                  className="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                  العودة
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        )
       );
     }
 
     return this.props.children;
   }
 }
-import content from "../../../assets/images/new-design/supervisor-profile.png";
+import content from "../../../assets/icons/user.png";
 import verified from "../../../assets/icons/Verified-tick.svg";
 import students from "../../../assets/icons/students.svg";
 import { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/cloudflare";
@@ -75,28 +93,28 @@ import {
 import { Doughnut, Bar } from "react-chartjs-2";
 import { cn } from "~/lib/utils";
 import { useNavigate } from "@remix-run/react";
-import { PlusIcon, ArrowLeftIcon } from "lucide-react";
+import { PlusIcon, ArrowLeftIcon, CheckIcon } from "lucide-react";
 
 // Client-only wrapper component to prevent hydration issues
-const ClientOnly: React.FC<{ children: React.ReactNode; fallback?: React.ReactNode }> = ({ 
-  children, 
-  fallback = null 
-}) => {
+const ClientOnly: React.FC<{
+  children: React.ReactNode;
+  fallback?: React.ReactNode;
+}> = ({ children, fallback = null }) => {
   const [hasMounted, setHasMounted] = useState(false);
-  
+
   useEffect(() => {
     setHasMounted(true);
   }, []);
-  
+
   if (!hasMounted) {
     return fallback as React.ReactElement;
   }
-  
+
   return children as React.ReactElement;
 };
 
 // Ensure Chart.js is properly initialized on client side
-if (typeof window !== 'undefined') {
+if (typeof window !== "undefined") {
   // Register Chart.js components
   ChartJS.register(
     ArcElement,
@@ -114,28 +132,35 @@ if (typeof window !== 'undefined') {
 // Add loader function to get the user data and statistics based on ID
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
   const userId = params?.id;
-  
+
   if (!userId) {
     throw new Response("User ID is required", { status: 400 });
   }
-  
+
   try {
     // Import database functions with safe fallback
     const userDB = (await import("~/db/user/user.server")).default;
-    const statisticsDB = (await import("~/db/statistics/statistics.server")).default;
-    
+    const statisticsDB = (await import("~/db/statistics/statistics.server"))
+      .default;
+
     // Get user data with timeout protection
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Database operation timeout')), 10000)
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Database operation timeout")), 10000)
     );
-    
-    const userPromise = userDB.getUser(userId, context?.cloudflare?.env?.DATABASE_URL);
-    const userResult = await Promise.race([userPromise, timeoutPromise]) as any;
-    
+
+    const userPromise = userDB.getUser(
+      userId,
+      context?.cloudflare?.env?.DATABASE_URL
+    );
+    const userResult = (await Promise.race([
+      userPromise,
+      timeoutPromise,
+    ])) as any;
+
     if (!userResult || userResult.status === "error" || !userResult.data) {
       throw new Response("User not found", { status: 404 });
     }
-    
+
     // Get user statistics using the new getUserStatisticsById function
     let finalStatistics: UserStatistics = {
       reportsCount: 0,
@@ -145,17 +170,23 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
       activitiesCount: 0,
       volunteerCount: 0,
       skillsEconomicValue: 0,
-      skillsTrainedCount: 0
+      skillsTrainedCount: 0,
     };
-    
+
     try {
       // Get user statistics from the statistics service
-      console.log('Fetching user statistics for userId:', userId);
-      const statsPromise = statisticsDB.getUserStatisticsById(userId, context?.cloudflare?.env?.DATABASE_URL);
-      const statsResult = await Promise.race([statsPromise, timeoutPromise]) as UserStatistics;
-      
-      console.log('User stats result:', statsResult);
-      
+      console.log("Fetching user statistics for userId:", userId);
+      const statsPromise = statisticsDB.getUserStatisticsById(
+        userId,
+        context?.cloudflare?.env?.DATABASE_URL
+      );
+      const statsResult = (await Promise.race([
+        statsPromise,
+        timeoutPromise,
+      ])) as UserStatistics;
+
+      console.log("User stats result:", statsResult);
+
       if (statsResult) {
         finalStatistics = statsResult;
       }
@@ -163,72 +194,84 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
       console.error("Error fetching user statistics:", error);
       // Continue with default statistics
     }
-    
+
     return Response.json({
       user: userResult.data,
       statistics: finalStatistics,
-      reports: [] // We don't need individual reports anymore since we have aggregated stats
+      reports: [], // We don't need individual reports anymore since we have aggregated stats
     });
   } catch (error) {
     console.error("Error loading user data:", error);
-    
+
     // Return a safe fallback instead of throwing
-    return Response.json({
-      user: null,
-      statistics: {
-        reportsCount: 0,
-        volunteerHours: 0,
-        economicValue: 0,
-        volunteerOpportunities: 0,
-        activitiesCount: 0,
-        volunteerCount: 0,
-        skillsEconomicValue: 0,
-        skillsTrainedCount: 0
+    return Response.json(
+      {
+        user: null,
+        statistics: {
+          reportsCount: 0,
+          volunteerHours: 0,
+          economicValue: 0,
+          volunteerOpportunities: 0,
+          activitiesCount: 0,
+          volunteerCount: 0,
+          skillsEconomicValue: 0,
+          skillsTrainedCount: 0,
+        },
+        reports: [],
+        error: "Failed to load user data",
       },
-      reports: [],
-      error: "Failed to load user data"
-    }, { status: 200 }); // Return 200 with error info instead of 500
+      { status: 200 }
+    ); // Return 200 with error info instead of 500
   }
 }
 
 export async function action({ request, context, params }: ActionFunctionArgs) {
   const currentUser = await getAuthenticated({ request, context });
-  
+
   if (!currentUser) {
-    return Response.json({ 
-      status: "error", 
-      message: "غير مخول للوصول" 
-    }, { status: 401 });
+    return Response.json(
+      {
+        status: "error",
+        message: "غير مخول للوصول",
+      },
+      { status: 401 }
+    );
   }
 
   const formData = await request.formData();
   const actionType = formData.get("actionType");
-  
+
   if (actionType === "sendMessage") {
     const messageContent = formData.get("messageContent")?.toString()?.trim();
     const toUserId = params.id; // The teacher ID from the URL
-    
+
     if (!messageContent) {
-      return Response.json({
-        status: "error",
-        message: "محتوى الرسالة مطلوب"
-      }, { status: 400 });
+      return Response.json(
+        {
+          status: "error",
+          message: "محتوى الرسالة مطلوب",
+        },
+        { status: 400 }
+      );
     }
-    
+
     if (!toUserId) {
-      return Response.json({
-        status: "error", 
-        message: "معرف المستخدم المستقبل مطلوب"
-      }, { status: 400 });
+      return Response.json(
+        {
+          status: "error",
+          message: "معرف المستخدم المستقبل مطلوب",
+        },
+        { status: 400 }
+      );
     }
 
     try {
       const messageDB = (await import("~/db/message/message.server")).default;
-      
+
       const result = await messageDB.sendMessage(
         {
           content: messageContent,
-          toUserId: toUserId
+          toUserId: toUserId,
         },
         currentUser.id,
         context?.cloudflare?.env?.DATABASE_URL
@@ -237,21 +280,27 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
       return Response.json({
         status: "success",
         message: "تم إرسال الرسالة بنجاح",
-        data: result
+        data: result,
       });
     } catch (error) {
       console.error("Error sending message:", error);
-      return Response.json({
-        status: "error",
-        message: "فشل في إرسال الرسالة"
-      }, { status: 500 });
+      return Response.json(
+        {
+          status: "error",
+          message: "فشل في إرسال الرسالة",
+        },
+        { status: 500 }
+      );
     }
   }
 
-  return Response.json({
-    status: "error",
-    message: "إجراء غير صالح"
-  }, { status: 400 });
+  return Response.json(
+    {
+      status: "error",
+      message: "إجراء غير صالح",
+    },
+    { status: 400 }
+  );
 }
 
 // Card components
@@ -339,35 +388,35 @@ export const SupervisorStatistics = (): JSX.Element => {
   // Message state
   const [messageContent, setMessageContent] = useState("");
   const [isMessageSending, setIsMessageSending] = useState(false);
-  
+
   // Safe hooks usage with error handling
   let loaderData: any = {};
   let params: any = {};
   let navigate: any = () => {};
   let fetcher: any = {};
-  
+
   try {
     loaderData = useLoaderData<typeof loader>() as any;
     params = useParams();
     navigate = useNavigate();
     fetcher = useFetcher();
   } catch (error) {
-    console.error('Hook usage failed:', error);
+    console.error("Hook usage failed:", error);
     // Fallback to prevent hydration errors
   }
-  
+
   // Set hydrated state after component mounts (client-side only)
   useEffect(() => {
     setIsHydrated(true);
   }, []);
 
-  // Handle message sending response
+  const [isModalOpen, setIsModalOpen] = useState(false);
   useEffect(() => {
     if (fetcher.data) {
       if (fetcher.data.status === "success") {
         setMessageContent("");
         setIsMessageSending(false);
-        // You can add a toast notification here if you have a toast system
+        setIsModalOpen(true); // Open modal on success
         console.log("Message sent successfully:", fetcher.data.message);
       } else if (fetcher.data.status === "error") {
         setIsMessageSending(false);
@@ -375,24 +424,31 @@ export const SupervisorStatistics = (): JSX.Element => {
       }
     }
   }, [fetcher.data]);
-
+  useEffect(() => {
+    if (isModalOpen) {
+      const timer = setTimeout(() => {
+        setIsModalOpen(false);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [isModalOpen]);
   // Handle message sending
   const handleSendMessage = () => {
     if (!messageContent.trim()) {
       console.error("Message content is required");
       return;
     }
-    
+
     setIsMessageSending(true);
-    
+
     const formData = new FormData();
     formData.append("actionType", "sendMessage");
     formData.append("messageContent", messageContent);
-    
+
     fetcher.submit(formData, { method: "POST" });
   };
-  
-  const userData = loaderData?.user as QUser || null;
+
+  const userData = (loaderData?.user as QUser) || null;
   const statistics = loaderData?.statistics || {
     reportsCount: 0,
     volunteerHours: 0,
@@ -401,30 +457,34 @@ export const SupervisorStatistics = (): JSX.Element => {
     activitiesCount: 0,
     volunteerCount: 0,
     skillsEconomicValue: 0,
-    skillsTrainedCount: 0
+    skillsTrainedCount: 0,
   };
   const reports = Array.isArray(loaderData?.reports) ? loaderData.reports : [];
   const userId = params?.id;
-  
+
   // Debug logging to verify getUserTotalStats integration
-  console.log('SupervisorStatistics - Loaded data:', {
+  console.log("SupervisorStatistics - Loaded data:", {
     userId,
     userName: userData,
     hasStatistics: !!statistics,
     statisticsData: statistics,
     reportsCount: reports.length,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
-  
+
   // Handle error state
   if (loaderData?.error && !userData) {
     return (
       <div className="bg-[#f9f9f9] min-h-screen flex items-center justify-center">
         <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full mx-4">
           <div className="text-center">
-            <h2 className="text-xl font-bold text-red-600 mb-4">خطأ في تحميل البيانات</h2>
-            <p className="text-gray-600 mb-6">لم نتمكن من تحميل بيانات المستخدم. يرجى المحاولة مرة أخرى.</p>
-            <button 
+            <h2 className="text-xl font-bold text-red-600 mb-4">
+              خطأ في تحميل البيانات
+            </h2>
+            <p className="text-gray-600 mb-6">
+              لم نتمكن من تحميل بيانات المستخدم. يرجى المحاولة مرة أخرى.
+            </p>
+            <button
               onClick={() => {
                 try {
                   navigate("/dashboard/admin/users");
@@ -478,7 +538,10 @@ export const SupervisorStatistics = (): JSX.Element => {
       unit: "",
       description: "المهارات المدرب عليها",
       color: "#68C35C",
-      percentage: Math.min(100, Math.max(5, (statistics?.skillsTrainedCount || 0) * 5)), // Scale for visualization
+      percentage: Math.min(
+        100,
+        Math.max(5, (statistics?.skillsTrainedCount || 0) * 5)
+      ), // Scale for visualization
     },
     {
       label: "ساعة",
@@ -486,7 +549,10 @@ export const SupervisorStatistics = (): JSX.Element => {
       unit: "",
       description: "الساعات التطوعية",
       color: "#68C35C",
-      percentage: Math.min(100, Math.max(5, (statistics?.volunteerHours || 0) / 5)), // Scale hours for visualization
+      percentage: Math.min(
+        100,
+        Math.max(5, (statistics?.volunteerHours || 0) / 5)
+      ), // Scale hours for visualization
     },
     {
       label: "نشاط",
@@ -494,7 +560,10 @@ export const SupervisorStatistics = (): JSX.Element => {
       unit: "",
       description: "الأنشطة المنفذة",
       color: "#68C35C",
-      percentage: Math.min(100, Math.max(5, (statistics?.activitiesCount || 0) * 10)), // Scale activities for visualization
+      percentage: Math.min(
+        100,
+        Math.max(5, (statistics?.activitiesCount || 0) * 10)
+      ), // Scale activities for visualization
     },
     {
       label: "قيمة",
@@ -502,7 +571,10 @@ export const SupervisorStatistics = (): JSX.Element => {
       unit: "ريال",
       description: "القيمة الاقتصادية للمهارات",
       color: "#68C35C",
-      percentage: Math.min(100, Math.max(5, (statistics?.skillsEconomicValue || 0) / 100)), // Scale economic value
+      percentage: Math.min(
+        100,
+        Math.max(5, (statistics?.skillsEconomicValue || 0) / 100)
+      ), // Scale economic value
     },
     {
       label: "فرصة",
@@ -510,7 +582,10 @@ export const SupervisorStatistics = (): JSX.Element => {
       unit: "",
       description: "الفرص التطوعية",
       color: "#68C35C",
-      percentage: Math.min(100, Math.max(5, (statistics?.volunteerOpportunities || 0) * 20)), // Scale opportunities
+      percentage: Math.min(
+        100,
+        Math.max(5, (statistics?.volunteerOpportunities || 0) * 20)
+      ), // Scale opportunities
     },
     {
       label: "قيمة",
@@ -518,7 +593,10 @@ export const SupervisorStatistics = (): JSX.Element => {
       unit: "ريال",
       description: "القيمة الاقتصادية من التطوع",
       color: "#68C35C",
-      percentage: Math.min(100, Math.max(5, (statistics?.economicValue || 0) / 100)), // Scale economic value
+      percentage: Math.min(
+        100,
+        Math.max(5, (statistics?.economicValue || 0) / 100)
+      ), // Scale economic value
     },
     {
       label: "متطوع",
@@ -526,23 +604,32 @@ export const SupervisorStatistics = (): JSX.Element => {
       unit: "",
       description: "عدد المتطوعين",
       color: "#68C35C",
-      percentage: Math.min(100, Math.max(5, (statistics?.volunteerCount || 0) * 5)), // Scale volunteer count
+      percentage: Math.min(
+        100,
+        Math.max(5, (statistics?.volunteerCount || 0) * 5)
+      ), // Scale volunteer count
     },
   ];
 
   // Data for the regions chart - enhanced with real user data
-  const userRegionValue = statistics ? Math.min(100, Math.max(10, 
-    (statistics.activitiesCount || 0) * 8 + 
-    (statistics.volunteerHours || 0) / 20 + 
-    (statistics.reportsCount || 0) * 5 +
-    (statistics.skillsTrainedCount || 0) * 3
-  )) : 40;
-  
+  const userRegionValue = statistics
+    ? Math.min(
+        100,
+        Math.max(
+          10,
+          (statistics.activitiesCount || 0) * 8 +
+            (statistics.volunteerHours || 0) / 20 +
+            (statistics.reportsCount || 0) * 5 +
+            (statistics.skillsTrainedCount || 0) * 3
+        )
+      )
+    : 40;
+
   const regions = [
-    { 
-      name: userData?.region || "المنطقة الحالية", 
+    {
+      name: userData?.region || "المنطقة الحالية",
       value: userRegionValue,
-      isUserRegion: true
+      isUserRegion: true,
     },
     { name: "الرياض", value: 45, isUserRegion: false },
     { name: "جدة", value: 53, isUserRegion: false },
@@ -571,7 +658,7 @@ export const SupervisorStatistics = (): JSX.Element => {
       },
     ],
   });
-  
+
   const createCircleChartData = (value: number) => ({
     datasets: [
       {
@@ -597,7 +684,7 @@ export const SupervisorStatistics = (): JSX.Element => {
       },
     },
   };
-  
+
   const doughnutOptions = {
     cutout: "80%", // Slightly smaller cutout to make ring thinner and avoid overlap with text
     responsive: true,
@@ -705,34 +792,34 @@ export const SupervisorStatistics = (): JSX.Element => {
   return (
     <ErrorBoundary>
       <div className="bg-[#f9f9f9]">
-      {/* Return Arrow */}
-      <div className="pt-6 pl-6">
-        <button 
-          onClick={() => {
-            try {
-              navigate("/dashboard/admin/users");
-            } catch (e) {
-              // Fallback navigation
-              window.location.href = "/dashboard/admin/users";
-            }
-          }}
-          className="flex items-center justify-center w-10 h-10 bg-white rounded-lg border border-gray-300 shadow-sm hover:bg-gray-50 transition-colors"
-          aria-label="العودة إلى قائمة المدربين"
-        >
-          <ArrowLeftIcon className="w-5 h-5 text-gray-600" />
-        </button>
-      </div>
-      <div className=" mx-auto  max-w-full lg:px-[112px]  max-lg:px-[10px]">
-        {/* Container Section */}
-        <div className="flex flex-col w-full items-end   -mt-[10px]">
-          {/* User Profile Section */}
-          <div className="flex flex-col items-end gap-6 relative self-stretch w-full">
-            {/* Profile Picture with Verification Badge */}
-            <div className="relative w-24 h-24 -mt-[48px]">
-              {" "}
-              {/* Adjusted to pull avatar up */}
-              <div className="relative w-[104px] h-[104px]   -left-1">
-                <Avatar
+        {/* Return Arrow */}
+        <div className="pt-6 pl-6">
+          <button
+            onClick={() => {
+              try {
+                navigate("/dashboard/admin/users");
+              } catch (e) {
+                // Fallback navigation
+                window.location.href = "/dashboard/admin/users";
+              }
+            }}
+            className="flex items-center justify-center w-10 h-10 bg-white rounded-lg border border-gray-300 shadow-sm hover:bg-gray-50 transition-colors"
+            aria-label="العودة إلى قائمة المدربين"
+          >
+            <ArrowLeftIcon className="w-5 h-5 text-gray-600" />
+          </button>
+        </div>
+        <div className=" mx-auto  max-w-full lg:px-[112px]  max-lg:px-[10px]">
+          {/* Container Section */}
+          <div className="flex flex-col w-full items-end   -mt-[10px]">
+            {/* User Profile Section */}
+            <div className="flex flex-col items-end gap-6 relative self-stretch w-full">
+              {/* Profile Picture with Verification Badge */}
+              <div className="relative w-24 h-24 -mt-[48px]">
+                {" "}
+                {/* Adjusted to pull avatar up */}
+                <div className="relative w-[104px] h-[104px]   -left-1">
+                  {/* <Avatar
                   className="absolute w-[104px] h-[104px] rounded-full border-4 border-solid border-white shadow-shadows-shadow-lg overflow-hidden"
                   image={content}
                   fallback="NA"
@@ -742,254 +829,295 @@ export const SupervisorStatistics = (): JSX.Element => {
                   className="absolute w-6 h-6 top-[74px] left-[74px]"
                   alt="Verified tick"
                   src={verified}
-                />
-              </div>
-            </div>
-
-            {/* User Information */}
-            <div className="flex flex-col items-end gap-0.5 relative self-stretch w-full">
-              <div className="relative self-stretch mt-[-1.00px] font-bold text-[#181d27] text-xl tracking-[0] leading-[30px] [direction:rtl]">
-                {userData?.name || "اسم المستخدم"}
-                {/* Show report count if available */}
-                {statistics?.reportsCount > 0 && (
-                  <span className="text-sm text-[#535861] font-normal"> - {statistics.reportsCount} تقرير</span>
-                )}
-              </div>
-              <div className="self-stretch text-[#535861] text-base leading-6 relative font-normal tracking-[0] [direction:rtl]">
-                مدرسة {userData?.schoolName || "غير محددة"} - {userData?.regionName || "غير محددة"} - تعليم {userData?.eduAdminName || "غير محددة"}
-              </div>
-              {/* Statistics Summary */}
-              {statistics && (statistics.reportsCount > 0 || statistics.volunteerHours > 0) && (
-                <div className="flex flex-wrap items-center gap-2 mt-2 text-sm text-[#535861] [direction:rtl]">
-                  {statistics.reportsCount > 0 && (
-                    <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded-full text-xs">
-                      {statistics.reportsCount} تقرير
-                    </span>
-                  )}
-                  {statistics.volunteerHours > 0 && (
-                    <span className="bg-green-50 text-green-700 px-2 py-1 rounded-full text-xs">
-                      {Math.round(statistics.volunteerHours)} ساعة تطوعية
-                    </span>
-                  )}
-                  {statistics.skillsTrainedCount > 0 && (
-                    <span className="bg-purple-50 text-purple-700 px-2 py-1 rounded-full text-xs">
-                      {statistics.skillsTrainedCount} مهارة
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="w-full p-4 bg-white rounded-xl border border-[#e4e7ec]   rotate-180 mt-8 ">
-            <div className="flex items-start gap-4 p-0 mt-2">
-              {/* Message Content */}
-              <div className="flex flex-col items-start gap-3 relative flex-1 grow">
-                {/* Message Text */}
-                <div className="flex flex-col items-end gap-1 relative self-stretch w-full rotate-180">
-                  <div className="flex items-center justify-end gap-2 relative self-stretch w-full">
-                    <div className="relative w-fit mt-[-1.00px]   font-normal text-[#717680] text-sm tracking-[0] leading-5 whitespace-nowrap [direction:rtl]">
-                      منذ دقيقتين
-                    </div>
-                    <div className="relative w-fit mt-[-1.00px]   font-bold text-[#181d27] text-sm tracking-[0] leading-5 whitespace-nowrap [direction:rtl]">
-                      اسم المشرف
-                    </div>
-                  </div>
-                  <textarea
-                    className="self-stretch mt-[-1.00px] text-[#414651] text-sm leading-5 relative font-normal tracking-[0] [direction:rtl] bg-transparent border-none focus:outline-none resize-none"
-                    placeholder="اكتب رسالتك هنا..."
-                    value={messageContent}
-                    rows={3}
-                    onChange={(e) => setMessageContent(e.target.value)}
-                    disabled={isMessageSending}
+                /> */}
+                  <Avatar
+                    className="bg-gray-50 absolute w-[104px] h-[104px] rounded-full border-4 border-solid border-white shadow-shadows-shadow-lg overflow-hidden"
+                    image={content}
+                    fallback="NA"
                   />
                 </div>
               </div>
-            </div>
 
-            {/* New Message Button */}
-            <div className="flex items-baseline justify-between">
-              <Avatar className="w-10 h-10 rotate-180" fallback="OR" />
-              <Button
-                variant="outline"
-                className="inline-flex items-center justify-center gap-1 px-3 py-2 bg-white rounded-md rotate-180 shadow-shadows-shadow-xs-skeuomorphic"
-                onClick={handleSendMessage}
-                disabled={isMessageSending || !messageContent.trim()}
-              >
-                <PlusIcon className="w-5 h-5 -rotate-180" />
-                <span className="font-bold text-[#414651] text-sm text-left tracking-[0] leading-5 whitespace-nowrap [direction:rtl]">
-                  {isMessageSending ? "جاري الإرسال..." : "إرسال الرسالة"}
-                </span>
-              </Button>
-            </div>
-          </div>
-
-          {/* Separator */}
-        </div>
-
-        <div className="flex flex-col mx-auto mt-9 mb-[100px]">
-          <div className="flex flex-col items-start gap-5 relative self-stretch w-full mb-6 mt-[72px]">
-            <div className="flex items-start gap-4 relative self-stretch w-full">
-              <div className="flex flex-col items-end justify-center gap-0.5 relative flex-1 self-stretch">
-                <h2 className="mt-[-1.00px] relative self-stretch font-bold text-[#181d27] text-lg tracking-[0] leading-7 [direction:rtl]">
-                  التقارير
-                </h2>
+              {/* User Information */}
+              <div className="flex flex-col items-end gap-0.5 relative self-stretch w-full">
+                <div className="relative self-stretch mt-[-1.00px] font-bold text-[#181d27] text-xl tracking-[0] leading-[30px] [direction:rtl]">
+                  {userData?.name || "اسم المستخدم"}
+                  {/* Show report count if available */}
+                  {statistics?.reportsCount > 0 && (
+                    <span className="text-sm text-[#535861] font-normal">
+                      {" "}
+                      - {statistics.reportsCount} تقرير
+                    </span>
+                  )}
+                </div>
+                <div className="self-stretch text-[#535861] text-base leading-6 relative font-normal tracking-[0] [direction:rtl]">
+                  مدرسة {userData?.schoolName || "غير محددة"} -{" "}
+                  {userData?.regionName || "غير محددة"} - تعليم{" "}
+                  {userData?.eduAdminName || "غير محددة"}
+                </div>
+                {/* Statistics Summary */}
+                {statistics &&
+                  (statistics.reportsCount > 0 ||
+                    statistics.volunteerHours > 0) && (
+                    <div className="flex flex-wrap items-center gap-2 mt-2 text-sm text-[#535861] [direction:rtl]">
+                      {statistics.reportsCount > 0 && (
+                        <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded-full text-xs">
+                          {statistics.reportsCount} تقرير
+                        </span>
+                      )}
+                      {statistics.volunteerHours > 0 && (
+                        <span className="bg-green-50 text-green-700 px-2 py-1 rounded-full text-xs">
+                          {Math.round(statistics.volunteerHours)} ساعة تطوعية
+                        </span>
+                      )}
+                      {statistics.skillsTrainedCount > 0 && (
+                        <span className="bg-purple-50 text-purple-700 px-2 py-1 rounded-full text-xs">
+                          {statistics.skillsTrainedCount} مهارة
+                        </span>
+                      )}
+                    </div>
+                  )}
               </div>
             </div>
-          </div>
-          <div className="flex flex-col md:flex-row justify-between items-baseline gap-6 mb-6 [direction:rtl]">
-            {/* Left side - 7/12 width */}
-            <div className="md:w-3/12  h-full flex items-center justify-center gap-[27px] relative self-stretch w-full flex-[0_0_auto]">
-              <Card className="flex flex-col  h-fit items-center justify-center gap-6 p-6 relative flex-1 grow bg-white rounded-xl border border-solid border-[#e9e9eb] shadow-shadows-shadow-xs">
-                <img
-                  className="relative w-[54px] h-[54px] mt-[54px] mb-[24px]"
-                  alt="Students"
-                  src={students}
-                />
-                <CardContent className="flex items-center justify-center gap-6 relative flex-1 grow p-0 mb-[54px]">
-                  <div className="flex items-center justify-center gap-6 relative flex-1 grow">
-                    <div className="flex-col items-end gap-6 flex-1 grow flex relative">
-                      <div className="self-stretch mt-[-1.00px] font-bold text-base leading-6 relative text-[#181d27] tracking-[0] [direction:rtl]">
-                        عدد الطالبات
+
+            <div className="w-full p-4 bg-white rounded-xl border border-[#e4e7ec]   rotate-180 mt-8 ">
+              <div className="flex items-start gap-4 p-0 mt-2">
+                {/* Message Content */}
+                <div className="flex flex-col items-start gap-3 relative flex-1 grow">
+                  {/* Message Text */}
+                  <div className="flex flex-col items-end gap-1 relative self-stretch w-full rotate-180">
+                    {/* <div className="flex items-center justify-end gap-2 relative self-stretch w-full">
+                      <div className="relative w-fit mt-[-1.00px]   font-normal text-[#717680] text-sm tracking-[0] leading-5 whitespace-nowrap [direction:rtl]">
+                        منذ دقيقتين
                       </div>
-
-                      <div className="flex flex-col items-start gap-2 relative self-stretch w-full flex-[0_0_auto]">
-                        <div className="flex items-end gap-4 relative self-stretch w-full flex-[0_0_auto]">
-                          <div className="relative flex-1 mt-[-1.00px] font-bold text-[#181d27] text-5xl tracking-[0] leading-[38px] [direction:rtl]">
-                            {userData?.noStudents || 0}
-                          </div>
-                          {/* Show data freshness indicator */}
-                          {statistics && statistics.reportsCount > 0 && (
-                            <div className="text-xs text-green-600 font-medium mt-1 [direction:rtl]">
-                              محدث من {statistics.reportsCount} تقرير
-                            </div>
-                          )}
-                        </div>
+                      <div className="relative w-fit mt-[-1.00px]   font-bold text-[#181d27] text-sm tracking-[0] leading-5 whitespace-nowrap [direction:rtl]">
+                        اسم المشرف
                       </div>
-                    </div>
-                  </div>
-
-                  <div className="inline-flex items-start gap-4 relative flex-[0_0_auto] mt-[-13.00px] mb-[-13.00px]">
-                    <div className="relative w-[120px] h-[120px]">
-                      <ClientOnly 
-                        fallback={
-                          <div className="w-[120px] h-[120px] bg-gray-100 rounded-full flex items-center justify-center">
-                            <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                          </div>
-                        }
-                      >
-                        <Doughnut
-                          data={createCircleChartData(
-                            statistics ? Math.min(100, Math.max(5, (userData?.noStudents || 0) * 2)) : 25
-                          )}
-                          options={circleChartOptions}
-                        />
-                      </ClientOnly>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-            {/* Right side - 5/12 width */}
-            <div className="w-full md:w-9/12">
-              {/* Metrics Section */}
-              <section className="flex items-start gap-9 relative self-stretch w-full">
-                <div className="flex flex-col w-full items-start gap-6 relative">
-                  <div className="w-full border border-solid border-[#e9eaeb] rounded-xl bg-white p-6">
-                    <div className="flex flex-wrap items-center justify-center gap-[16px_42px]">
-                      {metricCards.map((card, index) => (
-                        <div
-                          key={index}
-                          className="flex flex-col items-center justify-center gap-3"
-                        >
-                          <div className="relative w-40 h-[88px]">
-                            <div className="relative w-36 h-36">
-                              <div className="absolute w-36 h-36">
-                                <ClientOnly
-                                  fallback={
-                                    <div className="w-36 h-36 bg-gray-100 rounded-full flex items-center justify-center">
-                                      <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                                    </div>
-                                  }
-                                >
-                                  <Doughnut
-                                    data={createDoughnutData(
-                                      card.percentage || 0,
-                                      card.color
-                                    )}
-                                    options={doughnutOptions}
-                                  />
-                                </ClientOnly>
-                                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center">
-                                  <div className="text-xs text-[#535861] mb-2 mt-8">
-                                    {card.label}
-                                  </div>
-                                  <div className="text-2xl font-bold text-[#181d27]">
-                                    {card.value}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div
-                            className={`${
-                              card.description ===
-                                "القيمة الاقتصادية للمهارات" && index === 3
-                                ? "w-[152px]"
-                                : card.description ===
-                                    "القيمة الاقتصادية للمهارات" && index === 6
-                                ? "w-[126px]"
-                                : card.description ===
-                                  "الساعات التطوعية المحققة"
-                                ? "w-40"
-                                : "relative self-stretch"
-                            } font-medium text-[#181d27] text-sm text-center tracking-[0] leading-[14.2px] m-3 [direction:rtl]`}
-                          >
-                            {card.description}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                    </div> */}
+                    <textarea
+                      className="self-stretch mt-[-1.00px] text-[#414651] text-sm leading-5 relative font-normal tracking-[0] [direction:rtl] bg-transparent border-none focus:outline-none resize-none"
+                      placeholder="اكتب رسالتك هنا..."
+                      value={messageContent}
+                      rows={3}
+                      onChange={(e) => setMessageContent(e.target.value)}
+                      disabled={isMessageSending}
+                    />
                   </div>
                 </div>
-              </section>
+              </div>
+
+              {/* New Message Button */}
+              <div className="flex items-baseline justify-between">
+               
+                              <Avatar
+                    className="w-10 h-10 rotate-180"
+                    image={content}
+                    fallback="NA"
+                  />
+                <Button
+                  variant="outline"
+                  className="inline-flex items-center justify-center gap-1 px-3 py-2 bg-white rounded-md rotate-180 shadow-shadows-shadow-xs-skeuomorphic"
+                  onClick={handleSendMessage}
+                  disabled={isMessageSending || !messageContent.trim()}
+                >
+                  <PlusIcon className="w-5 h-5 -rotate-180" />
+                  <span className="font-bold text-[#414651] text-sm text-left tracking-[0] leading-5 whitespace-nowrap [direction:rtl]">
+                    {isMessageSending ? "جاري الإرسال..." : "إرسال الرسالة"}
+                  </span>
+                </Button>
+              </div>
             </div>
+
+            {/* Separator */}
           </div>
 
-          {/* Regions Section */}
-          <section className="flex flex-col gap-6 w-full mt-[36px]">
-            <div className="flex flex-col gap-5 w-full">
-              <div className="flex items-start gap-4 w-full h-full">
-
-                <div className="flex flex-col items-end justify-center gap-0.5 flex-1">
-                  <h2 className=" font-bold text-[#181d27] text-lg leading-7 [direction:rtl]">
-                    المناطق
+          <div className="flex flex-col mx-auto mt-9 mb-[100px]">
+            <div className="flex flex-col items-start gap-5 relative self-stretch w-full mb-6 mt-[72px]">
+              <div className="flex items-start gap-4 relative self-stretch w-full">
+                <div className="flex flex-col items-end justify-center gap-0.5 relative flex-1 self-stretch">
+                  <h2 className="mt-[-1.00px] relative self-stretch font-bold text-[#181d27] text-lg tracking-[0] leading-7 [direction:rtl]">
+                    التقارير
                   </h2>
                 </div>
               </div>
             </div>
+            <div className="flex flex-col md:flex-row justify-between items-baseline gap-6 mb-6 [direction:rtl]">
+              {/* Left side - 7/12 width */}
+              <div className="md:w-3/12  h-full flex items-center justify-center gap-[27px] relative self-stretch w-full flex-[0_0_auto]">
+                <Card className="flex flex-col  h-fit items-center justify-center gap-6 p-6 relative flex-1 grow bg-white rounded-xl border border-solid border-[#e9e9eb] shadow-shadows-shadow-xs">
+                  <img
+                    className="relative w-[54px] h-[54px] mt-[54px] mb-[24px]"
+                    alt="Students"
+                    src={students}
+                  />
+                  <CardContent className="flex items-center justify-center gap-6 relative flex-1 grow p-0 mb-[54px]">
+                    <div className="flex items-center justify-center gap-6 relative flex-1 grow">
+                      <div className="flex-col items-end gap-6 flex-1 grow flex relative">
+                        <div className="self-stretch mt-[-1.00px] font-bold text-base leading-6 relative text-[#181d27] tracking-[0] [direction:rtl]">
+                          عدد الطالبات
+                        </div>
 
-            <div className="border border-[#e9eaeb] rounded-xl bg-white p-6">
-              <div className="h-[228px]">
-                <ClientOnly
-                  fallback={
-                    <div className="h-[228px] bg-gray-100 rounded-lg flex items-center justify-center">
-                      <div className="flex flex-col items-center gap-2">
-                        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                        <p className="text-gray-500 text-sm">جاري تحميل الرسم البياني...</p>
+                        <div className="flex flex-col items-start gap-2 relative self-stretch w-full flex-[0_0_auto]">
+                          <div className="flex items-end gap-4 relative self-stretch w-full flex-[0_0_auto]">
+                            <div className="relative flex-1 mt-[-1.00px] font-bold text-[#181d27] text-5xl tracking-[0] leading-[38px] [direction:rtl]">
+                              {userData?.noStudents || 0}
+                            </div>
+                            {/* Show data freshness indicator */}
+                            {statistics && statistics.reportsCount > 0 && (
+                              <div className="text-xs text-green-600 font-medium mt-1 [direction:rtl]">
+                                محدث من {statistics.reportsCount} تقرير
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  }
-                >
-                  <Bar data={barChartData} options={barChartOptions} />
-                </ClientOnly>
+
+                    <div className="inline-flex items-start gap-4 relative flex-[0_0_auto] mt-[-13.00px] mb-[-13.00px]">
+                      <div className="relative w-[120px] h-[120px]">
+                        <ClientOnly
+                          fallback={
+                            <div className="w-[120px] h-[120px] bg-gray-100 rounded-full flex items-center justify-center">
+                              <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                            </div>
+                          }
+                        >
+                          <Doughnut
+                            data={createCircleChartData(
+                              statistics
+                                ? Math.min(
+                                    100,
+                                    Math.max(5, (userData?.noStudents || 0) * 2)
+                                  )
+                                : 25
+                            )}
+                            options={circleChartOptions}
+                          />
+                        </ClientOnly>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+              {/* Right side - 5/12 width */}
+              <div className="w-full md:w-9/12">
+                {/* Metrics Section */}
+                <section className="flex items-start gap-9 relative self-stretch w-full">
+                  <div className="flex flex-col w-full items-start gap-6 relative">
+                    <div className="w-full border border-solid border-[#e9eaeb] rounded-xl bg-white p-6">
+                      <div className="flex flex-wrap items-center justify-center gap-[16px_42px]">
+                        {metricCards.map((card, index) => (
+                          <div
+                            key={index}
+                            className="flex flex-col items-center justify-center gap-3"
+                          >
+                            <div className="relative w-40 h-[88px]">
+                              <div className="relative w-36 h-36">
+                                <div className="absolute w-36 h-36">
+                                  <ClientOnly
+                                    fallback={
+                                      <div className="w-36 h-36 bg-gray-100 rounded-full flex items-center justify-center">
+                                        <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                                      </div>
+                                    }
+                                  >
+                                    <Doughnut
+                                      data={createDoughnutData(
+                                        card.percentage || 0,
+                                        card.color
+                                      )}
+                                      options={doughnutOptions}
+                                    />
+                                  </ClientOnly>
+                                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center">
+                                    <div className="text-xs text-[#535861] mb-2 mt-8">
+                                      {card.label}
+                                    </div>
+                                    <div className="text-2xl font-bold text-[#181d27]">
+                                      {card.value}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div
+                              className={`${
+                                card.description ===
+                                  "القيمة الاقتصادية للمهارات" && index === 3
+                                  ? "w-[152px]"
+                                  : card.description ===
+                                      "القيمة الاقتصادية للمهارات" &&
+                                    index === 6
+                                  ? "w-[126px]"
+                                  : card.description ===
+                                    "الساعات التطوعية المحققة"
+                                  ? "w-40"
+                                  : "relative self-stretch"
+                              } font-medium text-[#181d27] text-sm text-center tracking-[0] leading-[14.2px] m-3 [direction:rtl]`}
+                            >
+                              {card.description}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </section>
               </div>
             </div>
-          </section>
+
+            {/* Regions Section */}
+            <section className="flex flex-col gap-6 w-full mt-[36px]">
+              <div className="flex flex-col gap-5 w-full">
+                <div className="flex items-start gap-4 w-full h-full">
+                  <div className="flex flex-col items-end justify-center gap-0.5 flex-1">
+                    <h2 className=" font-bold text-[#181d27] text-lg leading-7 [direction:rtl]">
+                      المناطق
+                    </h2>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border border-[#e9eaeb] rounded-xl bg-white p-6">
+                <div className="h-[228px]">
+                  <ClientOnly
+                    fallback={
+                      <div className="h-[228px] bg-gray-100 rounded-lg flex items-center justify-center">
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                          <p className="text-gray-500 text-sm">
+                            جاري تحميل الرسم البياني...
+                          </p>
+                        </div>
+                      </div>
+                    }
+                  >
+                    <Bar data={barChartData} options={barChartOptions} />
+                  </ClientOnly>
+                </div>
+              </div>
+            </section>
+          </div>
         </div>
       </div>
-    </div>
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl border border-[#e4e7ec] p-6 max-w-sm w-full mx-4 animate-fadeIn">
+            <div className="text-center">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
+                <CheckIcon className="h-6 w-6 text-green-600" />
+              </div>
+              <h3 className="mt-4 text-lg font-medium text-[#181d27]">
+                تم إرسال الرسالة
+              </h3>
+              <div className="mt-2">
+                <p className="text-sm text-[#717680]">Message est envoyé</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </ErrorBoundary>
   );
 };

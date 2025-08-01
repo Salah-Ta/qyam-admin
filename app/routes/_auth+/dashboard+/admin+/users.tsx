@@ -21,6 +21,7 @@ import {
 } from "@remix-run/react";
 import { QUser } from "~/types/types";
 import { Link } from "@remix-run/react";
+import { i } from "build/server/assets/server-build-CX5tnVgD";
 
 // Utility function
 const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
@@ -299,7 +300,7 @@ const ConfirmationModal = ({
   message,
   confirmText,
   cancelText,
-  type
+  type,
 }: ConfirmationModalProps): React.ReactElement | null => {
   if (!isOpen) return null;
 
@@ -308,17 +309,17 @@ const ConfirmationModal = ({
       case "danger":
         return {
           buttonClass: "bg-red-600 hover:bg-red-700 text-white",
-          iconColor: "text-red-600"
+          iconColor: "text-red-600",
         };
       case "warning":
         return {
           buttonClass: "bg-orange-600 hover:bg-orange-700 text-white",
-          iconColor: "text-orange-600"
+          iconColor: "text-orange-600",
         };
       default:
         return {
           buttonClass: "bg-blue-600 hover:bg-blue-700 text-white",
-          iconColor: "text-blue-600"
+          iconColor: "text-blue-600",
         };
     }
   };
@@ -326,27 +327,49 @@ const ConfirmationModal = ({
   const { buttonClass, iconColor } = getTypeStyles();
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-lg p-6 max-w-md w-full mx-4"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center gap-3 mb-4">
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${iconColor}`}>
+          <div
+            className={`w-8 h-8 rounded-full flex items-center justify-center ${iconColor}`}
+          >
             {type === "danger" && (
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                <path
+                  fillRule="evenodd"
+                  d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                  clipRule="evenodd"
+                />
               </svg>
             )}
             {type === "warning" && (
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                <path
+                  fillRule="evenodd"
+                  d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                  clipRule="evenodd"
+                />
               </svg>
             )}
             {type === "info" && (
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                <path
+                  fillRule="evenodd"
+                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                  clipRule="evenodd"
+                />
               </svg>
             )}
           </div>
-          <h3 className="text-lg font-semibold text-gray-900 [direction:rtl]">{title}</h3>
+          <h3 className="text-lg font-semibold text-gray-900 [direction:rtl]">
+            {title}
+          </h3>
         </div>
         <p className="text-gray-600 mb-6 [direction:rtl]">{message}</p>
         <div className="flex gap-3 justify-end [direction:rtl]">
@@ -357,10 +380,7 @@ const ConfirmationModal = ({
           >
             {cancelText}
           </Button>
-          <Button
-            onClick={onConfirm}
-            className={`px-4 py-2 ${buttonClass}`}
-          >
+          <Button onClick={onConfirm} className={`px-4 py-2 ${buttonClass}`}>
             {confirmText}
           </Button>
         </div>
@@ -394,15 +414,15 @@ const metricsData = {
 // Loader for Remix
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
   const DBurl = context.cloudflare.env.DATABASE_URL;
-  
+
   try {
     // Add timeout to prevent worker from hanging
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Database operation timeout')), 15000)
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Database operation timeout")), 15000)
     );
-    
+
     const dataPromise = userDB.getAllUsers(DBurl);
-    
+
     const res = await Promise.race([dataPromise, timeoutPromise]);
     return Response.json((res as any).data);
   } catch (error) {
@@ -415,9 +435,12 @@ export async function action({ request, context }: any) {
   const formData = await request.formData();
   const actionType = formData.get("actionType");
   const userId = formData.get("id");
-  
+
   if (!userId) {
-    return new Response(JSON.stringify({ success: false, message: "معرف المستخدم مطلوب" }), { status: 400 });
+    return new Response(
+      JSON.stringify({ success: false, message: "معرف المستخدم مطلوب" }),
+      { status: 400 }
+    );
   }
 
   const userDB = (await import("~/db/user/user.server")).default;
@@ -426,17 +449,32 @@ export async function action({ request, context }: any) {
   try {
     if (actionType === "delete") {
       await userDB.deleteUser(userId, DBurl);
-      return new Response(JSON.stringify({ success: true, message: "تم حذف المستخدم بنجاح" }), { status: 200 });
+      return new Response(
+        JSON.stringify({ success: true, message: "تم حذف المستخدم بنجاح" }),
+        { status: 200 }
+      );
     } else if (actionType === "updateStatus") {
       const status = formData.get("status");
       await userDB.editUserRegisteration(userId, status, DBurl);
-      return new Response(JSON.stringify({ success: true, message: "تم تحديث حالة المستخدم بنجاح" }), { status: 200 });
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: "تم تحديث حالة المستخدم بنجاح",
+        }),
+        { status: 200 }
+      );
     }
-    
-    return new Response(JSON.stringify({ success: false, message: "نوع العملية غير صالح" }), { status: 400 });
+
+    return new Response(
+      JSON.stringify({ success: false, message: "نوع العملية غير صالح" }),
+      { status: 400 }
+    );
   } catch (error) {
     console.error("Action error:", error);
-    return new Response(JSON.stringify({ success: false, message: "حدث خطأ أثناء العملية" }), { status: 500 });
+    return new Response(
+      JSON.stringify({ success: false, message: "حدث خطأ أثناء العملية" }),
+      { status: 500 }
+    );
   }
 }
 
@@ -447,7 +485,6 @@ export const Users = (): React.JSX.Element => {
   const rawUsers = useLoaderData<QUser[]>();
   const users = Array.isArray(rawUsers) ? rawUsers : [];
   console.log("Users data:", users);
-  
 
   // Metrics calculation
   metricsData.students.value = users
@@ -457,7 +494,9 @@ export const Users = (): React.JSX.Element => {
     .filter((user) => user?.role === "user")
     .length.toString();
   metricsData.supervisors.value = users
-    .filter((user) => ["مشرف", "supervisor", "SUPERVISOR"].includes(user?.role || ''))
+    .filter((user) =>
+      ["مشرف", "supervisor", "SUPERVISOR"].includes(user?.role || "")
+    )
     .length.toString();
 
   // Filtering
@@ -465,7 +504,7 @@ export const Users = (): React.JSX.Element => {
   const [acceptanceStateFilter, setAcceptanceStateFilter] = useState<
     string | null
   >(null);
-  
+
   const filteredUsers = users;
   const filteredData = filteredUsers.filter((row) => {
     const matchesSearch =
@@ -521,18 +560,19 @@ export const Users = (): React.JSX.Element => {
     onConfirm: () => void;
   };
 
-  const [confirmationModal, setConfirmationModal] = useState<ConfirmationModalState>({
-    isOpen: false,
-    title: "",
-    message: "",
-    confirmText: "",
-    cancelText: "إلغاء",
-    type: "info",
-    onConfirm: () => {},
-  });
+  const [confirmationModal, setConfirmationModal] =
+    useState<ConfirmationModalState>({
+      isOpen: false,
+      title: "",
+      message: "",
+      confirmText: "",
+      cancelText: "إلغاء",
+      type: "info",
+      onConfirm: () => {},
+    });
 
   const showConfirmation = (config: Partial<ConfirmationModalState>) => {
-    setConfirmationModal(prev => ({
+    setConfirmationModal((prev) => ({
       ...prev,
       ...config,
       isOpen: true,
@@ -574,6 +614,7 @@ export const Users = (): React.JSX.Element => {
     accepted: "مقبول",
     denied: "مرفوض",
     pending: "غير نشط",
+    idle: "غير نشط",
   };
   const roleTranslation = {
     user: "مدربة",
@@ -591,7 +632,7 @@ export const Users = (): React.JSX.Element => {
 
   // Action handlers for admin actions (accept, deny, disable/reactivate, delete)
   const fetcher = useFetcher();
-  
+
   const handleAdminAction = (
     action: "accepted" | "denied" | "idle",
     user: any,
@@ -599,15 +640,30 @@ export const Users = (): React.JSX.Element => {
   ) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     const actionTexts = {
-      accepted: { title: "تأكيد قبول المستخدم", message: `هل أنت متأكد من قبول المستخدم "${user.name}"؟`, confirm: "قبول", type: "info" as const },
-      denied: { title: "تأكيد رفض المستخدم", message: `هل أنت متأكد من رفض المستخدم "${user.name}"؟`, confirm: "رفض", type: "warning" as const },
-      idle: { title: "تأكيد تعطيل المستخدم", message: `هل أنت متأكد من تعطيل المستخدم "${user.name}"؟`, confirm: "تعطيل", type: "warning" as const }
+      accepted: {
+        title: "تأكيد قبول المستخدم",
+        message: `هل أنت متأكد من قبول المستخدم "${user.name}"؟`,
+        confirm: "قبول",
+        type: "info" as const,
+      },
+      denied: {
+        title: "تأكيد رفض المستخدم",
+        message: `هل أنت متأكد من رفض المستخدم "${user.name}"؟`,
+        confirm: "رفض",
+        type: "warning" as const,
+      },
+      idle: {
+        title: "تأكيد تعطيل المستخدم",
+        message: `هل أنت متأكد من تعطيل المستخدم "${user.name}"؟`,
+        confirm: "تعطيل",
+        type: "warning" as const,
+      },
     };
-    
+
     const actionText = actionTexts[action];
-    
+
     showConfirmation({
       title: actionText.title,
       message: actionText.message,
@@ -623,14 +679,14 @@ export const Users = (): React.JSX.Element => {
           },
           { method: "POST" }
         );
-      }
+      },
     });
   };
 
   const handleDeleteUser = (user: any, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     showConfirmation({
       title: "تأكيد حذف المستخدم",
       message: `هل أنت متأكد من حذف المستخدم "${user.name}"؟ هذا الإجراء لا يمكن التراجع عنه.`,
@@ -644,14 +700,14 @@ export const Users = (): React.JSX.Element => {
           },
           { method: "POST" }
         );
-      }
+      },
     });
   };
 
   const handleReactivateUser = (user: any, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     showConfirmation({
       title: "تأكيد إعادة تنشيط المستخدم",
       message: `هل أنت متأكد من إعادة تنشيط المستخدم "${user.name}"؟`,
@@ -667,32 +723,52 @@ export const Users = (): React.JSX.Element => {
           },
           { method: "POST" }
         );
-      }
+      },
     });
   };
 
   return (
     <div className="w-full mx-auto py-6">
       {/* Confirmation Modal */}
-      {confirmationModal.isOpen ? 
-        <div 
+      {confirmationModal.isOpen ? (
+        <div
           key="confirmation-modal"
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
           onClick={hideConfirmation}
         >
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="bg-white rounded-lg p-6 max-w-md w-full mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center gap-3 mb-4">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                confirmationModal.type === "danger" ? "text-red-600" : 
-                confirmationModal.type === "warning" ? "text-orange-600" : "text-blue-600"
-              }`}>
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              <div
+                className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                  confirmationModal.type === "danger"
+                    ? "text-red-600"
+                    : confirmationModal.type === "warning"
+                    ? "text-orange-600"
+                    : "text-blue-600"
+                }`}
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                    clipRule="evenodd"
+                  />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 [direction:rtl]">{confirmationModal.title}</h3>
+              <h3 className="text-lg font-semibold text-gray-900 [direction:rtl]">
+                {confirmationModal.title}
+              </h3>
             </div>
-            <p className="text-gray-600 mb-6 [direction:rtl]">{confirmationModal.message}</p>
+            <p className="text-gray-600 mb-6 [direction:rtl]">
+              {confirmationModal.message}
+            </p>
             <div className="flex gap-3 justify-end [direction:rtl]">
               <Button
                 variant="outline"
@@ -707,9 +783,11 @@ export const Users = (): React.JSX.Element => {
                   hideConfirmation();
                 }}
                 className={`px-4 py-2 ${
-                  confirmationModal.type === "danger" ? "bg-red-600 hover:bg-red-700 text-white" :
-                  confirmationModal.type === "warning" ? "bg-orange-600 hover:bg-orange-700 text-white" : 
-                  "bg-blue-600 hover:bg-blue-700 text-white"
+                  confirmationModal.type === "danger"
+                    ? "bg-red-600 hover:bg-red-700 text-white"
+                    : confirmationModal.type === "warning"
+                    ? "bg-orange-600 hover:bg-orange-700 text-white"
+                    : "bg-blue-600 hover:bg-blue-700 text-white"
                 }`}
               >
                 {confirmationModal.confirmText}
@@ -717,14 +795,23 @@ export const Users = (): React.JSX.Element => {
             </div>
           </div>
         </div>
-        : null}
-      
+      ) : null}
+
       {/* Success/Error Messages */}
-      {fetcher.data && typeof fetcher.data === 'object' && 'success' in fetcher.data && (
-        <div className={`mb-4 p-4 rounded-lg ${(fetcher.data as any).success ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
-          {(fetcher.data as any).message || ((fetcher.data as any).success ? 'تمت العملية بنجاح' : 'حدث خطأ')}
-        </div>
-      )}
+      {fetcher.data &&
+        typeof fetcher.data === "object" &&
+        "success" in fetcher.data && (
+          <div
+            className={`mb-4 p-4 rounded-lg ${
+              (fetcher.data as any).success
+                ? "bg-green-50 text-green-800 border border-green-200"
+                : "bg-red-50 text-red-800 border border-red-200"
+            }`}
+          >
+            {(fetcher.data as any).message ||
+              ((fetcher.data as any).success ? "تمت العملية بنجاح" : "حدث خطأ")}
+          </div>
+        )}
 
       <Card className="w-full rounded-2xl border border-gray-300 overflow-hidden">
         <div className="flex flex-col w-full p-6">
@@ -846,11 +933,23 @@ export const Users = (): React.JSX.Element => {
                     {getCurrentPageData().map((row, index) => (
                       <TableRow
                         key={index}
-                        className={`border-b border-[#e4e7ec] ${currentUserRole === "admin" ? "cursor-pointer hover:bg-gray-50 transition-colors" : ""}`}
-                        onClick={currentUserRole === "admin" ? () => window.location.href = `/supervisor/supervisorStatics/${row?.id}` : undefined}
+                        className={`border-b border-[#e4e7ec] ${
+                          currentUserRole === "admin"
+                            ? "cursor-pointer hover:bg-gray-50 transition-colors"
+                            : ""
+                        }`}
+                        onClick={
+                          currentUserRole === "admin"
+                            ? () =>
+                                (window.location.href = `/supervisor/supervisorStatics/${row?.id}`)
+                            : undefined
+                        }
                       >
                         <TableCell className="py-1 px-2 mt-4">
-                          <div className="flex justify-center gap-3.5" onClick={(e) => e.stopPropagation()}>
+                          <div
+                            className="flex justify-center gap-3.5"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             {currentUserRole === "admin" ? (
                               row.acceptenceState !== "idle" ? (
                                 <>
@@ -907,9 +1006,7 @@ export const Users = (): React.JSX.Element => {
                                 </>
                               ) : (
                                 <button
-                                  onClick={(e) =>
-                                    handleReactivateUser(row, e)
-                                  }
+                                  onClick={(e) => handleReactivateUser(row, e)}
                                   className="button p-2 rounded-lg text-[#e16f4cf7] border border-[#e16f4cf7] disabled:border-gray-300  disabled:text-gray-300 disabled:cursor-not-allowed hover:opacity-80 hover:bg-[#e16f4cf7]/10 transition-all"
                                 >
                                   إعادة تنشيط
@@ -932,54 +1029,61 @@ export const Users = (): React.JSX.Element => {
                         </TableCell>
                         <TableCell className="py-1 px-2 text-right max-md:hidden ">
                           <Badge className="px-2.5 py-[3px] rounded-[100px] border border-solid border-[#1a7f37] bg-transparent">
-                            <span className=" font-bold text-[#1a7f37] text-xs [direction:rtl] text-nowrap">
-                              {/* {statusTranslation[row.acceptenceState as keyof typeof statusTranslation] ?? row.acceptenceState} */}
-                              {row?.acceptenceState || 'غير محدد'}
+                            <span className="font-bold text-[#1a7f37] text-xs [direction:rtl]">
+                              {statusTranslation[
+                                row?.acceptenceState as keyof typeof statusTranslation
+                              ] ??
+                                row?.acceptenceState ??
+                                "غير محدد"}
                             </span>
                           </Badge>
                         </TableCell>
                         <TableCell className="py-1 px-2 text-right max-md:hidden ">
                           <span className=" font-medium text-[#027163] text-base [direction:rtl]">
-                            {row?.schoolName || '-'}
+                            {row?.schoolName || "-"}
                           </span>
                         </TableCell>
                         <TableCell className="py-1 px-2 text-right max-md:hidden ">
                           <span className=" font-medium text-[#027163] text-base [direction:rtl]">
-                            {row?.eduAdminName || '-'}
+                            {row?.eduAdminName || "-"}
                           </span>
                         </TableCell>
                         <TableCell className="py-1 px-2 text-right max-md:hidden ">
                           <span className=" font-medium text-[#027163] text-base [direction:rtl]">
-                            {row?.regionName || '-'}
+                            {row?.regionName || "-"}
                           </span>
                         </TableCell>
                         <TableCell className="py-1 px-2 text-right max-md:hidden ">
                           <span className=" font-medium text-[#027163] text-base [direction:rtl]">
                             {roleTranslation[
                               row?.role as keyof typeof roleTranslation
-                            ] ?? row?.role ?? '-'}
+                            ] ??
+                              row?.role ??
+                              "-"}
                           </span>
                         </TableCell>
                         <TableCell className="py-1 px-2 text-right max-md:hidden ">
                           <span className="font-medium text-[#027163] text-base">
-                            {row?.email || '-'}
+                            {row?.email || "-"}
                           </span>
                         </TableCell>
                         <TableCell className="py-1 px-2 text-right max-md:hidden ">
                           <span className="font-medium text-[#027163] text-base">
-                            {row?.phone || '-'}
+                            {row?.phone || "-"}
                           </span>
                         </TableCell>
                         <TableCell className="py-1 px-2 text-right">
                           <span className=" font-medium text-[#027163] text-base [direction:rtl] mr-[23px]">
-                            {row?.name || 'غير محدد'}
+                            {row?.name || "غير محدد"}
                           </span>
                         </TableCell>
                         <TableCell className="">
                           <div onClick={(e) => e.stopPropagation()}>
                             <Checkbox
                               checked={checkedRows.includes(row?.id)}
-                              onCheckedChange={() => handleCheckboxChange(row?.id)}
+                              onCheckedChange={() =>
+                                handleCheckboxChange(row?.id)
+                              }
                               className={
                                 row.isChecked
                                   ? "w-4 h-4 bg-[#0969da] rounded-[3px]"

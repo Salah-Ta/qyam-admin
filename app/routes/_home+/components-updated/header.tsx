@@ -3,7 +3,7 @@ import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
-
+import { useRouteLoaderData,} from "@remix-run/react";
 import bg1 from "../../../assets/images/new-design/bg-1.png"
 import bg2 from "../../../assets/images/new-design/bg-2.png"
 
@@ -68,6 +68,7 @@ Button.displayName = "Button";
 
 // Header component
 export const Header = (): JSX.Element => {
+  const { user } = useRouteLoaderData<any>("root");
   return (
     <section className="flex flex-col  w-full items-center gap-8 px-8 py-0 mx-auto lg:mb-[157px] "
  
@@ -109,15 +110,18 @@ export const Header = (): JSX.Element => {
           </p>
         </div>
 
-        <div className="inline-flex items-start gap-3">
-          <button 
-           onClick={() => window.location.href = "/join"}
-          className="flex items-center justify-center px-[26px] py-4 bg-[#006173] text-white rounded-lg">
-            <span className=" font-bold text-lg text-left tracking-[0] leading-7 whitespace-nowrap ">
-              انضمام
-            </span>
-          </button>
-        </div>
+{!user && ( // Only show button when NOT authenticated
+          <div className="inline-flex items-start gap-3">
+            <button
+              onClick={() => (window.location.href = "/join")}
+              className="flex items-center justify-center px-[26px] py-4 bg-[#006173] text-white rounded-lg"
+            >
+              <span className="font-bold text-lg text-left tracking-[0] leading-7 whitespace-nowrap">
+                انضمام
+              </span>
+            </button>
+          </div>
+        )}
       </div>
     </section>
   );

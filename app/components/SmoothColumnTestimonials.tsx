@@ -134,7 +134,7 @@ const OriginalColumnTestimonials: React.FC<OriginalColumnTestimonialsProps> = ({
         }
       `}</style>
       <div className="flex flex-col max-w-screen-xl items-start gap-8 px-8 w-full mb-10 pb-10">
-      <div className="flex flex-col items-center gap-10 w-full">
+      <div className="flex flex-col items-right gap-10 w-full">
         <div className="flex flex-col md:flex-row md:flex-nowrap items-start gap-8 w-full">
           {columns.map((column, columnIndex) => (
             <div 

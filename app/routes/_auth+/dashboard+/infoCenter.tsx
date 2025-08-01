@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { DownloadCloudIcon } from "lucide-react";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -131,11 +131,15 @@ const CardContent = ({
 
 const Tabs = ({
   className,
+  value,
   defaultValue,
   ...props
-}: React.HTMLAttributes<HTMLDivElement> & { defaultValue: string }) => {
+}: React.HTMLAttributes<HTMLDivElement> & { 
+  defaultValue?: string; 
+  value?: string; 
+}) => {
   return (
-    <div className={cn("", className)} data-state={defaultValue} {...props} />
+    <div className={cn("", className)} data-state={value || defaultValue} {...props} />
   );
 };
 
@@ -190,6 +194,8 @@ const NCFiles = () => {
     materials: SerializedMaterial[], 
     articles: SerializedArticle[] 
   }>();
+
+  const [activeTab, setActiveTab] = useState("knowledge-center");
 
   const knowledgeCenterRef = useRef<HTMLDivElement>(null);
   const programGuidesRef = useRef<HTMLDivElement>(null);
@@ -294,6 +300,46 @@ const NCFiles = () => {
 
   const sections = transformMaterialsToSections(materials);
 
+  // Map of section IDs to their refs
+  const sectionRefs = {
+    "knowledge-center": knowledgeCenterRef,
+    "program-guides": programGuidesRef,
+    "program-activities": programActivitiesRef,
+    "volunteer-opportunities": volunteerOpportunitiesRef,
+    "motivation-tools": motivationToolsRef,
+    "articles": articlesRef,
+  };
+
+  // Scroll event listener to update active tab based on scroll position
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollPosition = window.scrollY + 150; // 150px offset from top
+      
+      // Check each section to see which one is currently in view
+      const sectionIds = ["knowledge-center", "program-guides", "program-activities", "volunteer-opportunities", "motivation-tools", "articles"];
+      
+      for (let i = sectionIds.length - 1; i >= 0; i--) {
+        const sectionId = sectionIds[i];
+        const ref = sectionRefs[sectionId as keyof typeof sectionRefs];
+        
+        if (ref.current) {
+          const elementTop = ref.current.offsetTop;
+          
+          if (scrollPosition >= elementTop) {
+            setActiveTab(sectionId);
+            break;
+          }
+        }
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    // Call once on mount to set initial active tab
+    handleScroll();
+    
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   // Scroll to section
   const handleTabClick = (ref: React.RefObject<HTMLDivElement>) => {
     if (ref.current) {
@@ -317,15 +363,15 @@ const NCFiles = () => {
   }));
 
   return (
-    <Card className="flex flex-col w-full   gap-8 p-4 bg-white rounded-2xl md:mt-[182px] mb-[265.5px]">
-      <Tabs defaultValue="knowledge-center" dir="rtl" className="w-full">
-        <TabsList className="flex flex-col md:flex-row  items-center justify-center gap-4 md:gap-1 p-1.5 w-full  rounded-xl border border-solid border-[#e9e9eb]">
+    <div className="flex flex-col w-full gap-8 md:mt-[140px] mb-[265.5px]">
+      <Tabs value={activeTab} dir="rtl" className="w-full sticky top-[80px] z-50">
+        <TabsList className=" flex flex-col md:flex-row items-center justify-center gap-4 md:gap-1 p-1.5 w-full rounded-xl border border-solid border-[#e9e9eb] shadow-md backdrop-blur-sm">
           {sections.map((section) => (
             <TabsTrigger
               key={section.id}
               value={section.id}
               className={`flex h-8 max-md:mt-3 items-center justify-center gap-2 w-full md:flex-1 rounded-md ${
-                section.id === "knowledge-center"
+                activeTab === section.id
                   ? "bg-white shadow-shadows-shadow-sm text-[#414651]"
                   : "bg-transparent text-[#717680]"
               }`}
@@ -347,7 +393,11 @@ const NCFiles = () => {
           <TabsTrigger
             key="articles"
             value="articles"
-            className="flex h-8 max-md:mt-3 items-center justify-center gap-2 w-full md:flex-1 rounded-md bg-transparent text-[#717680]"
+            className={`flex h-8 max-md:mt-3 items-center justify-center gap-2 w-full md:flex-1 rounded-md ${
+              activeTab === "articles"
+                ? "bg-white shadow-shadows-shadow-sm text-[#414651]"
+                : "bg-transparent text-[#717680]"
+            }`}
             onClick={() => handleTabClick(articlesRef)}
           >
             <Badge className="px-2.5 py-0.5 bg-neutral-50 rounded-full border border-solid border-[#e9e9eb]">
@@ -361,7 +411,8 @@ const NCFiles = () => {
           </TabsTrigger>
         </TabsList>
       </Tabs>
-      <div className="flex flex-col gap-12 w-full">
+      <Card className="flex flex-col w-full gap-8 p-4 bg-white rounded-2xl">
+        <div className="flex flex-col gap-12 w-full">
         {sections.map((section) => (
           <div key={section.id} ref={section.ref}>
             <section className="flex flex-col gap-14 w-full">
@@ -447,7 +498,7 @@ const NCFiles = () => {
               المقالات
             </h2>
           </div>
-          <div className="flex flex-wrap items-center justify-center md:justify-between gap-[29.61px] w-full" dir="rtl">
+          <div className="flex flex-wrap items-center justify-center md:justify-start gap-[29.61px] w-full" dir="rtl">
             {articleCards.length > 0 ? (
               articleCards.map((article) => (
                 <Card
@@ -506,8 +557,9 @@ const NCFiles = () => {
             )}
           </div>
         </section>
-      </div>
-    </Card>
+        </div>
+      </Card>
+    </div>
   );
 };
 

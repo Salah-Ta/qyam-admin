@@ -227,14 +227,14 @@ export default function Login() {
               <CardContent className="p-0 space-y-6">
                 {/* Email field */}
                 <div className="w-full space-y-2">
-                  <div className="flex items-center justify-end gap-0.5">
+                  <div className="flex items-center   justify-end gap-0.5">
                     <label className="font-medium text-[#414651] text-sm text-right tracking-[0] leading-6 [direction:rtl]">
                       البريد الإلكتروني
                     </label>
                     <span className="text-[#286456] text-sm">*</span>
                   </div>
                   <Input
-                    className="w-full px-3.5 py-2.5 bg-white rounded-lg border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs text-right [direction:rtl]"
+                    className="w-full opacity-60 px-3.5 py-2.5 bg-white rounded-lg border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs text-right [direction:rtl]"
                     placeholder="أدخل بريدك الإلكتروني"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -251,7 +251,7 @@ export default function Login() {
                   </div>
                   <Input
                     type="password"
-                    className="w-full px-3.5 py-2.5 bg-white rounded-lg border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs text-right [direction:rtl]"
+                    className="w-full opacity-60 px-3.5 py-2.5 bg-white rounded-lg border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs text-right [direction:rtl] "
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}

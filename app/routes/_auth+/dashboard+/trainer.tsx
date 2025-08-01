@@ -138,7 +138,7 @@ export const Trainer = () => {
                 <Button
                   key={item.id}
                   variant="outline"
-                  className={`w-full justify-center items-center gap-2 px-[22px] py-4 rounded-lg border border-[#d5d6d9] shadow-shadows-shadow-xs-skeuomorphic ${
+                  className={`w-full h-[60px] justify-center items-center gap-2 px-[22px] py-4 rounded-lg border border-[#d5d6d9] shadow-shadows-shadow-xs-skeuomorphic ${
                     isActive
                       ? "bg-[#68C35C] text-white hover:bg-[#4E9E48] hover:text-white" // Active styles with hover
                       : "bg-white text-[#414651] hover:bg-[#f0f0f0]" // Default styles with hover
@@ -165,7 +165,7 @@ export const Trainer = () => {
               <DialogTrigger asChild>
                 <Button
                   variant="outline"
-                  className="flex items-center gap-1.5 px-[18px] py-3 rounded-md border border-[#D5D7DA]"
+                  className="flex h-[48px] items-center gap-1.5 px-[18px] py-3 rounded-md border border-[#D5D7DA]"
                   onClick={handleNewReport}
                 >
                   <PlusCircleIcon className="w-5 h-5" />

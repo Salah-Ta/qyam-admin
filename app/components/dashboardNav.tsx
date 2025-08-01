@@ -29,7 +29,6 @@ export default function dashboardNav() {
     navigate("/logout");
   };
 
-  console.log("user in dashboardNav:", user);
 
   const AuthActions = () =>
     user ? (
@@ -119,7 +118,6 @@ export default function dashboardNav() {
         user?.role &&
         user?.role?.toLowerCase() === item?.requiredRole?.toLowerCase())
   );
-  console.log("-----------------------", visibleMenuItems);
 
   return (
     <header

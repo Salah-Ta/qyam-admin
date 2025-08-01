@@ -5,13 +5,14 @@ import {
   useFetcher,
   useSubmit,
   useLoaderData,
+  useLocation,
 } from "@remix-run/react";
 import {
   ActionFunctionArgs,
   LoaderFunctionArgs,
   redirect,
 } from "@remix-run/cloudflare";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { authClient } from "../../lib/auth.client";
 import glossary from "./glossary";
 import TitleBlock from "~/components/ui/title-block";
@@ -34,8 +35,9 @@ import {
   BreadcrumbItem,
   BreadcrumbLink,
   BreadcrumbList,
+  BreadcrumbSeparator,
 } from "../dashbord/dashboard-components/ui/breadcrumb";
-import { ChevronLeftIcon } from "lucide-react";
+import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@radix-ui/react-avatar";
 import ProfileImage from "../../assets/images/profile.png";
 export async function loader({ request, context }: LoaderFunctionArgs) {
@@ -329,12 +331,19 @@ export default function Signup() {
       }
     }
   };
+  const location = useLocation();
+
   const breadcrumbItems = [
-    { label: "مركز المعرفة ", href: "#", active: true },
-    { label: "حسابي", href: "#", active: false },
-    { label: "الرئيسة", href: "#", active: false },
+    { label: "مركز المعرفة ", href: "/dashboard/infoCenter" },
+    { label: "حسابي", href: "/dashboard/admin/users" },
+    { label: "الرئيسة", href: "/" },
   ];
 
+  // Create a new array with active properly set based on current location.pathname
+  const updatedBreadcrumbItems = breadcrumbItems.map((item) => ({
+    ...item,
+    active: location.pathname === item.href,
+  }));
   return (
     <>
       {/* <h1>testttt</h1> */}
@@ -347,24 +356,29 @@ export default function Signup() {
                 <h1 className="text-[40px] font-bold text-white md:text-right mb-[6px]">
                   حسابي
                 </h1>
-                <Breadcrumb className="flex justify-end ">
-                  <BreadcrumbList className="flex-row-reverse">
-                    {breadcrumbItems.map((item, index) => (
-                      <BreadcrumbItem key={index}>
-                        <BreadcrumbLink
-                          href={item.href}
-                          className={`
-                        inline-flex items-center pt-[16px] text-white
-                        ${item.active ? "font-bold" : " font-normal"}
-                        text-base leading-[22px] whitespace-nowrap 
-                      `}
-                        >
-                          {index < breadcrumbItems.length - 1 && (
-                            <ChevronLeftIcon className="w-5 h-5 text-white pl-1" />
-                          )}
-                          {item.label}
-                        </BreadcrumbLink>
-                      </BreadcrumbItem>
+                <Breadcrumb className="flex justify-end">
+                  <BreadcrumbList className="flex flex-row-reverse items-baseline">
+                    {updatedBreadcrumbItems.map((item, index) => (
+                      <Fragment key={index}>
+                        <BreadcrumbItem>
+                          <BreadcrumbLink
+                            href={item.href}
+                            className={`
+                inline-flex items-center pt-[16px] text-white
+                ${item.active ? "font-bold" : "font-normal"}
+                text-base leading-[22px] whitespace-nowrap
+              `}
+                            aria-current={item.active ? "page" : undefined}
+                          >
+                            {item.label}
+                          </BreadcrumbLink>
+                        </BreadcrumbItem>
+                        {index < updatedBreadcrumbItems.length - 1 && (
+                          <BreadcrumbSeparator className="px-1 ">
+                            <ChevronRightIcon className="w-5 h-5 text-white rotate-180" />
+                          </BreadcrumbSeparator>
+                        )}
+                      </Fragment>
                     ))}
                   </BreadcrumbList>
                 </Breadcrumb>

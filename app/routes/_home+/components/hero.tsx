@@ -14,7 +14,7 @@ const Hero = () => {
   return (
     <section
       id="hero"
-      className=" flex lg:flex-row flex-col justify-between items-center w-full h-screen  pt-48 overflow-x-hidden"
+      className=" flex lg:flex-row flex-col justify-between items-center w-full h-screen  pt-48"
     >
       <img className="absolute md:right-1/3 top-24" src={RectBlurry} />
       <img className="absolute bottom-20 z-0" src={DropsGroup} />

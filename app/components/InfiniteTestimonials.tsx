@@ -141,7 +141,7 @@ const InfiniteTestimonials: React.FC<InfiniteTestimonialsProps> = ({ testimonial
     <div className="w-full overflow-hidden bg-gradient-to-r from-transparent via-gray-50 to-transparent py-4">
       <div
         ref={scrollRef}
-        className="flex gap-6 overflow-x-hidden px-4"
+        className="flex gap-6 px-4"
         style={{
           width: '100%',
           scrollBehavior: 'auto'

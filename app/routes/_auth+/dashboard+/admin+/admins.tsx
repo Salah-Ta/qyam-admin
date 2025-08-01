@@ -330,6 +330,7 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
     .getAllUsers(context.cloudflare.env.DATABASE_URL)
     .then((res: any) => Response.json(res.data))
     .catch(() => null);
+    
 }
 
 export const Admins = (): JSX.Element => {
@@ -373,10 +374,10 @@ export const Admins = (): JSX.Element => {
       row?.name?.toLowerCase().includes(search.toLowerCase()) ||
       row?.phone?.toString().includes(search) ||
       row?.email?.toLowerCase().includes(search.toLowerCase());
-
+ 
     const matchesAcceptance =
       !acceptanceStateFilter || row?.acceptenceState === acceptanceStateFilter;
-
+ 
     return matchesSearch && matchesAcceptance;
   });
   console.log("Filtered Data:", filteredData);
@@ -435,11 +436,12 @@ export const Admins = (): JSX.Element => {
     },
   ];
 
-  const statusTranslation = {
-    accepted: "مقبول",
-    denied: "مرفوض",
-    pending: "غير نشط",
-  };
+const statusTranslation = {
+  accepted: "مقبول",
+  denied: "مرفوض",
+  pending: "غير نشط",
+};
+
 
   // Add role translation mapping
   const roleTranslation = {
@@ -459,6 +461,7 @@ export const Admins = (): JSX.Element => {
           {/* Metrics Overview Section */}
           <section className="flex flex-wrap gap-5 w-full">
             {Object.values(metricsData).map((metric) => (
+              
               <Card
                 key={metric.id}
                 className="flex-1 min-w-[232px] border border-[#e9e9eb] shadow-shadows-shadow-xs"
@@ -631,6 +634,7 @@ export const Admins = (): JSX.Element => {
                               {statusTranslation[
                                 row?.acceptenceState as keyof typeof statusTranslation
                               ] ?? row?.acceptenceState ?? 'غير محدد'}
+                              
                             </span>
                           </Badge>
                         </TableCell>
