@@ -613,7 +613,7 @@ export const Users = (): React.JSX.Element => {
   const statusTranslation = {
     accepted: "مقبول",
     denied: "مرفوض",
-    pending: "غير نشط",
+    pending: "قيد المراجعة",
     idle: "غير نشط",
   };
   const roleTranslation = {
