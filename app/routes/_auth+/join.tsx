@@ -158,7 +158,7 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
     return redirectWithToast("/login", {
       type: "success",
       title: "تم التسجيل بنجاح!",
-      description: "يرجى تسجيل الدخول الآن"
+      description: "تم استلام طلبك بنجاح. يرجى متابعة بريدك الإلكتروني لمعرفة حالة الطلب قريباً"
     }, {
       headers: {
         "Set-Cookie": await commitSession(session),
