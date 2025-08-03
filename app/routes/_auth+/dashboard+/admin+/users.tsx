@@ -470,25 +470,35 @@ export async function action({ request, context }: any) {
     } else if (actionType === "bulkUpdateStatus") {
       const userIdsString = formData.get("userIds");
       const status = formData.get("status");
-      
+
       if (!userIdsString || !status) {
         return new Response(
-          JSON.stringify({ success: false, message: "معرفات المستخدمين والحالة مطلوبة" }),
+          JSON.stringify({
+            success: false,
+            message: "معرفات المستخدمين والحالة مطلوبة",
+          }),
           { status: 400 }
         );
       }
 
       const userIds = JSON.parse(userIdsString as string);
-      
+
       if (!Array.isArray(userIds) || userIds.length === 0) {
         return new Response(
-          JSON.stringify({ success: false, message: "يجب تحديد مستخدم واحد على الأقل" }),
+          JSON.stringify({
+            success: false,
+            message: "يجب تحديد مستخدم واحد على الأقل",
+          }),
           { status: 400 }
         );
       }
 
-      await userDB.bulkEditUserRegisteration(userIds, status as "accepted" | "denied", DBurl);
-      
+      await userDB.bulkEditUserRegisteration(
+        userIds,
+        status as "accepted" | "denied",
+        DBurl
+      );
+
       const statusMessage = status === "accepted" ? "قبول" : "رفض";
       return new Response(
         JSON.stringify({
@@ -934,22 +944,52 @@ export const Users = (): React.JSX.Element => {
                         className="px-4 py-2 text-[#12B76A] hover:bg-gray-100 bg-white  rounded-lg text-sm"
                       >
                         قبول
-                        <svg width="21" height="20" viewBox="0 0 21 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-<path d="M19.7002 10C19.7002 5.02943 15.6707 1 10.7002 1C5.72963 1 1.7002 5.02943 1.7002 10C1.7002 14.9705 5.72963 19 10.7002 19C15.6707 19 19.7002 14.9705 19.7002 10Z" stroke="#12B76A" stroke-width="1.5"/>
-<path d="M6.7002 10.5L9.2002 13L14.7002 7" stroke="#12B76A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>
-
+                        <svg
+                          width="21"
+                          height="20"
+                          viewBox="0 0 21 20"
+                          fill="none"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path
+                            d="M19.7002 10C19.7002 5.02943 15.6707 1 10.7002 1C5.72963 1 1.7002 5.02943 1.7002 10C1.7002 14.9705 5.72963 19 10.7002 19C15.6707 19 19.7002 14.9705 19.7002 10Z"
+                            stroke="#12B76A"
+                            stroke-width="1.5"
+                          />
+                          <path
+                            d="M6.7002 10.5L9.2002 13L14.7002 7"
+                            stroke="#12B76A"
+                            stroke-width="1.5"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          />
+                        </svg>
                       </Button>
                       <Button
                         onClick={handleBulkDeny}
                         className="px-4 py-2 text-[#D1242F] hover:bg-gray-100 bg-white  rounded-lg text-sm"
                       >
                         رفض
-                        <svg width="21" height="20" viewBox="0 0 21 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-<path d="M19.4692 10C19.4692 5.02943 15.4398 1 10.4692 1C5.49867 1 1.46924 5.02943 1.46924 10C1.46924 14.9705 5.49867 19 10.4692 19C15.4398 19 19.4692 14.9705 19.4692 10Z" stroke="#D1242F" stroke-width="1.5"/>
-<path d="M13.4686 13L7.46924 7M7.46988 13L13.4692 7" stroke="#D1242F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>
-
+                        <svg
+                          width="21"
+                          height="20"
+                          viewBox="0 0 21 20"
+                          fill="none"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path
+                            d="M19.4692 10C19.4692 5.02943 15.4398 1 10.4692 1C5.49867 1 1.46924 5.02943 1.46924 10C1.46924 14.9705 5.49867 19 10.4692 19C15.4398 19 19.4692 14.9705 19.4692 10Z"
+                            stroke="#D1242F"
+                            stroke-width="1.5"
+                          />
+                          <path
+                            d="M13.4686 13L7.46924 7M7.46988 13L13.4692 7"
+                            stroke="#D1242F"
+                            stroke-width="1.5"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          />
+                        </svg>
                       </Button>
                     </div>
                   )}
