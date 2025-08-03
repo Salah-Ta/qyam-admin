@@ -85,9 +85,9 @@ const OriginalColumnTestimonials: React.FC<OriginalColumnTestimonialsProps> = ({
           0% { transform: translateY(0); }
           100% { transform: translateY(-50%); }
         }
-        @keyframes scrollUp1 {
-          0% { transform: translateY(0); }
-          100% { transform: translateY(-50%); }
+        @keyframes scrollDown1 {
+          0% { transform: translateY(-50%); }
+          100% { transform: translateY(0); }
         }
         @keyframes scrollUp2 {
           0% { transform: translateY(0); }
@@ -97,7 +97,7 @@ const OriginalColumnTestimonials: React.FC<OriginalColumnTestimonialsProps> = ({
           animation: scrollUp0 30s linear infinite;
         }
         .scroll-animation-1 {
-          animation: scrollUp1 40s linear infinite;
+          animation: scrollDown1 40s linear infinite;
         }
         .scroll-animation-2 {
           animation: scrollUp2 35s linear infinite;

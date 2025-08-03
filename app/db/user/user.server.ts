@@ -374,24 +374,44 @@ const deleteUser = (id: string, dbUrl?: string): Promise<StatusResponse<null>> =
 
   const db = initializeDatabase(dbUrl);
 
-  return new Promise((resolve, reject) => {
-    db.user
-      .delete({
-        where: { id }
-      })
-      .then(() => {
-        resolve({
-          status: "success",
-          message: "تم حذف المستخدم بنجاح",
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Use a transaction to ensure all deletions succeed or fail together
+      await db.$transaction(async (tx) => {
+        // Delete related records first to avoid foreign key constraint errors
+        
+        // Delete user reports (and their related skill reports and testimonial reports will cascade)
+        await tx.report.deleteMany({
+          where: { userId: id }
         });
-      })
-      .catch((error: any) => {
-        console.log("ERROR [deleteUser]: ", error);
-        reject({
-          status: "error",
-          message: "فشل حذف المستخدم",
+        
+        // Delete messages sent by the user
+        await tx.message.deleteMany({
+          where: { fromUserId: id }
+        });
+        
+        // Delete messages received by the user
+        await tx.message.deleteMany({
+          where: { toUserId: id }
+        });
+        
+        // Finally delete the user (this will cascade delete sessions, accounts, and certificates)
+        await tx.user.delete({
+          where: { id }
         });
       });
+      
+      resolve({
+        status: "success",
+        message: "تم حذف المستخدم بنجاح",
+      });
+    } catch (error: any) {
+      console.log("ERROR [deleteUser]: ", error);
+      reject({
+        status: "error",
+        message: "فشل حذف المستخدم",
+      });
+    }
   });
 };
 

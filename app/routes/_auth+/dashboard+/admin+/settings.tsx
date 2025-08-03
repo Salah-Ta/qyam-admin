@@ -1,11 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { Button } from "~/routes/_auth+/new-design/components/ui/button";
-import {
-  Card,
-  CardContent,
-} from "~/routes/_auth+/new-design/components/ui/card";
-import { Input } from "~/routes/_auth+/new-design/components/ui/input";
-import plusImg from "../../../../assets/icons/plus.svg";
 import UserIcon from "../../../../assets/icons/user-modified.svg";
 import { json } from "@remix-run/cloudflare";
 import {
@@ -18,7 +11,8 @@ import schoolDB from "~/db/school/school.server";
 import eduAdminDB from "~/db/eduAdmin/eduAdmin.server";
 import regionDB from "~/db/region/region.server";
 import { LoaderFunctionArgs } from "@remix-run/cloudflare";
-import { MinusCircleIcon, ChevronRightIcon, ArrowLeftIcon, XIcon } from "lucide-react";
+import { XIcon } from "lucide-react";
+import { Button } from "~/components/ui/button";
 
 // --- Loader & Action ---
 export async function loader({ context }: LoaderFunctionArgs) {

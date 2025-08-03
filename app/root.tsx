@@ -20,6 +20,7 @@ import Footer from "./components/footer";
 import { Toaster } from "sonner";
 import { getToast } from "./lib/toast.server";
 import { useToast } from "./components/toaster";
+import messageDB from "./db/message/message.server";
 
 export const links: LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -59,11 +60,43 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
     const user = sessionResponse?.user ? (sessionResponse.user as User) : null;
 
+    // Fetch notifications if user is authenticated
+    let notifications = null;
+    let unreadCount = 0;
+
+    if (user) {
+      try {
+        const [messagesResult, unreadCountResult] = await Promise.all([
+          messageDB.getIncomingMessages(user.id, context.cloudflare.env.DATABASE_URL),
+          messageDB.getUnreadCount(user.id, context.cloudflare.env.DATABASE_URL)
+        ]);
+
+        if (messagesResult.status === "success") {
+          notifications = messagesResult.data?.slice(0, 10) || []; // Only get latest 10 for dropdown
+        }
+
+        if (unreadCountResult.status === "success") {
+          unreadCount = typeof unreadCountResult.data === 'number' ? unreadCountResult.data : 0;
+        }
+
+        // Only log once for debugging
+        console.log('Root loader notifications loaded:', {
+          messagesCount: notifications?.length || 0,
+          unreadCount
+        });
+      } catch (error) {
+        console.error("Error fetching notifications in root loader:", error);
+        // Continue without notifications
+      }
+    }
+
     return Response.json(
       {
         toast: toastResponse.toast,
         user,
         phoneNumber: context.cloudflare.env,
+        notifications,
+        unreadCount,
       },
       {
         headers: toastResponse.headers || undefined,
@@ -74,6 +107,8 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
       {
         toast: null,
         user: null,
+        notifications: null,
+        unreadCount: 0,
       },
       {
         headers: undefined,

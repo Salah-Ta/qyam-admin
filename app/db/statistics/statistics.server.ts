@@ -391,6 +391,7 @@ async function getEduAdminBreakdown(dbUrl?: string) {
         SELECT 
             ea.id,
             ea.name,
+            ea."regionId",
             COUNT(DISTINCT s.id)::INTEGER as "schoolsCount",
             COUNT(DISTINCT CASE WHEN u.role = 'user' THEN u.id END)::INTEGER as "trainersCount",
             COUNT(DISTINCT rep.id)::INTEGER as "reportsCount",
@@ -405,13 +406,14 @@ async function getEduAdminBreakdown(dbUrl?: string) {
         LEFT JOIN "school" s ON s."eduAdminId" = ea.id
         LEFT JOIN public."user" u ON u."schoolId" = s.id
         LEFT JOIN "report" rep ON rep."userId" = u.id
-        GROUP BY ea.id, ea.name
+        GROUP BY ea.id, ea.name, ea."regionId"
         ORDER BY ea.name
     `;
 
     return eduAdminStats.map((stat: any) => ({
         id: stat.id,
         name: stat.name,
+        regionId: stat.regionId,
         schoolsCount: Number(stat.schoolsCount),
         trainersCount: Number(stat.trainersCount),
         reportsCount: Number(stat.reportsCount),

@@ -1,4 +1,4 @@
-export const resetTemplate =(resetUrl:string)=> `<!DOCTYPE html>
+export const resetTemplate = (resetUrl: string) => `<!DOCTYPE html>
 <html dir="rtl">
 <head>
     <meta name="x-apple-disable-message-reformatting">
@@ -126,10 +126,12 @@ export const resetTemplate =(resetUrl:string)=> `<!DOCTYPE html>
     </table>
 </div>
 </body>
-</html>`
+</html>`;
 
-
-export const statusTemplate = (props: { status: string; name: string }) => `<!DOCTYPE html>
+export const statusTemplate = (props: {
+  status: string;
+  name: string;
+}) => `<!DOCTYPE html>
 <html dir="rtl">
 <head>
     <meta name="x-apple-disable-message-reformatting">
@@ -199,17 +201,23 @@ export const statusTemplate = (props: { status: string; name: string }) => `<!DO
                 <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background-color: white; border-radius: 0.5rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); margin-top: 1rem;">
                     <tr>
                         <td class="main-content" style="padding: 2rem;">
-                            ${props.status !== "accepted" ? `
+                            ${
+                              props.status !== "accepted"
+                                ? `
                             <h1 style="font-size: 1.5rem; text-align: center; font-weight: bold; color: #0D3151; margin-bottom: 1rem;">
                                 بشأن طلب الالتحاق ببرنامج هندسة القيم
                             </h1>
-                            ` : ''}
+                            `
+                                : ""
+                            }
 
                             <p style="font-size: 1rem; text-align: center; font-weight: bold; color: black; margin-bottom: 1rem;">
                                 عزيزي/عزيزتي ${props.name}،
                             </p>
 
-                            ${props.status === "denied" ? `
+                            ${
+                              props.status === "denied"
+                                ? `
                                 <p style="font-size: 1rem; text-align: center; font-weight: bold; color: black; margin-bottom: 1rem;">
                                     نشكرك على اهتمامك ببرنامج هندسة القيم وتقديم طلب الالتحاق بنا. لقد تلقينا عددًا كبيرًا من الطلبـــات المؤهــلــة، ممــا جــعــل عملية الاختيار صعبة للغاية.
                                 </p>
@@ -222,7 +230,8 @@ export const statusTemplate = (props: { status: string; name: string }) => `<!DO
                                 <p style="font-size: 1rem; text-align: center; font-weight: bold; color: #8BC53F; margin-bottom: 1rem;">
                                     مع خالص التحيات، برنامج هندسة القيم
                                 </p>
-                            ` : `
+                            `
+                                : `
                                 <p style="font-size: 1rem; text-align: center; font-weight: bold; color: black;">
                                     يسعدنا جدًا إخبارك بقبولك في برنامج هندسة القيم. لقد أظهرت سجلك الأكاديمي وخبرتك السابقة اهتمامًا قويًا بهذا المجال،
                                 </p>
@@ -245,7 +254,8 @@ export const statusTemplate = (props: { status: string; name: string }) => `<!DO
                                 <p style="font-size: 1rem; text-align: center; font-weight: bold; color: #8BC53F; margin-bottom: 1rem;">
                                     برنامج قيم
                                 </p>
-                            `}
+                            `
+                            }
                         </td>
                     </tr>
                 </table>
@@ -291,7 +301,7 @@ export const statusTemplate = (props: { status: string; name: string }) => `<!DO
     </table>
 </div>
 </body>
-</html>`
+</html>`;
 
 export const registerTemplate = (props: { name: string }) => `<!DOCTYPE html>
 <html dir="rtl">
@@ -314,9 +324,12 @@ export const registerTemplate = (props: { name: string }) => `<!DOCTYPE html>
         <p style="font-size: 1rem; text-align: center;"> سيتم مراجعة طلبك قريبًا.</p>
     </div>
 </body>
-</html>`
+</html>`;
 
-export const userUpdateTemplate = (props: { name: string; status: string }) => `<!DOCTYPE html>
+export const userUpdateTemplate = (props: {
+  name: string;
+  status: string;
+}) => `<!DOCTYPE html>
 <html dir="rtl">
 <head>
     <meta name="x-apple-disable-message-reformatting">
@@ -333,19 +346,25 @@ export const userUpdateTemplate = (props: { name: string; status: string }) => `
 <body style="font-family: sans-serif; margin: 0; padding: 0;">
     <div style="max-width: 600px; margin: 0 auto; padding: 16px;">
         <h1 style="font-size: 1.5rem; text-align: center;">تحديث حالة المستخدم</h1>
-        <p style="font-size: 1rem; text-align: center;">مرحبًا ${props.name}،</p>
-        <p style="font-size: 1rem; text-align: center;">لقد تم تحديث حالة طلبك إلى: ${props.status}</p>
-        ${props.status === 'accepted' ? (
-            `<p style="font-size: 1rem; text-align: center;">تهانينا! تم قبول طلبك.</p>`
-        ) : props.status === 'denied' ? (
-            `<p style="font-size: 1rem; text-align: center;">نأسف، تم رفض طلبك.</p>`
-        ) : props.status === 'pending' ? (
-            `<p style="font-size: 1rem; text-align: center;">حالة طلبك قيد المراجعة.</p>`
-        ) : props.status === 'rejected' ? (
-            `<p style="font-size: 1rem; text-align: center;">تم رفض طلبك.</p>`
-        ) : props.status === 'idle' ? (
-            `<p style="font-size: 1rem; text-align: center;">حالة طلبك غير نشطة.</p>`
-        ) : null}
+        <p style="font-size: 1rem; text-align: center;">مرحبًا ${
+          props.name
+        }،</p>
+        <p style="font-size: 1rem; text-align: center;">لقد تم تحديث حالة طلبك إلى: ${
+          props.status
+        }</p>
+        ${
+          props.status === "accepted"
+            ? `<p style="font-size: 1rem; text-align: center;">تهانينا! تم قبول طلبك.</p>`
+            : props.status === "denied"
+            ? `<p style="font-size: 1rem; text-align: center;">نأسف، تم رفض طلبك.</p>`
+            : props.status === "pending"
+            ? `<p style="font-size: 1rem; text-align: center;">حالة طلبك قيد المراجعة.</p>`
+            : props.status === "rejected"
+            ? `<p style="font-size: 1rem; text-align: center;">تم رفض طلبك.</p>`
+            : props.status === "idle"
+            ? `<p style="font-size: 1rem; text-align: center;">حالة طلبك غير نشطة.</p>`
+            : null
+        }
     </div>
 </body>
-</html>`
+</html>`;

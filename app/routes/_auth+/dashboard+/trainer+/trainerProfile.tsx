@@ -1,8 +1,10 @@
-import { LoaderFunctionArgs, json } from "@remix-run/cloudflare";
+import { LoaderFunctionArgs, json, ActionFunctionArgs } from "@remix-run/cloudflare";
 import materialDB from "~/db/material/material.server";
 import reportDB from "~/db/report/report.server";
 import skillDB from "~/db/skill/skill.server";
-import { MinusCircleIcon, XIcon } from "lucide-react";
+import messageDB from "~/db/message/message.server";
+import { getAuthenticated } from "~/lib/get-authenticated.server";
+import { MinusCircleIcon, XIcon, CheckIcon } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "./assets/avatar";
 import { Badge } from "./assets/badge";
 import { Button } from "./assets/button";
@@ -19,16 +21,12 @@ import {
 } from "@remix-run/react";
 import { CreateReportData } from "~/types/types";
 import React from "react";
-
-import Group30476 from "../../../../assets/images/new-design/group-3.svg";
 import sendicon from "../../../../assets/icons/send.svg";
-import avatar from "../../../../assets/icons/avatar.svg";
+import avatar from "../../../../assets/icons/user.png";
 import verifiedTick from "../../../../assets/icons/Verified-tick.svg";
 import mail from "../../../../assets/icons/mail.svg";
 import phone from "../../../../assets/icons/phone.svg";
-
 import region from "../../../../assets/icons/region.svg";
-
 import profile from "../../../../assets/icons/profile.svg";
 
 export type LoaderData = {
@@ -40,6 +38,13 @@ export async function loader({
   context,
   params,
 }: LoaderFunctionArgs): Promise<Response> {
+  // Get authenticated user
+  const currentUser = await getAuthenticated({ request, context });
+  
+  if (!currentUser) {
+    throw new Response("Unauthorized", { status: 401 });
+  }
+
   // Fetch other data as needed
   const DBurl = context.cloudflare.env.DATABASE_URL;
   const materials = await materialDB.getAllMaterials(
@@ -56,17 +61,81 @@ export async function loader({
     context.cloudflare.env.DATABASE_URL
   );
 
+  // Fetch incoming messages for the current user
+  let latestMessage = null;
+  try {
+    const messagesResult = await messageDB.getIncomingMessages(
+      currentUser.id,
+      context.cloudflare.env.DATABASE_URL
+    );
+    
+    if (messagesResult.status === "success" && messagesResult.data && messagesResult.data.length > 0) {
+      latestMessage = messagesResult.data[0]; // Get the latest message
+    }
+  } catch (error) {
+    console.error("Error fetching messages:", error);
+    // Continue without messages
+  }
+
   return Response.json({
     materials: materials.data,
     DBurl,
     reports: reports.data,
     skills: skills.data,
+    latestMessage,
   });
 }
 
-export async function action({ request, context }: LoaderFunctionArgs) {
+export async function action({ request, context }: ActionFunctionArgs) {
+  const currentUser = await getAuthenticated({ request, context });
+
+  if (!currentUser) {
+    return Response.json(
+      {
+        status: "error",
+        message: "غير مخول للوصول",
+      },
+      { status: 401 }
+    );
+  }
+
   const DBurl = context.cloudflare.env.DATABASE_URL;
   const formData = await request.formData();
+  const actionType = formData.get("actionType");
+
+  if (actionType === "markAsRead") {
+    const messageId = formData.get("messageId")?.toString();
+
+    if (!messageId) {
+      return Response.json(
+        {
+          status: "error",
+          message: "معرف الرسالة مطلوب",
+        },
+        { status: 400 }
+      );
+    }
+
+    try {
+      const result = await messageDB.markAsRead(messageId, DBurl);
+      return Response.json({
+        status: "success",
+        message: "تم تحديث حالة الرسالة بنجاح",
+        data: result,
+      });
+    } catch (error) {
+      console.error("Error marking message as read:", error);
+      return Response.json(
+        {
+          status: "error",
+          message: "فشل في تحديث حالة الرسالة",
+        },
+        { status: 500 }
+      );
+    }
+  }
+
+  // Original report creation logic
   const reportData = JSON.parse(formData.get("reportData") as string);
   console.log("Received report data:", reportData);
 
@@ -85,12 +154,13 @@ export async function action({ request, context }: LoaderFunctionArgs) {
 
 export const TrainerProfile = () => {
   const { user } = useRouteLoaderData<any>("root");
-  const { materials, DBurl, reports, skills } = useLoaderData<any>();
+  const { materials, DBurl, reports, skills, latestMessage } = useLoaderData<any>();
   const actionData = useActionData<any>();
   const navigation = useNavigation();
 
   console.log(user, materials, reports);
   console.log("All Skills:", skills);
+  console.log("Latest Message:", latestMessage);
 
   // Show toast if present
 
@@ -167,6 +237,15 @@ export const TrainerProfile = () => {
     return () => window.removeEventListener("resetTrainerProfile", handleReset);
   }, []);
 
+  // Handle mark as read response
+  React.useEffect(() => {
+    if (actionData && actionData.status === "success" && actionData.message === "تم تحديث حالة الرسالة بنجاح") {
+      // Message was marked as read successfully
+      console.log("Message marked as read successfully");
+      // The loader will automatically refresh the data
+    }
+  }, [actionData]);
+
   // Handler to add a new opinion
   const handleAddOpinion = () => {
     const newId =
@@ -181,6 +260,14 @@ export const TrainerProfile = () => {
 
   // filepath: c:\Users\aminj\OneDrive\Documents\GitHub\qyam-admin\app\routes\_auth+\dashboard+\trainer+\trainerProfile.tsx
   const submit = useSubmit();
+
+  // Handle marking message as read
+  const handleMarkAsRead = (messageId: string) => {
+    const formData = new FormData();
+    formData.append("actionType", "markAsRead");
+    formData.append("messageId", messageId);
+    submit(formData, { method: "POST" });
+  };
 
   const handleSendReport = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -291,14 +378,38 @@ export const TrainerProfile = () => {
     { id: 5, label: "الإدارة : ", icon: null, key: "education" },
   ];
 
-  // Message data for navigation section
-  const messageData = {
-    author: "أ/ محمد المسلم مشرف تربوي",
-    timeAgo: "منذ دقيقتين",
-    content:
-      "شكرا على جعودكم الكريمة أ.نورة الشهري , على جهدكم المبذول الكبير , مع تمنياتنا لكم بالتوفيق الكبير",
+  // Helper function to format time ago
+  const formatTimeAgo = (date: Date | string) => {
+    const now = new Date();
+    const messageDate = new Date(date);
+    const diffInMinutes = Math.floor((now.getTime() - messageDate.getTime()) / (1000 * 60));
+    
+    if (diffInMinutes < 1) return "الآن";
+    if (diffInMinutes < 60) return `منذ ${diffInMinutes} دقيقة`;
+    
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) return `منذ ${diffInHours} ساعة`;
+    
+    const diffInDays = Math.floor(diffInHours / 24);
+    return `منذ ${diffInDays} يوم`;
+  };
+
+  // Message data for navigation section - now dynamic
+  const messageData = latestMessage ? {
+    id: latestMessage.id,
+    author: latestMessage.fromUser?.name || "مشرف تربوي",
+    timeAgo: formatTimeAgo(latestMessage.sentAt || new Date()),
+    content: latestMessage.content,
+    avatarUrl: avatar, // You can add user avatar URL to the database later
+    verifiedIconUrl: verifiedTick,
+    isRead: latestMessage.isRead,
+  } : {
+    author: "لا توجد رسائل",
+    timeAgo: "",
+    content: "لا توجد رسائل جديدة",
     avatarUrl: avatar,
     verifiedIconUrl: verifiedTick,
+    isRead: true,
   };
 
   // Data for metric cards
@@ -580,42 +691,67 @@ export const TrainerProfile = () => {
         onSubmit={handleSendReport}
         className="flex flex-col w-full max-w-full overflow-hidden"
       >
-      {/* Navigation Section */}
-      <div className="w-full rounded-xl mb-4 [direction:rtl]">
-        <Card className="relative w-full border-[1px] border-[#004E5C] shadow-shadows-shadow-xs rounded-xl p-4 flex flex-col gap-4 [direction:rtl]">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute top-5 right-5 h-9 w-9 p-2 bg-neutral-50 rounded-lg"
-          >
-            <XIcon className="h-5 w-5" />
-          </Button>
-          <CardContent className="p-0 flex flex-col gap-3">
-            <div className="relative w-10 h-10">
-              <Avatar className="w-10 h-10 border-[0.75px] border-solid border-[#00000014]">
-                <AvatarImage src={messageData.avatarUrl} alt="User avatar" />
-                <AvatarFallback>MS</AvatarFallback>
-              </Avatar>
-              <img
-                className="absolute w-3.5 h-3.5 bottom-0 right-0"
-                alt="Verified tick"
-                src={messageData.verifiedIconUrl}
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-sm text-[#181d27] ">
-                  {messageData.author}
-                </span>
-                <span className="text-sm text-[#717680] ">
-                  {messageData.timeAgo}
-                </span>
+      {/* Navigation Section - Only show if there's a message */}
+      {latestMessage && (
+        <div className="w-full rounded-xl mb-4 [direction:rtl]">
+          <Card className="relative w-full border-[1px] border-[#004E5C] shadow-shadows-shadow-xs rounded-xl p-4 flex flex-col gap-4 [direction:rtl]">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-5 right-5 h-9 w-9 p-2 bg-neutral-50 rounded-lg"
+            >
+              <XIcon className="h-5 w-5" />
+            </Button>
+            <CardContent className="p-0 flex flex-col gap-3">
+              <div className="flex items-start gap-3 w-full">
+                <div className="relative w-10 h-10">
+                  <Avatar className="w-10 h-10 border-[0.75px] border-solid border-[#00000014]">
+                    <AvatarImage src={messageData.avatarUrl} alt="User avatar" />
+                    <AvatarFallback>MS</AvatarFallback>
+                  </Avatar>
+                  <img
+                    className="absolute w-3.5 h-3.5 bottom-0 right-0"
+                    alt="Verified tick"
+                    src={messageData.verifiedIconUrl}
+                  />
+                </div>
+                
+                {/* Mark as seen button */}
+                {latestMessage && !messageData.isRead && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 p-1 bg-blue-50 hover:bg-blue-100 rounded-full"
+                    onClick={() => handleMarkAsRead(messageData.id)}
+                    title="تحديد كمقروءة"
+                  >
+                    <CheckIcon className="h-4 w-4 text-blue-600" />
+                  </Button>
+                )}
               </div>
-              <p className="text-sm text-[#414651] ">{messageData.content}</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+              
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-2">
+                  <span className={`font-bold text-sm ${!messageData.isRead ? 'text-[#181d27]' : 'text-[#717680]'}`}>
+                    {messageData.author}
+                  </span>
+                  <span className="text-sm text-[#717680] ">
+                    {messageData.timeAgo}
+                  </span>
+                  {/* Unread indicator */}
+                  {latestMessage && !messageData.isRead && (
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  )}
+                </div>
+                <p className={`text-sm ${!messageData.isRead ? 'text-[#414651] font-medium' : 'text-[#717680]'}`}>
+                  {messageData.content}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Feedback Section */}
       <div className="w-full max-w-full mb-4 [direction:rtl]">

@@ -908,12 +908,11 @@ export const SupervisorStatistics = (): JSX.Element => {
 
               {/* New Message Button */}
               <div className="flex items-baseline justify-between">
-               
-                              <Avatar
-                    className="w-10 h-10 rotate-180"
-                    image={content}
-                    fallback="NA"
-                  />
+                <Avatar
+                  className="w-10 h-10 rotate-180"
+                  image={content}
+                  fallback="NA"
+                />
                 <Button
                   variant="outline"
                   className="inline-flex items-center justify-center gap-1 px-3 py-2 bg-white rounded-md rotate-180 shadow-shadows-shadow-xs-skeuomorphic"

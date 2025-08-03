@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { LoaderFunctionArgs } from "@remix-run/cloudflare";
-import { useLoaderData, useNavigate, useSearchParams } from "@remix-run/react";
+import { useLoaderData, useNavigate, useSearchParams, useFetcher } from "@remix-run/react";
 import { MoreVerticalIcon } from "lucide-react";
 import {
   Chart as ChartJS,
@@ -61,9 +61,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         schoolId,
       }),
       statisticsService.getRegionalBreakdown(dbUrl),
-      regionId 
-        ? eduAdminService.getEduAdminsByRegion(regionId, dbUrl).then(res => res.data || [])
-        : statisticsService.getEduAdminBreakdown(dbUrl),
+      statisticsService.getEduAdminBreakdown(dbUrl),
       eduAdminId 
         ? schoolService.getSchoolsByEduAdmin(eduAdminId, dbUrl).then(res => res.data || [])
         : Promise.resolve([]),
@@ -126,6 +124,11 @@ export default function ProgramStatisticsContent(): JSX.Element {
 
   const [chartsLoaded, setChartsLoaded] = useState<boolean>(false);
   const [isFiltering, setIsFiltering] = useState<boolean>(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
+  const [showDeleteOrphanedConfirm, setShowDeleteOrphanedConfirm] = useState<boolean>(false);
+  
+  const deleteFetcher = useFetcher();
+  const deleteOrphanedFetcher = useFetcher();
 
   // Set charts as loaded after component mounts (client-side only)
   useEffect(() => {
@@ -146,6 +149,32 @@ export default function ProgramStatisticsContent(): JSX.Element {
     }, 800); // Show loading for filter changes
     return () => clearTimeout(timer);
   }, [selectedRegion, selectedEduAdmin, selectedSchool]);
+
+  // Handle delete response
+  useEffect(() => {
+    if (deleteFetcher.data && deleteFetcher.state === "idle") {
+      if (deleteFetcher.data.status === "success") {
+        // Reload the page to get updated data
+        window.location.reload();
+      } else {
+        // Show error message
+        alert(deleteFetcher.data.message || "فشل في الحذف");
+      }
+    }
+  }, [deleteFetcher.data, deleteFetcher.state]);
+
+  // Handle orphaned delete response
+  useEffect(() => {
+    if (deleteOrphanedFetcher.data && deleteOrphanedFetcher.state === "idle") {
+      if (deleteOrphanedFetcher.data.status === "success") {
+        // Reload the page to get updated data
+        window.location.reload();
+      } else {
+        // Show error message
+        alert(deleteOrphanedFetcher.data.message || "فشل في حذف الإدارات المعزولة");
+      }
+    }
+  }, [deleteOrphanedFetcher.data, deleteOrphanedFetcher.state]);
 
   // Handle potential error state
   if (!loaderData || "error" in loaderData) {
@@ -235,8 +264,43 @@ export default function ProgramStatisticsContent(): JSX.Element {
     navigate(`?${params.toString()}`, { replace: true });
   };
 
+  const handleDeleteEduAdminsWithoutRegion = () => {
+    deleteFetcher.submit(
+      {},
+      {
+        method: "POST",
+        action: "/api/delete-eduadmins-without-region"
+      }
+    );
+    setShowDeleteConfirm(false);
+  };
+
+  const handleDeleteOrphanedEduAdmins = () => {
+    deleteOrphanedFetcher.submit(
+      {},
+      {
+        method: "POST",
+        action: "/api/delete-orphaned-eduadmins"
+      }
+    );
+    setShowDeleteOrphanedConfirm(false);
+  };
+
+  // Count eduadmins without region for display
+  const eduAdminsWithoutRegion = safeEduAdminBreakdown.filter((edu: any) => !edu.regionId);
+  const eduAdminsWithoutRegionCount = eduAdminsWithoutRegion.length;
+
+  // Count orphaned eduadmins (eduadmins whose regionId doesn't exist in regional breakdown)
+  const validRegionIds = safeRegionalBreakdown.map((region: any) => region.id);
+  const orphanedEduAdmins = safeEduAdminBreakdown.filter((edu: any) => 
+    edu.regionId && !validRegionIds.includes(edu.regionId)
+  );
+  const orphanedEduAdminsCount = orphanedEduAdmins.length;
+
   // Filter eduAdmins based on selected region
-  const filteredEduAdmins = safeEduAdminBreakdown;
+  const filteredEduAdmins = selectedRegion 
+    ? safeEduAdminBreakdown.filter((eduAdmin: any) => eduAdmin.regionId === selectedRegion)
+    : safeEduAdminBreakdown;
 
   // Filter schools based on selected eduAdmin - now comes from server
   const filteredSchools = safeSchoolBreakdown;
@@ -335,30 +399,40 @@ export default function ProgramStatisticsContent(): JSX.Element {
     },
   ];
 
-  // Create education departments data from eduAdmin breakdown
-  const educationDepartments = safeEduAdminBreakdown
+  // Create education departments data from filtered eduAdmin breakdown
+  const educationDepartments = filteredEduAdmins
     .slice(0, 8)
     .map((stat: any, index: number) => {
-      // Use multiple metrics to calculate a meaningful value
+      // Sum all statistics for each eduadmin
+      const schoolsCount = stat.schoolsCount || 0;
+      const trainersCount = stat.trainersCount || 0;
+      const reportsCount = stat.reportsCount || 0;
+      const volunteerHours = stat.volunteerHours || 0;
+      const economicValue = stat.economicValue || 0;
+      const volunteerOpportunities = stat.volunteerOpportunities || 0;
+      const activitiesCount = stat.activitiesCount || 0;
       const volunteerCount = stat.volunteerCount || 0;
-      const schoolCount = stat.schoolCount || 0;
-      const trainerCount = stat.trainerCount || 0;
-      const reportCount = stat.reportCount || 0;
+      const skillsEconomicValue = stat.skillsEconomicValue || 0;
+      const skillsTrainedCount = stat.skillsTrainedCount || 0;
       
-      // Calculate a composite score or use the most relevant metric
-      const value = volunteerCount > 0 ? volunteerCount : 
-                   schoolCount > 0 ? schoolCount * 10 : // Scale schools for better visualization
-                   trainerCount > 0 ? trainerCount * 5 : // Scale trainers
-                   reportCount > 0 ? reportCount :
-                   Math.round(stat.volunteerHours || 0); // Fallback to volunteer hours
+      // Calculate total sum of all statistics for this eduadmin
+      const totalValue = schoolsCount + trainersCount + reportsCount + 
+                        volunteerHours + economicValue + volunteerOpportunities + 
+                        activitiesCount + volunteerCount + skillsEconomicValue + 
+                        skillsTrainedCount;
       
       console.log(`Education Department ${stat.name}:`, {
+        schoolsCount,
+        trainersCount,
+        reportsCount,
+        volunteerHours,
+        economicValue,
+        volunteerOpportunities,
+        activitiesCount,
         volunteerCount,
-        schoolCount,
-        trainerCount,
-        reportCount,
-        volunteerHours: stat.volunteerHours,
-        calculatedValue: value
+        skillsEconomicValue,
+        skillsTrainedCount,
+        totalValue
       });
       
       return {
@@ -373,7 +447,7 @@ export default function ProgramStatisticsContent(): JSX.Element {
           "#E9EAEB",
           "#006173",
         ][index % 8],
-        value: value,
+        value: totalValue,
       };
     });
 
@@ -703,6 +777,108 @@ export default function ProgramStatisticsContent(): JSX.Element {
           </div>
         </div>
       </div>
+
+      {/* Delete Buttons */}
+      {(eduAdminsWithoutRegionCount > 0 || orphanedEduAdminsCount > 0) && (
+        <div className="flex flex-col sm:flex-row gap-3 justify-end mt-4">
+          {eduAdminsWithoutRegionCount > 0 && (
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              disabled={deleteFetcher.state !== "idle"}
+              className="bg-red-500 hover:bg-red-600 disabled:bg-red-300 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200"
+            >
+              {deleteFetcher.state !== "idle" ? (
+                "جاري الحذف..."
+              ) : (
+                `حذف ${eduAdminsWithoutRegionCount} إدارة تعليمية بدون منطقة`
+              )}
+            </button>
+          )}
+          
+          {orphanedEduAdminsCount > 0 && (
+            <button
+              onClick={() => setShowDeleteOrphanedConfirm(true)}
+              disabled={deleteOrphanedFetcher.state !== "idle"}
+              className="bg-orange-500 hover:bg-orange-600 disabled:bg-orange-300 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200"
+            >
+              {deleteOrphanedFetcher.state !== "idle" ? (
+                "جاري الحذف..."
+              ) : (
+                `حذف ${orphanedEduAdminsCount} إدارة تعليمية مرتبطة بمناطق محذوفة`
+              )}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Confirmation Dialog for Eduadmins Without Region */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 text-right">
+              تأكيد الحذف
+            </h3>
+            <p className="text-gray-600 mb-6 text-right">
+              هل أنت متأكد من حذف جميع الإدارات التعليمية ({eduAdminsWithoutRegionCount}) التي لا تحتوي على منطقة؟ 
+              هذا الإجراء لا يمكن التراجع عنه.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors duration-200"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={handleDeleteEduAdminsWithoutRegion}
+                className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors duration-200"
+              >
+                حذف
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Dialog for Orphaned Eduadmins */}
+      {showDeleteOrphanedConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 text-right">
+              تأكيد حذف الإدارات المعزولة
+            </h3>
+            <p className="text-gray-600 mb-6 text-right">
+              هل أنت متأكد من حذف جميع الإدارات التعليمية ({orphanedEduAdminsCount}) المرتبطة بمناطق محذوفة أو غير موجودة؟ 
+              هذا الإجراء لا يمكن التراجع عنه.
+            </p>
+            <div className="text-xs text-gray-500 mb-4 text-right">
+              الإدارات المعزولة:
+              <ul className="list-disc list-inside mt-2">
+                {orphanedEduAdmins.slice(0, 5).map((edu: any) => (
+                  <li key={edu.id}>{edu.name}</li>
+                ))}
+                {orphanedEduAdminsCount > 5 && (
+                  <li>...و {orphanedEduAdminsCount - 5} أخرى</li>
+                )}
+              </ul>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowDeleteOrphanedConfirm(false)}
+                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors duration-200"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={handleDeleteOrphanedEduAdmins}
+                className="px-4 py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600 transition-colors duration-200"
+              >
+                حذف
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stats Section */}
       <div className="mt-12 sm:mt-16 ">

@@ -174,11 +174,71 @@ const getEduAdminsByRegion =
     });
   };
 
+const deleteEduAdminsWithoutRegion = 
+(dbUrl?: string): Promise<StatusResponse<{ count: number }>> => {
+
+  const db = initializeDatabase(dbUrl);
+
+  return new Promise((resolve, reject) => {
+    db.eduAdmin
+      .deleteMany({
+        where: { 
+          regionId: null 
+        }
+      })
+      .then((result) => {
+        resolve({
+          status: "success",
+          data: { count: result.count },
+          message: `تم حذف ${result.count} إدارة تعليمية بدون منطقة بنجاح`,
+        });
+      })
+      .catch((error: any) => {
+        console.log("ERROR [deleteEduAdminsWithoutRegion]: ", error);
+        reject({
+          status: "error",
+          message: "فشل حذف الإدارات التعليمية بدون منطقة",
+        });
+      });
+  });
+};
+
+const deleteEduAdminsWithNonExistentRegions = 
+(dbUrl?: string): Promise<StatusResponse<{ count: number }>> => {
+
+  const db = initializeDatabase(dbUrl);
+
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Use raw query to delete eduadmins where regionId doesn't exist in region table
+      const result = await db.$executeRaw`
+        DELETE FROM "eduAdministration" 
+        WHERE "regionId" IS NOT NULL 
+        AND "regionId" NOT IN (SELECT id FROM "region")
+      `;
+
+      resolve({
+        status: "success",
+        data: { count: result },
+        message: `تم حذف ${result} إدارة تعليمية مرتبطة بمناطق غير موجودة بنجاح`,
+      });
+    } catch (error: any) {
+      console.log("ERROR [deleteEduAdminsWithNonExistentRegions]: ", error);
+      reject({
+        status: "error",
+        message: "فشل حذف الإدارات التعليمية المرتبطة بمناطق غير موجودة",
+      });
+    }
+  });
+};
+
 export default {
   createEduAdmin,
   getAllEduAdmins,
   getEduAdmin,
   getEduAdminsByRegion,
   updateEduAdmin,
-  deleteEduAdmin
+  deleteEduAdmin,
+  deleteEduAdminsWithoutRegion,
+  deleteEduAdminsWithNonExistentRegions
 };

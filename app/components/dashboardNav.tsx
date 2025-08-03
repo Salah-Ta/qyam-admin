@@ -1,5 +1,5 @@
 import { BellIcon, SearchIcon, SettingsIcon, LogOut } from "lucide-react";
-import React from "react";
+import React, { memo, useCallback, useMemo } from "react";
 import { Avatar, AvatarFallback } from "./UI-dashbord/avatar";
 import {
   NavigationMenu,
@@ -8,6 +8,7 @@ import {
   NavigationMenuTrigger,
 } from "./UI-dashbord/navigation-menu";
 import yaniaLogo from "../assets/images/new-design/logo-header.svg";
+import NotificationDropdown from "./NotificationDropdown";
 import {
   NavLink,
   useNavigate,
@@ -16,70 +17,64 @@ import {
 } from "@remix-run/react";
 import { useReducer } from "react";
 
-export default function dashboardNav() {
+// Memoized navigation item component
+const NavigationItem = memo(({ item }: { item: any }) => {
+  if (item.hasDropdown) {
+    return (
+      <NavigationMenuTrigger className="hover:none hover:bg-transparent [direction:rtl]">
+        <div className="flex flex-row-reverse items-center justify-center">
+          <span className="font-bold text-[#475467] text-base text-left tracking-[0] leading-6 whitespace-nowrap">
+            {item.label}
+          </span>
+        </div>
+      </NavigationMenuTrigger>
+    );
+  }
+
+  return (
+    <div className="px-0 py-1">
+      <div className="flex items-center justify-center flex-row-reverse">
+        <NavLink
+          to={item.path}
+          className="mt-[-1.00px] font-bold text-[#475467] text-base text-left tracking-[0] leading-6 whitespace-nowrap"
+        >
+          {item.label}
+        </NavLink>
+      </div>
+    </div>
+  );
+});
+
+NavigationItem.displayName = 'NavigationItem';
+
+// Memoized mobile navigation item
+const MobileNavigationItem = memo(({ item, onToggle }: { item: any; onToggle: () => void }) => (
+  <NavLink
+    key={item.id}
+    to={item.path}
+    onClick={onToggle}
+    className="py-3 text-right font-bold text-[#475467] text-base"
+  >
+    {item.label}
+  </NavLink>
+));
+
+MobileNavigationItem.displayName = 'MobileNavigationItem';
+
+
+function DashboardNav() {
   const navigate = useNavigate();
   const navigation = useNavigation();
 
-  const { user } = useRouteLoaderData<any>("root");
+  const rootData = useRouteLoaderData<any>("root");
+  const user = rootData?.user;
+  const notifications = rootData?.notifications || [];
+  const unreadCount = rootData?.unreadCount || 0;
 
   const [isMenuOpen, toggleMenu] = useReducer((st) => !st, false);
 
-  const handleLogout = () => {
-    toggleMenu();
-    navigate("/logout");
-  };
-
-
-  const AuthActions = () =>
-    user ? (
-      <div className="flex items-center gap-4 flex-row">
-        <div className="flex items-start gap-1 [direction:rtl]">
-          <button className="flex w-10 items-center justify-center p-2 rounded-md overflow-hidden">
-            <SearchIcon className="w-5 h-5" />
-          </button>
-          <button className="flex w-10 items-center justify-center p-2 rounded-md overflow-hidden">
-            <SettingsIcon className="w-5 h-5" />
-          </button>
-          <button className="flex w-10 items-center justify-center p-2 rounded-md overflow-hidden">
-            <BellIcon className="w-5 h-5" />
-          </button>
-          {/* Disconnect/Logout button */}
-          <button
-            onClick={handleLogout}
-            className="flex w-10 items-center justify-center p-2 rounded-md overflow-hidden hover:bg-red-100"
-            title="تسجيل الخروج"
-          >
-            <LogOut className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* <div className="flex flex-col items-start">
-          <Avatar className="w-10 h-10 bg-neutral-100 border-[0.75px] border-solid border-[#00000014]">
-            <AvatarFallback className="text-[#717680] font-semibold">
-              OR
-            </AvatarFallback>
-          </Avatar>
-        </div> */}
-      </div>
-    ) : (
-      <div className="visitors flex flex-auto justify-end gap-x-4">
-        <button
-          onClick={() => navigate("/join")}
-          className="button font-bold text-xs md:text-sm text-center p-3 rounded-lg bg-primary text-white hover:opacity-90 transition-opacity"
-        >
-          انضمام
-        </button>
-        <button
-          onClick={() => navigate("/login")}
-          className="button font-bold text-xs md:text-sm text-center p-3 rounded-lg text-gray-700 hover:bg-black/5 transition-all"
-        >
-          دخول
-        </button>
-      </div>
-    );
-
-  // Navigation menu items data
-  const menuItems = [
+  // Memoized menu items - these rarely change
+  const menuItems = useMemo(() => [
     {
       id: 3,
       label: "مركز المعرفة",
@@ -94,7 +89,7 @@ export default function dashboardNav() {
       requiredRole: "admin",
     },
     {
-      id: 3,
+      id: 5,
       label: "المشرف",
       path: "/supervisor/allTrainers",
       hasDropdown: false,
@@ -108,25 +103,105 @@ export default function dashboardNav() {
       requiredRole: "user",
     },
     { id: 1, label: "الرئيسة", path: "/", hasDropdown: false },
-  ];
+  ], []);
 
-  // Filter menu items based on user role
-  const visibleMenuItems = menuItems.filter(
-    (item) =>
-      !item?.requiredRole ||
-      (user &&
-        user?.role &&
-        user?.role?.toLowerCase() === item?.requiredRole?.toLowerCase())
-  );
+  // Memoized filtered menu items based on user role
+  const visibleMenuItems = useMemo(() => 
+    menuItems.filter(
+      (item) =>
+        !item?.requiredRole ||
+        (user &&
+          user?.role &&
+          user?.role?.toLowerCase() === item?.requiredRole?.toLowerCase())
+    )
+  , [menuItems, user?.role]);
+
+  // Optimized handlers
+  const handleLogout = useCallback(() => {
+    if (isMenuOpen) toggleMenu();
+    navigate("/logout");
+  }, [navigate, isMenuOpen]);
+
+  const handleJoin = useCallback(() => {
+    navigate("/join");
+  }, [navigate]);
+
+  const handleLogin = useCallback(() => {
+    navigate("/login");
+  }, [navigate]);
+
+  // Memoized auth actions component
+  const AuthActions = useMemo(() => {
+    if (!user) {
+      return (
+        <div className="visitors flex flex-auto justify-end gap-x-4">
+          <button
+            type="button"
+            onClick={handleJoin}
+            className="button font-bold text-xs md:text-sm text-center p-3 rounded-lg bg-primary text-white hover:opacity-90 transition-opacity"
+          >
+            انضمام
+          </button>
+          <button
+            type="button"
+            onClick={handleLogin}
+            className="button font-bold text-xs md:text-sm text-center p-3 rounded-lg text-gray-700 hover:bg-black/5 transition-all"
+          >
+            دخول
+          </button>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex items-center gap-4 flex-row">
+        <div className="flex items-start gap-1 [direction:rtl]">
+          <button 
+            type="button"
+            className="flex w-10 items-center justify-center p-2 rounded-md overflow-hidden hover:bg-gray-100 transition-colors"
+            aria-label="بحث"
+          >
+            <SearchIcon className="w-5 h-5" />
+          </button>
+          <button 
+            type="button"
+            className="flex w-10 items-center justify-center p-2 rounded-md overflow-hidden hover:bg-gray-100 transition-colors"
+            aria-label="إعدادات"
+          >
+            <SettingsIcon className="w-5 h-5" />
+          </button>
+          <NotificationDropdown 
+            messages={notifications} 
+            unreadCount={unreadCount} 
+          />
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex w-10 items-center justify-center p-2 rounded-md overflow-hidden hover:bg-red-100 transition-colors"
+            title="تسجيل الخروج"
+            aria-label="تسجيل الخروج"
+          >
+            <LogOut className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+    );
+  }, [user, handleJoin, handleLogin, handleLogout, notifications, unreadCount]);
 
   return (
     <header
       className="w-full flex justify-center bg-white border-b border-[#e9e9eb] fixed top-0 left-0 right-0 z-50"
       dir="rtl"
     >
-      <div className=" max-w-full h-[72px] items-center justify-between w-full flex   py-0 lg:px-[112px] max-lg:px-[62px]">
+      <div className="max-w-full h-[72px] items-center justify-between w-full flex py-0 lg:px-[112px] max-lg:px-[62px]">
         {/* Mobile menu button (hidden on desktop) */}
-        <button className="md:hidden p-2" onClick={toggleMenu}>
+        <button 
+          type="button"
+          className="md:hidden p-2" 
+          onClick={toggleMenu}
+          aria-label="قائمة التنقل"
+          aria-expanded={isMenuOpen}
+        >
           <svg
             xmlns="http://www.w3.org/2000/svg"
             className="h-6 w-6"
@@ -148,7 +223,7 @@ export default function dashboardNav() {
           <div className="relative w-[108.22px] h-[32.65px]">
             <img
               className="absolute w-[108px] h-[33px] top-0 left-0"
-              alt="Logo part 1"
+              alt="شعار يانعة"
               src={yaniaLogo}
             />
           </div>
@@ -158,26 +233,7 @@ export default function dashboardNav() {
             <NavigationMenuList className="flex items-center gap-6">
               {visibleMenuItems.map((item) => (
                 <NavigationMenuItem key={item.id}>
-                  {item.hasDropdown ? (
-                    <NavigationMenuTrigger className="hover:none hover:bg-transparent [direction:rtl]">
-                      <div className="flex flex-row-reverse items-center justify-center">
-                        <span className="font-bold text-[#475467] text-base text-left tracking-[0] leading-6 whitespace-nowrap">
-                          {item.label}
-                        </span>
-                      </div>
-                    </NavigationMenuTrigger>
-                  ) : (
-                    <div className="px-0 py-1">
-                      <div className="flex items-center justify-center flex-row-reverse">
-                        <NavLink
-                          to={item.path}
-                          className="mt-[-1.00px] font-bold text-[#475467] text-base text-left tracking-[0] leading-6 whitespace-nowrap"
-                        >
-                          {item.label}
-                        </NavLink>
-                      </div>
-                    </div>
-                  )}
+                  <NavigationItem item={item} />
                 </NavigationMenuItem>
               ))}
             </NavigationMenuList>
@@ -185,8 +241,8 @@ export default function dashboardNav() {
         </div>
 
         {/* Left side - User profile and utility icons (hidden on mobile) */}
-        <div className=" md:block">
-          <AuthActions />
+        <div className="md:block">
+          {AuthActions}
         </div>
 
         {/* Mobile menu (shown when isMenuOpen is true) */}
@@ -194,14 +250,11 @@ export default function dashboardNav() {
           <div className="md:hidden fixed inset-0 bg-white z-40 mt-[72px] overflow-y-auto">
             <div className="flex flex-col p-6 space-y-4">
               {visibleMenuItems.map((item) => (
-                <NavLink
+                <MobileNavigationItem
                   key={item.id}
-                  to={item.path}
-                  onClick={toggleMenu}
-                  className="py-3 text-right font-bold text-[#475467] text-base"
-                >
-                  {item.label}
-                </NavLink>
+                  item={item}
+                  onToggle={toggleMenu}
+                />
               ))}
               <div className="pt-4"></div>
             </div>
@@ -211,3 +264,5 @@ export default function dashboardNav() {
     </header>
   );
 }
+
+export default memo(DashboardNav);
