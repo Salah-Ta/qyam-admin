@@ -1,4 +1,4 @@
-import { useNavigate, useNavigation } from "@remix-run/react";
+import { useNavigate, useNavigation, useActionData, Form } from "@remix-run/react";
 import React, { useState } from "react";
 import { authClient } from "../../lib/auth.client";
 import { getErrorMessage } from "../../lib/get-error-messege";
@@ -11,6 +11,73 @@ import { Input } from "../../components/ui/input";
 import group30525 from "../../assets/icons/square-arrow-login.svg";
 import group1 from "../../assets/images/new-design/logo-login.svg";
 import section from "../../assets/images/new-design/section.png";
+import { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/cloudflare";
+import userDB from "~/db/user/user.server";
+
+export async function action({ request, context }: ActionFunctionArgs) {
+  const formData = await request.formData();
+  const email = formData.get("email")?.toString();
+
+  if (!email) {
+    return { 
+      error: "البريد الإلكتروني مطلوب",
+      canReset: false 
+    };
+  }
+
+  try {
+    // Use getUserByEmail to check if user exists and get their data
+    const userResult = await userDB.getUserByEmail(
+      email,
+      context.cloudflare.env.DATABASE_URL
+    );
+
+    if (userResult.status === 'error') {
+      // User doesn't exist
+      return { 
+        error: "البريد الإلكتروني غير مسجل في النظام",
+        canReset: false 
+      };
+    }
+
+    // Check user approval status
+    const user = userResult.data;
+    if (user?.acceptenceState !== "accepted") {
+      let errorMessage = "";
+      
+      switch (user?.acceptenceState) {
+        case "pending":
+          errorMessage = "حسابك قيد المراجعة، لا يمكن إعادة تعيين كلمة المرور في الوقت الحالي";
+          break;
+        case "denied":
+          errorMessage = "تم رفض طلب التسجيل الخاص بك، لا يمكن إعادة تعيين كلمة المرور";
+          break;
+        case "idle":
+          errorMessage = "حسابك غير نشط، يرجى التواصل مع الإدارة لإعادة تعيين كلمة المرور";
+          break;
+        default:
+          errorMessage = "حسابك غير مفعل، يرجى التواصل مع الإدارة";
+      }
+      
+      return { 
+        error: errorMessage,
+        canReset: false 
+      };
+    }
+
+    // User exists and is approved
+    return { 
+      canReset: true,
+      email: email 
+    };
+  } catch (error) {
+    console.error("Error checking user:", error);
+    return { 
+      error: "حدث خطأ أثناء التحقق من المستخدم",
+      canReset: false 
+    };
+  }
+}
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState("");
@@ -20,43 +87,30 @@ const ForgotPassword = () => {
   const [errorModalMessage, setErrorModalMessage] = useState("");
   const navigate = useNavigate();
   const navigation = useNavigation();
+  const actionData = useActionData<typeof action>();
   const isSubmitting = navigation.state === "submitting";
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setResetError(null);
-
-    // Basic validation
-    if (!email) {
-      setResetError("البريد الإلكتروني مطلوب");
-      return;
+  // Handle action data from server
+  React.useEffect(() => {
+    if (actionData) {
+      if (!actionData.canReset && actionData.error) {
+        // Show error modal for validation failures
+        setErrorModalMessage(actionData.error);
+        setShowErrorModal(true);
+      } else if (actionData.canReset && actionData.email) {
+        // User is approved, proceed with password reset
+        handlePasswordReset(actionData.email);
+      }
     }
+  }, [actionData]);
 
+  const handlePasswordReset = async (emailToReset: string) => {
     try {
       setLoading(true);
 
-      // Check user approval status before sending reset password
-      const checkResponse = await fetch('/api/check-user-approval', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email }),
-      });
-
-      if (checkResponse.ok) {
-        const checkData = await checkResponse.json();
-        if (!checkData.canReset) {
-          setLoading(false);
-          setErrorModalMessage(checkData.message);
-          setShowErrorModal(true);
-          return;
-        }
-      }
-
       const { data, error } = await authClient.forgetPassword(
         {
-          email,
+          email: emailToReset,
           redirectTo: "/reset-password",
         },
         {
@@ -90,6 +144,7 @@ const ForgotPassword = () => {
       });
     }
   };
+
 
   return (
     <div className="bg-white flex h-screen w-full">
@@ -138,7 +193,7 @@ const ForgotPassword = () => {
           </header>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="w-full space-y-6">
+          <Form method="post" className="w-full space-y-6">
             <Card className="w-full border-none shadow-none">
               <CardContent className="p-0 space-y-6">
                 {/* Email field */}
@@ -150,11 +205,13 @@ const ForgotPassword = () => {
                     <span className="text-[#286456] text-sm">*</span>
                   </div>
                   <Input
+                    name="email"
                     type="email"
                     className="w-full px-3.5 py-2.5 bg-white rounded-lg border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs text-right [direction:rtl]"
                     placeholder="أدخل بريدك الإلكتروني"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    required
                   />
                 </div>
 
@@ -188,7 +245,7 @@ const ForgotPassword = () => {
                 </div>
               </CardContent>
             </Card>
-          </form>
+          </Form>
         </div>
       </div>
 
