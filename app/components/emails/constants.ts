@@ -81,7 +81,7 @@ export const resetTemplate = (resetUrl: string) => `<!DOCTYPE html>
                 <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
                     <tr>
                         <td style="text-align: center; padding: 0;">
-                            <img src="https://images.yaneah.com/footer.jpg" alt="Footer" width="100%" style="display: block; margin: 0 auto; max-width: 100%; height: auto;">
+                            <img src="https://images.yaneah.com/Footer.jpg" alt="Footer" width="100%" style="display: block; margin: 0 auto; max-width: 100%; height: auto;">
                         </td>
                     </tr>
                 </table>
@@ -154,6 +154,17 @@ export const statusTemplate = (props: {
                     </tr>
                 </table>
 
+                <!-- Subtitle -->
+                <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+                    <tr>
+                        <td style="padding: 15px;">
+                            <div style="color: #0d3151; text-align: center; font-weight: bold; font-size: 1.5rem; margin: 0;">
+                                ${props.status === "accepted" ? "تم قبولك في البرنامج" : props.status === "denied" ? "قرار بشأن طلبك" : "تحديث حالة الطلب"}
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+
                 <!-- Main Content Section -->
                 <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background-color: white; margin-bottom: 30px;">
                     <tr>
@@ -168,47 +179,58 @@ export const statusTemplate = (props: {
                                 : ""
                             }
 
-                            <p style="font-size: 1rem; text-align: center; font-weight: bold; color: black; margin-bottom: 1rem;">
-                                عزيزي/عزيزتي ${props.name}،
+                            <p style="color: #000000; font-weight: bold; font-size: 1.13rem; line-height: 1.7; margin: 0; text-align: center;">
+                                مرحباً <span style="color: #FF0000;">${props.name}</span>،
                             </p>
 
                             ${
                               props.status === "denied"
                                 ? `
-                                <p style="font-size: 1rem; text-align: center; font-weight: bold; color: black; margin-bottom: 1rem;">
+                                <p style="color: #000001; font-size: 1.13rem; line-height: 1.8; text-align: center; margin: 16px 0;">
                                     نشكرك على اهتمامك ببرنامج هندسة القيم وتقديم طلب الالتحاق بنا. لقد تلقينا عددًا كبيرًا من الطلبـــات المؤهــلــة، ممــا جــعــل عملية الاختيار صعبة للغاية.
                                 </p>
-                                <p style="font-size: 1rem; text-align: center; font-weight: bold; color: black; margin-bottom: 1rem;">
+
+                                <p style="color: #000101; font-size: 1.13rem; line-height: 1.8; text-align: center; margin: 24px 0;">
                                     بعد دراسة طلبك بعناية، قررنا في هذه المرحلة عدم قبولك في البرنامج. ندرك أن هذا القرار قد يكون مخيباً للآمال، ونود أن نعبر عن تقديرنا لاهتمامك ببرنامجنا.
                                 </p>
-                                <p style="font-size: 1rem; text-align: center; font-weight: bold; color: black;">
+
+                                <p style="color: #000000; font-size: 1.13rem; line-height: 1.8; text-align: center; margin: 10px 0;">
                                     نحن نؤمن بإمكاناتك ونتمنى لك كل التوفيق في مسيرتك المهنية.
                                 </p>
-                                <p style="font-size: 1rem; text-align: center; font-weight: bold; color: #8BC53F; margin-bottom: 1rem;">
-                                    مع خالص التحيات، برنامج هندسة القيم
+
+                                <p style="color: #000000; font-size: 1.13rem; font-weight: bold; text-align: center; margin: 20px 0 0 0;">
+                                    مع خالص التحيات،
+                                </p>
+
+                                <p style="color: #000000; font-size: 1.13rem; font-weight: bold; text-align: center; margin: 20px 0 0 0;">
+                                    برنامج هندسة القيم
                                 </p>
                             `
                                 : `
-                                <p style="font-size: 1rem; text-align: center; font-weight: bold; color: black;">
+                                <p style="color: #000001; font-size: 1.13rem; line-height: 1.8; text-align: center; margin: 16px 0;">
                                     يسعدنا جدًا إخبارك بقبولك في برنامج هندسة القيم. لقد أظهرت سجلك الأكاديمي وخبرتك السابقة اهتمامًا قويًا بهذا المجال،
                                 </p>
-                                <p style="font-size: 1rem; text-align: center; font-weight: bold; color: black;">
+
+                                <p style="color: #000101; font-size: 1.13rem; line-height: 1.8; text-align: center; margin: 24px 0;">
                                     ونحن على ثقة بأنك ستكون إضافة قيمة لبرنامجنا.
                                 </p>
-                                <p style="font-size: 1rem; text-align: center; font-weight: bold; color: black;">
-                              ملاحظة: لتتمكن من الدخول الى حسابك في قيم فإنه يتوجب عليك إعادة تعيين كلمة مرورك بخطوات بسيطة عبر الرابط التالي
-                               <a href="https://qyam.org/forgot-password" style="font-size: 0.75rem; background-color: #0D3151; color: white; padding: 0.5rem 0.75rem; border-radius: 0.375rem; text-decoration: none; display: inline-block; margin-bottom: 3rem;">
-                                            إعادة تعيين كلمة المرور
-                                        </a>
-                              
+
+                                <p style="color: #000101; font-size: 1.13rem; line-height: 1.8; text-align: center; margin: 24px 0;">
+                                    ملاحظة: لتتمكن من الدخول الى حسابك في قيم فإنه يتوجب عليك إعادة تعيين كلمة مرورك بخطوات بسيطة عبر الرابط التالي
+                                    <a href="https://qyam.org/forgot-password" style="font-size: 0.75rem; background-color: #0D3151; color: white; padding: 0.5rem 0.75rem; border-radius: 0.375rem; text-decoration: none; display: inline-block; margin-bottom: 3rem;">
+                                        إعادة تعيين كلمة المرور
+                                    </a>
                                 </p>
-                                <p style="font-size: 1rem; text-align: center; font-weight: bold; color: black;">
+
+                                <p style="color: #000000; font-size: 1.13rem; line-height: 1.8; text-align: center; margin: 10px 0;">
                                     نتطلع لرؤيتك بيننا.
                                 </p>
-                                <p style="font-size: 1rem; text-align: center; font-weight: bold; color: #8BC53F; margin-bottom: 1rem;">
+
+                                <p style="color: #000000; font-size: 1.13rem; font-weight: bold; text-align: center; margin: 20px 0 0 0;">
                                     مع خالص التحيات،
                                 </p>
-                                <p style="font-size: 1rem; text-align: center; font-weight: bold; color: #8BC53F; margin-bottom: 1rem;">
+
+                                <p style="color: #000000; font-size: 1.13rem; font-weight: bold; text-align: center; margin: 20px 0 0 0;">
                                     برنامج قيم
                                 </p>
                             `
@@ -221,7 +243,7 @@ export const statusTemplate = (props: {
                 <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
                     <tr>
                         <td style="text-align: center; padding: 0;">
-                            <img src="https://images.yaneah.com/footer.jpg" alt="Footer" width="100%" style="display: block; margin: 0 auto; max-width: 100%; height: auto;">
+                            <img src="https://images.yaneah.com/Footer.jpg" alt="Footer" width="100%" style="display: block; margin: 0 auto; max-width: 100%; height: auto;">
                         </td>
                     </tr>
                 </table>
@@ -321,7 +343,7 @@ export const registerTemplate = (props: { name: string }) => `<!DOCTYPE html>
                 <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
                     <tr>
                         <td style="text-align: center; padding: 0;">
-                            <img src="https://images.yaneah.com/footer.jpg" alt="Footer" width="100%" style="display: block; margin: 0 auto; max-width: 100%; height: auto;">
+                            <img src="https://images.yaneah.com/Footer.jpg" alt="Footer" width="100%" style="display: block; margin: 0 auto; max-width: 100%; height: auto;">
                         </td>
                     </tr>
                 </table>
@@ -449,7 +471,7 @@ export const userUpdateTemplate = (props: {
                 <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
                     <tr>
                         <td style="text-align: center; padding: 0;">
-                            <img src="https://images.yaneah.com/footer.jpg" alt="Footer" width="100%" style="display: block; margin: 0 auto; max-width: 100%; height: auto;">
+                            <img src="https://images.yaneah.com/Footer.jpg" alt="Footer" width="100%" style="display: block; margin: 0 auto; max-width: 100%; height: auto;">
                         </td>
                     </tr>
                 </table>
@@ -575,7 +597,7 @@ export const accountDeactivationTemplate = (props: {
                 <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
                     <tr>
                         <td style="text-align: center; padding: 0;">
-                            <img src="https://images.yaneah.com/footer.jpg" alt="Footer" width="100%" style="display: block; margin: 0 auto; max-width: 100%; height: auto;">
+                            <img src="https://images.yaneah.com/Footer.jpg" alt="Footer" width="100%" style="display: block; margin: 0 auto; max-width: 100%; height: auto;">
                         </td>
                     </tr>
                 </table>
