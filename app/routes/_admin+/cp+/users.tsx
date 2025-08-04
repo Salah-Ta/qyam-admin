@@ -175,6 +175,17 @@ export async function action({ request, context }: ActionFunctionArgs) {
         context.cloudflare.env.DATABASE_URL
       )
       .then(() => {
+        const status = formData.get("status") as string;
+        let emailText = "";
+        
+        if (status === "accepted") {
+          emailText = glossary.email.acceptance_message;
+        } else if (status === "denied") {
+          emailText = glossary.email.rejection_message;
+        } else if (status === "idle") {
+          emailText = glossary.email.suspension_message;
+        }
+        
         return sendEmail(
           {
             to: formData.get("email") as string,
@@ -182,12 +193,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
             template: "program-status",
             props: {
               status: formData.get("status"),
-              name: "",
+              name: formData.get("name") || "",
             },
-            text:
-              formData.get("status") === "accepted"
-                ? glossary.email.acceptence_message
-                : glossary.email.rejection_message,
+            text: emailText,
           },
           context.cloudflare.env.RESEND_API,
           context.cloudflare.env.MAIN_EMAIL
@@ -341,9 +349,10 @@ const Users = () => {
   const editUserProgramStatus = (
     id: string,
     email: string,
+    name: string,
     status: AcceptenceState
   ) => {
-    fetcher.submit({ status, id, email }, { method: "POST" });
+    fetcher.submit({ status, id, email, name }, { method: "POST" });
   };
 
   const bulkEditUserProgramStatus = (status: AcceptenceState) => {
@@ -783,6 +792,7 @@ const transformedData = data.map((el:any)=>({
             editUserProgramStatus(
               selectedUser?.id,
               selectedUser?.email,
+              selectedUser?.name,
               selectedUser.acceptenceState
             )
           }

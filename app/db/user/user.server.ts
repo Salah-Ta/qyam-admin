@@ -98,12 +98,9 @@ const editUserRegisteration =
             // Send account deactivation email
             await sendEmail({
               to: emailConfig!.userEmail,
-              subject: glossary.email.account_deactivation_subject,
-              template: "account-deactivation",
-              props: { 
-                username: userForEmail.name || "المستخدم",
-                contactUrl: "/contact" 
-              },
+              subject: glossary.email.suspension_message,
+              template: "program-status",
+              props: { status, name: userForEmail.name || "" },
               text: '',
             },
               emailConfig!.resendApi,
