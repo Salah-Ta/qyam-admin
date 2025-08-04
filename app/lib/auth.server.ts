@@ -16,11 +16,38 @@ export type Environment = {
 
 export const getAuth = (context: AppLoadContext) => {
   // Create a new auth instance for each request
-  const dbClient = client(context.cloudflare.env.DATABASE_URL);
-  console.log("db client is null?:   ", !!dbClient);
-  console.log("db connection::::", context.cloudflare.env.DATABASE_URL);
+   const dbClient = client(context.cloudflare.env.DATABASE_URL);
+   console.log("db client is null?:   ", !!dbClient);
+   console.log("db connection::::",context.cloudflare.env.DATABASE_URL);
+  
+  
 
   return betterAuth({
+    databaseHooks: {
+      session: {
+        create: {
+          before: async (sessionInstance: any) => {
+            const user = (await dbClient.user.findUnique({
+              where: { id: sessionInstance.userId },
+              select: { acceptenceState: true }
+            })) as QUser;
+
+            if (
+              user &&
+              user.acceptenceState !== "accepted" 
+            ) {
+              return false;
+            }
+
+            return {
+              data: {
+                ...sessionInstance,
+              },
+            };
+          },
+        },
+      },
+    },
     emailAndPassword: {
       enabled: true,
       autoSignIn: false,
