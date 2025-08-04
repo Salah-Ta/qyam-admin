@@ -1,5 +1,5 @@
 import { Resend } from "resend";
-import { registerTemplate, resetTemplate, statusTemplate } from "~/components/emails/constants";
+import { registerTemplate, resetTemplate, statusTemplate, accountDeactivationTemplate } from "~/components/emails/constants";
 // import ProgramStatus from "~/components/emails/programStatus";
 // import PasswordResetEmail from "~/components/emails/passwordResetEmail";
 // import { render } from "@react-email/render";
@@ -12,7 +12,7 @@ const getResendObject = (key: string) => {
   return resend;
 };
 
-type EmailTemplate = "user-registration" | "program-status" | "password-reset" | "contact";
+type EmailTemplate = "user-registration" | "program-status" | "password-reset" | "contact" | "account-deactivation";
 
 interface SendEmailProps {
   to: string | string[];
@@ -40,6 +40,9 @@ export const sendEmail = async ({
       break;
     case "password-reset":
       emailComponent =  resetTemplate(props.resetUrl) 
+      break;
+    case "account-deactivation":
+      emailComponent = accountDeactivationTemplate(props)
       break;
     default:
       throw new Error(`Unknown email template: ${template}`);
@@ -82,6 +85,9 @@ export const sendBatchEmail= async ( {
         break;
       case "password-reset":
         emailComponent =  resetTemplate(props.resetUrl) 
+        break;
+      case "account-deactivation":
+        emailComponent = accountDeactivationTemplate
         break;
       default:
         throw new Error(`Unknown email template: ${template}`);

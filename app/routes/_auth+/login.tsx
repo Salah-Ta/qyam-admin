@@ -22,19 +22,24 @@ import section from "../../assets/images/new-design/section.png";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
   // Test database connection and fetch sample users
-  let dbConnectionStatus = { success: false, error: null, dbUrl: '' };
-  let sampleUsers: Array<{ id: string; email: string; createdAt: Date; updatedAt: Date }> = [];
-  
+  let dbConnectionStatus = { success: false, error: null, dbUrl: "" };
+  let sampleUsers: Array<{
+    id: string;
+    email: string;
+    createdAt: Date;
+    updatedAt: Date;
+  }> = [];
+
   try {
     const { client } = await import("~/db/db-client.server");
     const dbUrl = context.cloudflare.env.DATABASE_URL;
     dbConnectionStatus.dbUrl = dbUrl;
-    
+
     const prisma = await client(dbUrl, context);
     if (prisma) {
       // Test connection
       await prisma.$queryRaw`SELECT 1 as connected`;
-      
+
       // Fetch first 5 users (for debugging purposes)
       sampleUsers = await prisma.user.findMany({
         take: 5,
@@ -42,17 +47,18 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
           id: true,
           email: true,
           createdAt: true,
-          updatedAt: true
+          updatedAt: true,
         },
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: "desc" },
       });
-      
+
       await prisma.$disconnect();
       dbConnectionStatus.success = true;
     }
   } catch (error) {
     console.error("Database connection failed:", error);
-    dbConnectionStatus.error = error instanceof Error ? error.message : "Unknown error";
+    dbConnectionStatus.error =
+      error instanceof Error ? error.message : "Unknown error";
   }
 
   const user = await requireSpecialCase(
@@ -108,11 +114,31 @@ export default function Login() {
 
     // Basic validation
     if (!email) {
-      setLoginError(glossary.login.errors.email.required);
+      const errorMessage = glossary.login.errors.email.required;
+      setLoginError(errorMessage);
+      showToast.error("خطأ في البيانات", {
+        description: errorMessage,
+      });
       return;
     }
+
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      const errorMessage = glossary.login.errors.email.invalid;
+      setLoginError(errorMessage);
+      showToast.error("خطأ في البيانات", {
+        description: errorMessage,
+      });
+      return;
+    }
+
     if (!password) {
-      setLoginError(glossary.login.errors.password.required);
+      const errorMessage = glossary.login.errors.password.required;
+      setLoginError(errorMessage);
+      showToast.error("خطأ في البيانات", {
+        description: errorMessage,
+      });
       return;
     }
 
@@ -123,7 +149,7 @@ export default function Login() {
 
     try {
       setLoading(true);
-      
+
       const authResponse = await authClient.signIn.email(
         { email, password },
         {
@@ -135,7 +161,7 @@ export default function Login() {
             console.log("User ID:", ctx.user?.id);
             console.log("Session created:", !!ctx.session);
             console.groupEnd();
-            
+
             setLoading(false);
             navigate("/");
           },
@@ -148,17 +174,16 @@ export default function Login() {
 
             setLoading(false);
 
-            if (ctx.error.code === "EMAIL_IS_NOT_VERIFIED_CHECK_YOUR_EMAIL_FOR_A_VERIFICATION_LINK") {
-              showToast.error(glossary.login.errors.unverified);
-            } else if (ctx.error.code === "FAILED_TO_CREATE_SESSION") {
-              showToast.error(glossary.signup.toasts.signupError.title, {
-                description: glossary.signup.toasts.signupError.sessionFailure,
-              });
-            } else {
-              showToast.error(glossary.login.errors.invalid);
-            }
+            // Get the Arabic error message
+            const arabicErrorMessage = getErrorMessage(ctx.error);
 
-            setLoginError(getErrorMessage(ctx.error));
+            // Set the error for display
+            setLoginError(arabicErrorMessage);
+
+            // Show toast notification with specific error
+            showToast.error("فشل تسجيل الدخول", {
+              description: arabicErrorMessage,
+            });
           },
         }
       );
@@ -168,9 +193,13 @@ export default function Login() {
       console.groupEnd();
 
       setLoading(false);
-      setLoginError("An unexpected error occurred. Please try again.");
-      showToast.error("Login failed", {
-        description: getErrorMessage(error),
+
+      // Get Arabic error message for unexpected errors
+      const arabicErrorMessage = getErrorMessage(error);
+      setLoginError(arabicErrorMessage);
+
+      showToast.error("فشل تسجيل الدخول", {
+        description: arabicErrorMessage,
       });
     }
   };
@@ -289,7 +318,9 @@ export default function Login() {
                     className="w-full bg-[#006A61] hover:bg-[#005A51] text-white rounded-lg py-2.5 font-medium text-base [direction:rtl]"
                     disabled={loading || isSubmitting}
                   >
-                    {loading || isSubmitting ? "جاري تسجيل الدخول..." : "تسجيل الدخول"}
+                    {loading || isSubmitting
+                      ? "جاري تسجيل الدخول..."
+                      : "تسجيل الدخول"}
                   </Button>
                 </div>
               </CardContent>

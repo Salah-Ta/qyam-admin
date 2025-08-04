@@ -128,6 +128,7 @@ const cp = {
 
 const email = {
   program_status_subject: "حالة طلب الانضمام",
+  account_deactivation_subject: "إلغاء تفعيل الحساب",
   registration_message: "تم تسجيلك في برنامج قيم٬ سيتم التواصل معك قريبًا.",
   acceptance_message: "تم قبولك في برنامج قيم٬ يمكنك الاطلاع على مختلف البرامج عبر المنصة",
   rejection_message: "تم رفض طلبك للانضمام إلى برنامج قيم٫ نتمنى لك حظًا موفقًا",

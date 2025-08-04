@@ -459,7 +459,16 @@ export async function action({ request, context }: any) {
         );
       }
       const status = formData.get("status");
-      await userDB.editUserRegisteration(userId, status, DBurl);
+      const email = formData.get("email");
+      
+      // Email configuration for sending deactivation emails
+      const emailConfig = {
+        resendApi: context.cloudflare.env.RESEND_API || "",
+        mainEmail: context.cloudflare.env.MAIN_EMAIL || "",
+        userEmail: email || ""
+      };
+      
+      await userDB.editUserRegisteration(userId, status, DBurl, emailConfig);
       return new Response(
         JSON.stringify({
           success: true,

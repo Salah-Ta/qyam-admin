@@ -36,6 +36,8 @@ import regionDB from "~/db/region/region.server";
 import eduAdminDB from "~/db/eduAdmin/eduAdmin.server";
 import schoolDB from "~/db/school/school.server";
 import section from "../../assets/images/new-design/section.png";
+import { sendEmail } from "~/lib/send-email.server";
+import glossary from "~/lib/glossary";
 
 // Define interfaces for the location data
 interface EntityItem {
@@ -131,6 +133,7 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
     where: { email: fields.email },
   });
   if (existingUser) {
+    console.log("Found existing user with email:", fields.email, "User ID:", existingUser.id);
     return json({ error: "البريد الإلكتروني مسجل مسبقاً" }, { status: 400 });
   }
   try {
@@ -152,6 +155,28 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
         cvKey: "1738215328438-l1sxndp1tiiyrxvc0hmgkqgl.uploaded-file",
       },
     });
+
+    // Send registration email
+    try {
+      const emailConfig = {
+        resendApi: context.cloudflare.env.RESEND_API || "",
+        mainEmail: context.cloudflare.env.MAIN_EMAIL || "",
+      };
+
+      await sendEmail({
+        to: user.email,
+        subject: glossary.email.program_status_subject,
+        template: "user-registration",
+        props: { name: user.name },
+        text: '',
+      }, emailConfig.resendApi, emailConfig.mainEmail);
+
+      console.log("✅ Registration email sent successfully to:", user.email);
+    } catch (emailError) {
+      console.error("❌ Failed to send registration email:", emailError);
+      // Don't fail the registration if email fails
+    }
+
     const session = await getSession(request.headers.get("Cookie"));
     session.set("userId", user.id);
     

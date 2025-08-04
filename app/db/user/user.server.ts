@@ -58,26 +58,68 @@ const editUserRegisteration =
       reject({ status: "error", message: "Database connection failed." });
       return;
     }
-    db.user.update({
-      data: { acceptenceState: status },
-      where: { id: userId }
-    }).then(async () => {
-      // Send email notification if status is accepted or denied
-        if (status && emailConfig) {
+    // First fetch the user to get their details for the email
+    db.user.findUnique({
+      where: { id: userId },
+      select: { name: true, email: true }
+    }).then(async (user) => {
+      if (!user) {
+        throw new Error("User not found");
+      }
+      
+      // Update user email in emailConfig if not provided
+      if (!emailConfig?.userEmail) {
+        emailConfig = {
+          ...emailConfig,
+          userEmail: user.email
+        };
+      }
+      
+      // Update the user status
+      return db.user.update({
+        data: { acceptenceState: status },
+        where: { id: userId }
+      });
+    }).then(async (updatedUser) => {
+      // Get the user details for email
+      const userForEmail = await db.user.findUnique({
+        where: { id: userId },
+        select: { name: true, email: true }
+      });
+      // Send email notification based on status
+        if (status && emailConfig && userForEmail) {
           // Console log the emailConfig & userEmail & status for debugging
           console.log("Email Config:", emailConfig);
           console.log("User Email:", emailConfig.userEmail);
           console.log("Status:", status);
-          // Send email
-          await sendEmail({
-            to: emailConfig!.userEmail,
-            subject: glossary.email.program_status_subject,
-            template: "program-status",
-            props: { status, name: "" },
-            text: '',
-          },
-            emailConfig!.resendApi,
-            emailConfig!.mainEmail);
+          
+          // Send different emails based on status
+          if (status === "idle") {
+            // Send account deactivation email
+            await sendEmail({
+              to: emailConfig!.userEmail,
+              subject: glossary.email.account_deactivation_subject,
+              template: "account-deactivation",
+              props: { 
+                username: userForEmail.name || "المستخدم",
+                contactUrl: "/contact" 
+              },
+              text: '',
+            },
+              emailConfig!.resendApi,
+              emailConfig!.mainEmail);
+          } else {
+            // Send program status email for accepted/denied
+            await sendEmail({
+              to: emailConfig!.userEmail,
+              subject: glossary.email.program_status_subject,
+              template: "program-status",
+              props: { status, name: userForEmail.name || "" },
+              text: '',
+            },
+              emailConfig!.resendApi,
+              emailConfig!.mainEmail);
+          }
 
           console.log("✅ Email sent successfully");
         }
@@ -376,30 +418,170 @@ const deleteUser = (id: string, dbUrl?: string): Promise<StatusResponse<null>> =
 
   return new Promise(async (resolve, reject) => {
     try {
+      // First, get the user's data for cleanup
+      const user = await db.user.findUnique({
+        where: { id },
+        select: { 
+          email: true, 
+          regionId: true, 
+          eduAdminId: true, 
+          schoolId: true 
+        }
+      });
+
+      if (!user) {
+        reject({
+          status: "error",
+          message: "المستخدم غير موجود",
+        });
+        return;
+      }
+
+      console.log("Deleting user with ID:", id, "and email:", user.email);
+      console.log("User regionId:", user.regionId);
+      console.log("User eduAdminId:", user.eduAdminId);
+      console.log("User schoolId:", user.schoolId);
+
+      // First, let's check if the referenced entities exist
+      if (user.regionId) {
+        try {
+          const region = await db.region.findUnique({ where: { id: user.regionId } });
+          console.log("Region exists:", !!region);
+        } catch (error) {
+          console.log("Error checking region:", error);
+        }
+      }
+
+      if (user.eduAdminId) {
+        try {
+          const eduAdmin = await db.eduAdmin.findUnique({ where: { id: user.eduAdminId } });
+          console.log("EduAdmin exists:", !!eduAdmin);
+        } catch (error) {
+          console.log("Error checking eduAdmin:", error);
+        }
+      }
+
+      if (user.schoolId) {
+        try {
+          const school = await db.school.findUnique({ where: { id: user.schoolId } });
+          console.log("School exists:", !!school);
+        } catch (error) {
+          console.log("Error checking school:", error);
+        }
+      }
+
       // Use a transaction to ensure all deletions succeed or fail together
       await db.$transaction(async (tx) => {
         // Delete related records first to avoid foreign key constraint errors
         
-        // Delete user reports (and their related skill reports and testimonial reports will cascade)
-        await tx.report.deleteMany({
+        console.log("Step 1a: Getting user reports to delete related records...");
+        const userReports = await tx.report.findMany({
+          where: { userId: id },
+          select: { id: true }
+        });
+        const reportIds = userReports.map(report => report.id);
+        console.log(`Found ${reportIds.length} reports to delete`);
+
+        if (reportIds.length > 0) {
+          console.log("Step 1b: Deleting skill reports...");
+          const skillReportDeleteResult = await tx.skillReport.deleteMany({
+            where: { reportId: { in: reportIds } }
+          });
+          console.log(`Deleted ${skillReportDeleteResult.count} skill reports`);
+
+          console.log("Step 1c: Deleting testimonial reports...");
+          const testimonialReportDeleteResult = await tx.testimonialReport.deleteMany({
+            where: { reportId: { in: reportIds } }
+          });
+          console.log(`Deleted ${testimonialReportDeleteResult.count} testimonial reports`);
+        }
+
+        console.log("Step 1d: Deleting user reports...");
+        const reportDeleteResult = await tx.report.deleteMany({
           where: { userId: id }
         });
+        console.log(`Deleted ${reportDeleteResult.count} reports`);
         
-        // Delete messages sent by the user
-        await tx.message.deleteMany({
+        console.log("Step 2: Deleting messages sent by user...");
+        const sentMessagesResult = await tx.message.deleteMany({
           where: { fromUserId: id }
         });
+        console.log(`Deleted ${sentMessagesResult.count} sent messages`);
         
-        // Delete messages received by the user
-        await tx.message.deleteMany({
+        console.log("Step 3: Deleting messages received by user...");
+        const receivedMessagesResult = await tx.message.deleteMany({
           where: { toUserId: id }
         });
-        
-        // Finally delete the user (this will cascade delete sessions, accounts, and certificates)
-        await tx.user.delete({
-          where: { id }
+        console.log(`Deleted ${receivedMessagesResult.count} received messages`);
+
+        console.log("Step 4: Deleting verification records...");
+        const verificationResult = await tx.verification.deleteMany({
+          where: { identifier: user.email }
         });
+        console.log(`Deleted ${verificationResult.count} verification records`);
+        
+        console.log("Step 5: Clearing foreign key references...");
+        // Clear any foreign key references that might cause issues
+        await tx.user.update({
+          where: { id },
+          data: {
+            regionId: null,
+            eduAdminId: null,
+            schoolId: null
+          }
+        });
+        console.log("Cleared foreign key references");
+        
+        console.log("Step 6: Checking and deleting sessions and accounts...");
+        // Check how many sessions and accounts exist for this user
+        const sessionsCount = await tx.session.count({ where: { userId: id } });
+        const accountsCount = await tx.account.count({ where: { userId: id } });
+        console.log(`Found ${sessionsCount} sessions and ${accountsCount} accounts for user`);
+
+        // Explicitly delete sessions and accounts (even though they should cascade)
+        if (sessionsCount > 0) {
+          const deletedSessions = await tx.session.deleteMany({ where: { userId: id } });
+          console.log(`Explicitly deleted ${deletedSessions.count} sessions`);
+        }
+        
+        if (accountsCount > 0) {
+          const deletedAccounts = await tx.account.deleteMany({ where: { userId: id } });
+          console.log(`Explicitly deleted ${deletedAccounts.count} accounts`);
+        }
+
+        console.log("Step 7: Attempting to delete user account...");
+        try {
+          // Finally delete the user (remaining cascades: certificates)
+          await tx.user.delete({
+            where: { id }
+          });
+          console.log("User successfully deleted");
+        } catch (deleteError: any) {
+          console.error("Error during user deletion:", deleteError);
+          console.error("Delete error code:", deleteError.code);
+          console.error("Delete error message:", deleteError.message);
+          throw deleteError; // Re-throw to trigger transaction rollback
+        }
       });
+
+      console.log("Successfully deleted user with email:", user.email);
+      
+      // Verify deletion by trying to find the user
+      try {
+        const deletedUser = await db.user.findUnique({ where: { id } });
+        if (deletedUser) {
+          console.error("WARNING: User still exists in database after deletion!");
+          reject({
+            status: "error",
+            message: "فشل في حذف المستخدم - لا يزال موجوداً في قاعدة البيانات",
+          });
+          return;
+        } else {
+          console.log("✅ Confirmed: User has been completely removed from database");
+        }
+      } catch (verifyError) {
+        console.log("✅ User verification failed as expected - user was deleted");
+      }
       
       resolve({
         status: "success",
@@ -407,9 +589,28 @@ const deleteUser = (id: string, dbUrl?: string): Promise<StatusResponse<null>> =
       });
     } catch (error: any) {
       console.log("ERROR [deleteUser]: ", error);
+      console.log("Error code:", error.code);
+      console.log("Error message:", error.message);
+      
+      // Provide more specific error messages based on the error type
+      let errorMessage = "فشل حذف المستخدم";
+      
+      if (error.code === 'P2003') {
+        errorMessage = "لا يمكن حذف المستخدم بسبب وجود بيانات مرتبطة به";
+        console.log("Foreign key constraint error - user has related data");
+      } else if (error.code === 'P2025') {
+        errorMessage = "المستخدم غير موجود";
+        console.log("User not found error");
+      } else if (error.message && error.message.includes('timeout')) {
+        errorMessage = "انتهت مهلة العملية. الرجاء المحاولة مرة أخرى";
+        console.log("Timeout error");
+      }
+      
       reject({
         status: "error",
-        message: "فشل حذف المستخدم",
+        message: errorMessage,
+        details: error.message,
+        code: error.code
       });
     }
   });
