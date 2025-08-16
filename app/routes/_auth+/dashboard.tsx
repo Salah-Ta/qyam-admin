@@ -346,69 +346,71 @@ export default function Signup() {
   }));
   return (
     <>
-      {/* <h1>testttt</h1> */}
       <section className="pt-12 md:pt-24  pb-36 lg:px-[112px] bg-section min-h-screen">
         <header className="w-full max-md:h-auto">
-          <div className="absolute w-full top-[72px] left-0 bg-teal-600 z-10 max-md:relative max-md:top-0">
+          <div className="absolute w-full top-[72px] left-0 bg-teal-600 z-10 max-md:relative max-md:top-0 h-24">
+            {/* Header Title and Breadcrumbs */}
             <div className="relative flex justify-between  md:mx-[112px] my-[18px] [direction:rtl] max-md:flex-col max-md:w-full max-md:items-center max-md:py-6">
-              {/* Header Title and Breadcrumbs */}
-              <div className="max-md:text-center max-md:mb-4">
-                <h1 className="text-[40px] font-bold text-white md:text-right mb-[6px]">
-                  حسابي
-                </h1>
-                <Breadcrumb className="flex justify-end">
-                  <BreadcrumbList className="flex flex-row-reverse items-baseline">
-                    {updatedBreadcrumbItems.map((item, index) => (
-                      <Fragment key={index}>
-                        <BreadcrumbItem>
-                          <BreadcrumbLink
-                            href={item.href}
-                            className={`
-                inline-flex items-center pt-[16px] text-white
-                ${item.active ? "font-bold" : "font-normal"}
-                text-base leading-[22px] whitespace-nowrap
-              `}
-                            aria-current={item.active ? "page" : undefined}
-                          >
-                            {item.label}
-                          </BreadcrumbLink>
-                        </BreadcrumbItem>
-                        {index < updatedBreadcrumbItems.length - 1 && (
-                          <BreadcrumbSeparator className="px-1 ">
-                            <ChevronRightIcon className="w-5 h-5 text-white rotate-180" />
-                          </BreadcrumbSeparator>
-                        )}
-                      </Fragment>
-                    ))}
-                  </BreadcrumbList>
-                </Breadcrumb>
-              </div>
-
-              {/* Profile Section */}
-              <div className="flex items-center gap-4 z-10">
-                <div className="flex flex-col items-end gap-1.5 mr-4 max-md:items-center max-md:mr-0">
-                  <div className="font-bold text-base text-white mt-2">
-                    {user?.name || "المستخدم"}
+              {user && (
+                <>
+                  <div className="max-md:text-center max-md:mb-4">
+                    <h1 className="text-[40px] font-bold text-white md:text-right mb-[6px]">
+                      حسابي
+                    </h1>
+                    <Breadcrumb className="flex justify-end">
+                      <BreadcrumbList className="flex flex-row-reverse items-baseline">
+                        {updatedBreadcrumbItems.map((item, index) => (
+                          <Fragment key={index}>
+                            <BreadcrumbItem>
+                              <BreadcrumbLink
+                                href={item.href}
+                                className={`
+                  inline-flex items-center pt-[16px] text-white
+                  ${item.active ? "font-bold" : "font-normal"}
+                  text-base leading-[22px] whitespace-nowrap
+                `}
+                                aria-current={item.active ? "page" : undefined}
+                              >
+                                {item.label}
+                              </BreadcrumbLink>
+                            </BreadcrumbItem>
+                            {index < updatedBreadcrumbItems.length - 1 && (
+                              <BreadcrumbSeparator className="px-1 ">
+                                <ChevronRightIcon className="w-5 h-5 text-white rotate-180" />
+                              </BreadcrumbSeparator>
+                            )}
+                          </Fragment>
+                        ))}
+                      </BreadcrumbList>
+                    </Breadcrumb>
                   </div>
-                  <div className="[font-family:'Ping_AR_+_LT-Regular',Helvetica] font-normal text-sm text-white">
-                    {user?.role?.toLocaleUpperCase() === "ADMIN"
-                      ? "مدير"
-                      : user?.role?.toLocaleUpperCase() === "SUPERVISOR"
-                      ? "مشرف"
-                      : "مدرب"}
+                  <div className="flex items-center gap-4 z-10">
+                    <div className="flex flex-col items-end gap-1.5 mr-4 max-md:items-center max-md:mr-0">
+                      <div className="font-bold text-base text-white mt-2">
+                        {user?.name || "المستخدم"}
+                      </div>
+                      <div className="[font-family:'Ping_AR_+_LT-Regular',Helvetica] font-normal text-sm text-white">
+                        {user?.role?.toLocaleUpperCase() === "ADMIN"
+                          ? "مدير"
+                          : user?.role?.toLocaleUpperCase() === "SUPERVISOR"
+                          ? "مشرف"
+                          : "مدرب"}
+                      </div>
+                    </div>
+                    <div className="max-md:mb-4">
+                      <img
+                        src={ProfileImage}
+                        className="w-[60px] h-[60px]"
+                        alt="profile"
+                      />
+                    </div>
                   </div>
-                </div>
-                <div className="max-md:mb-4">
-                  <img
-                    src={ProfileImage}
-                    className="w-[60px] h-[60px]"
-                    alt="profile"
-                  />
-                </div>
-              </div>
+                </>
+              )}
             </div>
           </div>
         </header>
+
         <Outlet />
       </section>
       {/* <NewRegister /> */}
