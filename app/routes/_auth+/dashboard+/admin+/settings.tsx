@@ -51,6 +51,9 @@ export async function loader({ context }: LoaderFunctionArgs) {
 }
 
 export const action = async ({ request, context }: LoaderFunctionArgs) => {
+  const requestTimestamp = Date.now();
+  console.log(`🔥 [${requestTimestamp}] Action called - New request received`);
+  
   const dbUrl = context.cloudflare.env.DATABASE_URL;
   const formData = await request.formData();
   const actionType = formData.get("actionType");
@@ -58,6 +61,9 @@ export const action = async ({ request, context }: LoaderFunctionArgs) => {
   const entityId = formData.get("entityId");
   const names = formData.getAll("itemName");
   const parentId = formData.get("parentId");
+  const submissionId = formData.get("submissionId");
+  
+  console.log(`📋 [${requestTimestamp}] Action params:`, { actionType, entityType, entityId, parentId, submissionId });
 
   try {
     // Handle delete action
@@ -81,6 +87,65 @@ export const action = async ({ request, context }: LoaderFunctionArgs) => {
       }
 
       return json({ status: "success", message: "تم الحذف بنجاح" });
+    }
+
+    // Handle createExample action
+    if (actionType === "createExample") {
+      console.log("Creating example hierarchy: Region → EduAdmin → School");
+      
+      try {
+        const results = [];
+        
+        // Step 1: Create test region
+        const regionName = `منطقة تجريبية ${new Date().getHours()}:${new Date().getMinutes()}`;
+        console.log("Creating test region:", regionName);
+        
+        const regionResult = await regionDB.createRegion(regionName, dbUrl);
+        if (regionResult.status !== "success") {
+          throw new Error(regionResult.message || "Failed to create test region");
+        }
+        results.push(regionResult);
+        const newRegionId = regionResult.data.id;
+        console.log("✅ Created test region:", regionName, "ID:", newRegionId);
+        
+        // Step 2: Create test eduAdmin
+        const eduAdminName = `إدارة تعليمية تجريبية ${new Date().getHours()}:${new Date().getMinutes()}`;
+        console.log("Creating test eduAdmin:", eduAdminName, "for region:", newRegionId);
+        
+        const eduAdminResult = await eduAdminDB.createEduAdmin(eduAdminName, dbUrl, newRegionId);
+        results.push(eduAdminResult);
+        const newEduAdminId = eduAdminResult.data.id;
+        console.log("✅ Created test eduAdmin:", eduAdminName, "ID:", newEduAdminId);
+        
+        // Step 3: Create test school
+        const schoolName = `مدرسة تجريبية ${new Date().getHours()}:${new Date().getMinutes()}`;
+        console.log("Creating test school:", schoolName, "for eduAdmin:", newEduAdminId);
+        
+        const schoolResult = await schoolDB.createSchool(schoolName, "", dbUrl, newEduAdminId);
+        results.push(schoolResult);
+        console.log("✅ Created test school:", schoolName, "ID:", schoolResult.data.id);
+        
+        console.log("🎉 Example hierarchy created successfully!");
+        console.log(`📋 Created: ${regionName} → ${eduAdminName} → ${schoolName}`);
+        
+        return json({ 
+          status: "success", 
+          message: `تم إنشاء المثال التجريبي بنجاح: ${regionName} → ${eduAdminName} → ${schoolName}`,
+          results: results,
+          createdEntityType: "example",
+          createdParentId: newRegionId
+        });
+        
+      } catch (error) {
+        console.error("Error creating example hierarchy:", error);
+        return json(
+          { 
+            status: "error", 
+            message: `فشل في إنشاء المثال التجريبي: ${error.message}` 
+          },
+          { status: 500 }
+        );
+      }
     }
 
     // Handle create action
@@ -132,111 +197,293 @@ export const action = async ({ request, context }: LoaderFunctionArgs) => {
       });
     }
 
-    // Handle batch save action
+    // Handle batch save action with proper hierarchical transaction support
     if (actionType === "batchSave") {
-      console.log("Batch saving for", entityType);
+      console.log("=== BATCH SAVE DEBUG ===");
+      console.log("Entity Type:", entityType);
+      console.log("Entity ID:", entityId);
+      console.log("Names:", names);
+      console.log("All form data:");
+      for (const [key, value] of formData.entries()) {
+        console.log(`  ${key}:`, value);
+      }
+      console.log("========================");
+      
       let results = [];
       
-      // First, update the main entity if needed
-      if (names.length > 0 && typeof names[0] === "string" && names[0].trim() !== "") {
-        let updateResult;
-        switch (entityType) {
-          case "region":
-            updateResult = await regionDB.updateRegion(entityId as string, names[0].trim(), dbUrl);
-            break;
-          case "eduAdmin":
-            updateResult = await eduAdminDB.updateEduAdmin(entityId as string, names[0].trim(), dbUrl);
-            break;
-          default:
-            return json(
-              { status: "error", message: "Invalid entity type for batch save" },
-              { status: 400 }
-            );
-        }
-        results.push(updateResult);
-      }
-
-      // Handle new eduAdmins (only for region batch save)
-      if (entityType === "region") {
-        const newEduAdminsData = formData.getAll("newEduAdmins");
-        const createdEduAdmins = []; // Track created eduAdmins for schools
-        
-        for (let i = 0; i < newEduAdminsData.length; i++) {
-          const eduAdminData = newEduAdminsData[i];
-          try {
-            const parsedEduAdmin = JSON.parse(eduAdminData as string);
-            if (parsedEduAdmin.name && parsedEduAdmin.regionId) {
-              const result = await eduAdminDB.createEduAdmin(
-                parsedEduAdmin.name,
-                dbUrl,
-                parsedEduAdmin.regionId
-              );
-              results.push(result);
-              
-              // Store the created eduAdmin with its index for school assignment
-              if (result.success && result.data) {
-                createdEduAdmins.push({
-                  index: i,
-                  id: result.data.id
-                });
-              }
+      // Import database client for transaction
+      const { client } = await import("~/db/db-client.server");
+      const prisma = await client(dbUrl);
+      
+      try {
+        // Start transaction for atomic hierarchical operations
+        await prisma.$transaction(async (tx) => {
+          
+          if (entityType === "region") {
+            // REGION BATCH SAVE: Sequential Processing - Region → EduAdmin1 + Schools → EduAdmin2 + Schools...
+            console.log(`🏛️ [${requestTimestamp}] Processing region batch save with sequential eduAdmin+schools creation`);
+            
+            // Step 1: Update the region name if provided
+            if (names.length > 0 && typeof names[0] === "string" && names[0].trim() !== "") {
+              const updateResult = await regionDB.updateRegion(entityId as string, names[0].trim(), dbUrl);
+              results.push(updateResult);
+              console.log("✅ Updated region:", names[0].trim());
             }
-          } catch (error) {
-            console.error("Error parsing eduAdmin data:", error);
-          }
-        }
 
-        // Handle schools for new eduAdmins
-        const newSchoolsForNewEduAdminsData = formData.getAll("newSchoolsForNewEduAdmins");
-        for (const schoolData of newSchoolsForNewEduAdminsData) {
-          try {
-            const parsedSchool = JSON.parse(schoolData as string);
-            if (parsedSchool.name && parsedSchool.newEduAdminIndex !== undefined) {
-              // Find the created eduAdmin by index
-              const createdEduAdmin = createdEduAdmins.find(
-                ea => ea.index === parsedSchool.newEduAdminIndex
-              );
+            // Step 2: Get all data for processing
+            const newEduAdminsData = formData.getAll("newEduAdmins");
+            const newSchoolsData = formData.getAll("newSchools");
+            const newSchoolsForNewEduAdminsData = formData.getAll("newSchoolsForNewEduAdmins");
+
+            console.log("📊 Data summary:");
+            console.log("  - New eduAdmins:", newEduAdminsData.length);
+            console.log("  - Schools for existing eduAdmins:", newSchoolsData.length);
+            console.log("  - Schools for new eduAdmins:", newSchoolsForNewEduAdminsData.length);
+            
+            // Debug: Log the actual data being processed
+            console.log("📋 New EduAdmins Data:", newEduAdminsData.map(data => {
+              try {
+                return JSON.parse(data as string);
+              } catch (e) {
+                return data;
+              }
+            }));
+            
+            console.log("📋 New Schools Data:", newSchoolsData.map(data => {
+              try {
+                return JSON.parse(data as string);
+              } catch (e) {
+                return data;
+              }
+            }));
+            
+            console.log("📋 New Schools For New EduAdmins Data:", newSchoolsForNewEduAdminsData.map(data => {
+              try {
+                return JSON.parse(data as string);
+              } catch (e) {
+                return data;
+              }
+            }));
+
+            // Step 3: Process existing eduAdmins and their schools first
+            // Get existing eduAdmins from database for this region
+            const existingEduAdminsResult = await eduAdminDB.getAllEduAdmins(dbUrl);
+            const existingEduAdmins = existingEduAdminsResult.status === "success" 
+              ? existingEduAdminsResult.data.filter(ea => ea.regionId === entityId)
+              : [];
+            console.log("📋 Processing", existingEduAdmins.length, "existing eduAdmins:");
+            console.log("📋 Existing EduAdmins in DB:", existingEduAdmins.map(ea => ({ id: ea.id, name: ea.name })));
+            
+            for (const eduAdmin of existingEduAdmins) {
+              console.log(`\n🏢 Processing existing eduAdmin: ${eduAdmin.name} (ID: ${eduAdmin.id})`);
               
-              if (createdEduAdmin) {
+              // Find and create schools for this existing eduAdmin
+              const schoolsForThisEduAdmin = [];
+              for (const schoolData of newSchoolsData) {
+                try {
+                  const parsedSchool = JSON.parse(schoolData as string);
+                  if (parsedSchool.name && parsedSchool.eduAdminId === eduAdmin.id) {
+                    schoolsForThisEduAdmin.push(parsedSchool);
+                  }
+                } catch (error) {
+                  console.error("Error parsing school data:", error);
+                }
+              }
+
+              console.log(`  📚 Creating ${schoolsForThisEduAdmin.length} schools for eduAdmin: ${eduAdmin.name}`);
+              for (const school of schoolsForThisEduAdmin) {
+                console.log(`    ➕ Checking if school exists: ${school.name}`);
+                
+                // Check if school already exists for this eduAdmin
+                const existsResult = await schoolDB.checkSchoolExists(
+                  school.name,
+                  eduAdmin.id,
+                  dbUrl
+                );
+                
+                if (existsResult.status === "success" && existsResult.data.exists) {
+                  console.log(`    ⚠️ School already exists, skipping: ${school.name} → eduAdmin: ${eduAdmin.name}`);
+                  continue;
+                }
+                
+                console.log(`    ➕ Creating new school: ${school.name}`);
                 const result = await schoolDB.createSchool(
-                  parsedSchool.name,
+                  school.name,
                   "",
                   dbUrl,
-                  createdEduAdmin.id
+                  eduAdmin.id
                 );
+                
                 results.push(result);
+                console.log(`    ✅ Created school: ${school.name} → eduAdmin: ${eduAdmin.name}`);
               }
             }
-          } catch (error) {
-            console.error("Error parsing school data for new eduAdmin:", error);
-          }
-        }
-      }
 
-      // Handle new schools (for both region and eduAdmin batch save)
-      const newSchoolsData = formData.getAll("newSchools");
-      for (const schoolData of newSchoolsData) {
-        try {
-          const parsedSchool = JSON.parse(schoolData as string);
-          if (parsedSchool.name && parsedSchool.eduAdminId) {
-            const result = await schoolDB.createSchool(
-              parsedSchool.name,
-              "",
-              dbUrl,
-              parsedSchool.eduAdminId
-            );
-            results.push(result);
-          }
-        } catch (error) {
-          console.error("Error parsing school data:", error);
-        }
-      }
+            // Step 4: Process new eduAdmins and their schools sequentially
+            console.log(`\n📋 Processing ${newEduAdminsData.length} new eduAdmins:`);
+            
+            for (let i = 0; i < newEduAdminsData.length; i++) {
+              const eduAdminData = newEduAdminsData[i];
+              try {
+                const parsedEduAdmin = JSON.parse(eduAdminData as string);
+                if (parsedEduAdmin.name && parsedEduAdmin.regionId) {
+                  console.log(`\n🏢 Checking if eduAdmin exists: ${parsedEduAdmin.name}`);
+                  
+                  // Check if eduAdmin already exists for this region
+                  const existsResult = await eduAdminDB.checkEduAdminExists(
+                    parsedEduAdmin.name,
+                    parsedEduAdmin.regionId,
+                    dbUrl
+                  );
+                  
+                  let newEduAdminId;
+                  if (existsResult.status === "success" && existsResult.data.exists) {
+                    console.log(`  ⚠️ EduAdmin already exists, using existing: ${parsedEduAdmin.name}`);
+                    newEduAdminId = existsResult.data.eduAdmin!.id;
+                  } else {
+                    console.log(`  ➕ Creating new eduAdmin ${i + 1}: ${parsedEduAdmin.name}`);
+                    
+                    // Create the eduAdmin first
+                    const eduAdminResult = await eduAdminDB.createEduAdmin(
+                      parsedEduAdmin.name,
+                      dbUrl,
+                      parsedEduAdmin.regionId  // Assign to parent region
+                    );
+                    
+                    results.push(eduAdminResult);
+                    newEduAdminId = eduAdminResult.data.id;
+                    console.log(`    ✅ Created eduAdmin: ${parsedEduAdmin.name} → region: ${entityId} (ID: ${newEduAdminId})`);
+                  }
+                  
+                  // Now create schools for this newly created eduAdmin
+                  const schoolsForThisNewEduAdmin = [];
+                  for (const schoolData of newSchoolsForNewEduAdminsData) {
+                    try {
+                      const parsedSchool = JSON.parse(schoolData as string);
+                      if (parsedSchool.name && parsedSchool.newEduAdminIndex === i) {
+                        schoolsForThisNewEduAdmin.push(parsedSchool);
+                      }
+                    } catch (error) {
+                      console.error("Error parsing school data for new eduAdmin:", error);
+                    }
+                  }
 
-      return json({ 
-        status: "success", 
-        message: "تم الحفظ بنجاح", 
-        results
-      });
+                  console.log(`  📚 Creating ${schoolsForThisNewEduAdmin.length} schools for eduAdmin: ${parsedEduAdmin.name}`);
+                  for (const school of schoolsForThisNewEduAdmin) {
+                    console.log(`    ➕ Checking if school exists: ${school.name}`);
+                    
+                    // Check if school already exists for this eduAdmin
+                    const schoolExistsResult = await schoolDB.checkSchoolExists(
+                      school.name,
+                      newEduAdminId,
+                      dbUrl
+                    );
+                    
+                    if (schoolExistsResult.status === "success" && schoolExistsResult.data.exists) {
+                      console.log(`    ⚠️ School already exists, skipping: ${school.name} → eduAdmin: ${parsedEduAdmin.name}`);
+                      continue;
+                    }
+                    
+                    console.log(`    ➕ Creating new school: ${school.name}`);
+                    const schoolResult = await schoolDB.createSchool(
+                      school.name,
+                      "",
+                      dbUrl,
+                      newEduAdminId  // Assign to parent eduAdmin
+                    );
+                    
+                    results.push(schoolResult);
+                    console.log(`    ✅ Created school: ${school.name} → eduAdmin: ${parsedEduAdmin.name}`);
+                  }
+                }
+              } catch (error) {
+                console.error("Error processing eduAdmin:", error);
+                throw new Error(`Failed to process eduAdmin ${i + 1}: ${error.message}`);
+              }
+            }
+
+            console.log("\n🎉 Region batch save completed successfully!");
+
+          } else if (entityType === "eduAdmin") {
+            // EDUADMIN BATCH SAVE: EduAdmin → Schools inside it
+            console.log("Processing eduAdmin batch save");
+            
+            // Step 1: Update the eduAdmin name if provided
+            if (names.length > 0 && typeof names[0] === "string" && names[0].trim() !== "") {
+              const updateResult = await eduAdminDB.updateEduAdmin(entityId as string, names[0].trim(), dbUrl);
+              results.push(updateResult);
+              console.log("Updated eduAdmin:", names[0].trim());
+            }
+
+            // Step 2: Create all new schools for this eduAdmin
+            const newSchoolsData = formData.getAll("newSchools");
+            console.log("EduAdmin batch save - Found newSchools data:", newSchoolsData.length, "entries");
+            for (const schoolData of newSchoolsData) {
+              try {
+                const parsedSchool = JSON.parse(schoolData as string);
+                console.log("Processing school data:", parsedSchool, "for entityId:", entityId);
+                
+                if (parsedSchool.name && parsedSchool.eduAdminId && String(parsedSchool.eduAdminId) === String(entityId)) {
+                  console.log(`Checking if school exists: ${parsedSchool.name} for eduAdmin: ${entityId}`);
+                  
+                  // Check if school already exists for this eduAdmin
+                  const existsResult = await schoolDB.checkSchoolExists(
+                    parsedSchool.name,
+                    parsedSchool.eduAdminId,
+                    dbUrl
+                  );
+                  
+                  if (existsResult.status === "success" && existsResult.data.exists) {
+                    console.log(`School already exists, skipping: ${parsedSchool.name} for eduAdmin: ${entityId}`);
+                    continue;
+                  }
+                  
+                  console.log(`Creating new school: ${parsedSchool.name} for eduAdmin: ${entityId}`);
+                  const result = await schoolDB.createSchool(
+                    parsedSchool.name,
+                    "",
+                    dbUrl,
+                    parsedSchool.eduAdminId
+                  );
+                  
+                  results.push(result);
+                  console.log(`Created school: ${parsedSchool.name}`);
+                } else {
+                  console.log("School filtered out:", {
+                    name: parsedSchool.name,
+                    eduAdminId: parsedSchool.eduAdminId,
+                    entityId: entityId,
+                    match: String(parsedSchool.eduAdminId) === String(entityId)
+                  });
+                }
+              } catch (error) {
+                console.error("Error parsing school data:", error);
+                throw new Error(`Failed to process school: ${error.message}`);
+              }
+            }
+
+          } else {
+            throw new Error("Invalid entity type for batch save");
+          }
+        });
+
+        // Transaction completed successfully
+        await prisma.$disconnect();
+        
+        console.log("Batch save completed successfully. Results:", results.length);
+        
+        return json({ 
+          status: "success", 
+          message: "تم الحفظ بنجاح", 
+          results,
+          savedEntityType: entityType,
+          savedEntityId: entityId
+        });
+      } catch (transactionError) {
+        console.error("Transaction failed:", transactionError);
+        await prisma.$disconnect();
+        throw transactionError; // Re-throw to be caught by outer catch block
+      }
     }
 
     return json(
@@ -244,7 +491,29 @@ export const action = async ({ request, context }: LoaderFunctionArgs) => {
       { status: 400 }
     );
   } catch (error: any) {
-    return json({ status: "error", message: error.message }, { status: 500 });
+    console.error("Action error:", error);
+    
+    // Handle specific database errors
+    let errorMessage = "حدث خطأ غير متوقع";
+    
+    if (error.message.includes("Unique constraint")) {
+      errorMessage = "هذا الاسم موجود بالفعل، يرجى اختيار اسم آخر";
+    } else if (error.message.includes("Foreign key constraint")) {
+      errorMessage = "لا يمكن حذف هذا العنصر لأنه مرتبط بعناصر أخرى";
+    } else if (error.message.includes("timeout")) {
+      errorMessage = "انتهت مهلة الاتصال بقاعدة البيانات، يرجى المحاولة مرة أخرى";
+    } else if (error.message.includes("Connection")) {
+      errorMessage = "خطأ في الاتصال بقاعدة البيانات";
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
+    return json({ 
+      status: "error", 
+      message: errorMessage,
+      errorCode: error.code || "UNKNOWN_ERROR",
+      details: process.env.NODE_ENV === "development" ? error.stack : undefined
+    }, { status: 500 });
   }
 };
 
@@ -318,13 +587,179 @@ export const ManageData = (): JSX.Element => {
     childrenCount: number;
   } | null>(null);
 
-  // Update data when action returns success
+  // State for loading and debouncing
+  const [loadingStates, setLoadingStates] = useState<{
+    [key: string]: boolean;
+  }>({});
+  const [debounceTimers, setDebounceTimers] = useState<{
+    [key: string]: NodeJS.Timeout;
+  }>({});
+  
+  // State for error handling
+  const [errors, setErrors] = useState<{
+    [key: string]: string;
+  }>({});
+
+  // State for validation
+  const [validationErrors, setValidationErrors] = useState<{
+    [key: string]: string;
+  }>({});
+
+  // LocalStorage keys
+  const STORAGE_KEYS = {
+    newRegions: 'qyam-admin-new-regions',
+    newEduAdmins: 'qyam-admin-new-eduadmins',
+    newSchools: 'qyam-admin-new-schools',
+  };
+
+  // Load state from localStorage on component mount
   useEffect(() => {
-    if (actionData?.status === "success") {
-      // Clear current input states
-      setNewRegions([]);
-      setNewEduAdmins({});
-      setNewSchools({});
+    try {
+      const savedNewRegions = localStorage.getItem(STORAGE_KEYS.newRegions);
+      const savedNewEduAdmins = localStorage.getItem(STORAGE_KEYS.newEduAdmins);
+      const savedNewSchools = localStorage.getItem(STORAGE_KEYS.newSchools);
+
+      if (savedNewRegions) {
+        setNewRegions(JSON.parse(savedNewRegions));
+      }
+      if (savedNewEduAdmins) {
+        setNewEduAdmins(JSON.parse(savedNewEduAdmins));
+      }
+      if (savedNewSchools) {
+        setNewSchools(JSON.parse(savedNewSchools));
+      }
+    } catch (error) {
+      console.warn("Failed to load state from localStorage:", error);
+    }
+  }, []);
+
+  // Save state to localStorage when it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.newRegions, JSON.stringify(newRegions));
+    } catch (error) {
+      console.warn("Failed to save newRegions to localStorage:", error);
+    }
+  }, [newRegions]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.newEduAdmins, JSON.stringify(newEduAdmins));
+    } catch (error) {
+      console.warn("Failed to save newEduAdmins to localStorage:", error);
+    }
+  }, [newEduAdmins]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.newSchools, JSON.stringify(newSchools));
+    } catch (error) {
+      console.warn("Failed to save newSchools to localStorage:", error);
+    }
+  }, [newSchools]);
+
+  // Clear localStorage on successful saves
+  const clearStorageForEntity = (entityType: string, entityId?: string) => {
+    try {
+      if (entityType === "region") {
+        localStorage.removeItem(STORAGE_KEYS.newRegions);
+        if (entityId) {
+          const current = JSON.parse(localStorage.getItem(STORAGE_KEYS.newEduAdmins) || '{}');
+          delete current[entityId];
+          localStorage.setItem(STORAGE_KEYS.newEduAdmins, JSON.stringify(current));
+        }
+      } else if (entityType === "eduAdmin" && entityId) {
+        const current = JSON.parse(localStorage.getItem(STORAGE_KEYS.newEduAdmins) || '{}');
+        delete current[entityId];
+        localStorage.setItem(STORAGE_KEYS.newEduAdmins, JSON.stringify(current));
+        
+        const schools = JSON.parse(localStorage.getItem(STORAGE_KEYS.newSchools) || '{}');
+        delete schools[entityId];
+        localStorage.setItem(STORAGE_KEYS.newSchools, JSON.stringify(schools));
+      } else if (entityType === "school" && entityId) {
+        const current = JSON.parse(localStorage.getItem(STORAGE_KEYS.newSchools) || '{}');
+        delete current[entityId];
+        localStorage.setItem(STORAGE_KEYS.newSchools, JSON.stringify(current));
+      }
+    } catch (error) {
+      console.warn("Failed to clear localStorage:", error);
+    }
+  };
+
+  // Update data when action returns success or error
+  useEffect(() => {
+    if (actionData?.status === "error") {
+      // Handle error responses
+      const errorMessage = actionData.message || "حدث خطأ غير متوقع";
+      setErrors(prev => ({ ...prev, general: errorMessage }));
+      
+      // Clear all loading states on error
+      setLoadingStates({});
+      
+      // Clear error after 5 seconds
+      setTimeout(() => {
+        setErrors(prev => ({ ...prev, general: "" }));
+      }, 5000);
+    } else if (actionData?.status === "success") {
+      // Clear all loading states on success
+      setLoadingStates({});
+      // Only clear state related to what was just saved
+      if (actionData.createdEntityType === "region") {
+        // Only clear new regions if a region was created
+        setNewRegions([]);
+        clearStorageForEntity("region");
+      } else if (actionData.createdEntityType === "eduAdmin" && actionData.createdParentId) {
+        // Only clear eduAdmins for the specific region
+        setNewEduAdmins(prev => ({
+          ...prev,
+          [actionData.createdParentId]: []
+        }));
+        clearStorageForEntity("eduAdmin", actionData.createdParentId);
+      } else if (actionData.createdEntityType === "school" && actionData.createdParentId) {
+        // Only clear schools for the specific eduAdmin
+        setNewSchools(prev => ({
+          ...prev,
+          [actionData.createdParentId]: []
+        }));
+        clearStorageForEntity("school", actionData.createdParentId);
+      }
+
+      // Handle batch save operations - clear relevant data based on what was saved
+      if (actionData.message === "تم الحفظ بنجاح" && actionData.savedEntityType && actionData.savedEntityId) {
+        const { savedEntityType, savedEntityId } = actionData;
+        
+        if (savedEntityType === "region") {
+          // Region batch save completed - clear all eduAdmins and schools for this region
+          setNewEduAdmins(prev => ({
+            ...prev,
+            [savedEntityId]: []
+          }));
+          
+          // Also clear any schools that were created for eduAdmins in this region
+          const eduAdminsInRegion = safeData.eduAdmins.filter(ea => ea.regionId === savedEntityId);
+          setNewSchools(prev => {
+            const updated = { ...prev };
+            eduAdminsInRegion.forEach(ea => {
+              updated[ea.id] = [];
+            });
+            return updated;
+          });
+          
+          clearStorageForEntity("region", savedEntityId);
+          console.log("Cleared state for region batch save:", savedEntityId);
+          
+        } else if (savedEntityType === "eduAdmin") {
+          // EduAdmin batch save completed - clear schools for this eduAdmin
+          setNewSchools(prev => ({
+            ...prev,
+            [savedEntityId]: []
+          }));
+          
+          clearStorageForEntity("eduAdmin", savedEntityId);
+          console.log("Cleared state for eduAdmin batch save:", savedEntityId);
+        }
+      }
+
       setDeleteConfirmation(null); // Close delete confirmation on success
       
       // Revalidate to get updated data
@@ -332,6 +767,7 @@ export const ManageData = (): JSX.Element => {
       
       // Auto-add empty inputs based on what was just created
       if (actionData.createdEntityType && actionData.results && actionData.results.length > 0) {
+        // Increased timeout to ensure revalidation completes first
         setTimeout(() => {
           if (actionData.createdEntityType === "region") {
             // When a region is created, auto-add empty eduAdmin input
@@ -352,7 +788,7 @@ export const ManageData = (): JSX.Element => {
               }));
             }
           }
-        }, 100);
+        }, 300); // Increased from 100ms to 300ms
       }
     }
   }, [actionData, revalidator]);
@@ -537,8 +973,282 @@ export const ManageData = (): JSX.Element => {
     setDeleteConfirmation(null);
   };
 
+  // Enhanced save handler that captures all visible input data
+  const handleSaveClick = (formId: string, buttonElement: HTMLButtonElement) => {
+    // Check if this form is already submitting or has an active debounce timer
+    if (loadingStates[formId] || debounceTimers[formId]) {
+      console.log("Save blocked - form is submitting or debounced:", formId);
+      return; // Prevent rapid clicks
+    }
+
+    // Set loading state immediately
+    setLoadingStates(prev => ({ ...prev, [formId]: true }));
+
+    // Set debounce timer to prevent rapid subsequent clicks
+    const timer = setTimeout(() => {
+      setDebounceTimers(prev => {
+        const newTimers = { ...prev };
+        delete newTimers[formId];
+        return newTimers;
+      });
+    }, 2000); // Increased to 2 seconds for better protection
+
+    setDebounceTimers(prev => ({ ...prev, [formId]: timer }));
+
+    // Find the form and inject missing data before submission
+    const form = buttonElement.closest('form');
+    if (form) {
+      // Add a unique submission ID to track this specific submission
+      const submissionId = Date.now();
+      const hiddenSubmissionId = document.createElement('input');
+      hiddenSubmissionId.type = 'hidden';
+      hiddenSubmissionId.name = 'submissionId';
+      hiddenSubmissionId.value = submissionId.toString();
+      hiddenSubmissionId.setAttribute('data-dynamic', 'true');
+      form.appendChild(hiddenSubmissionId);
+      console.log(`📤 [${submissionId}] Submitting form: ${formId}`);
+      
+      // For region forms, inject all current input values as hidden fields
+      if (formId.startsWith('region-')) {
+        const regionId = formId.replace('region-', '');
+        injectRegionHierarchyData(form, regionId);
+      }
+      
+      // Let Remix handle the form submission
+      form.requestSubmit();
+    }
+  };
+
+  // Function to inject all current input values into the form
+  const injectRegionHierarchyData = (form: HTMLFormElement, regionId: string) => {
+    const timestamp = Date.now();
+    console.log(`🔄 [${timestamp}] Injecting hierarchy data for region:`, regionId);
+    
+    // Remove any existing dynamic hidden inputs to avoid duplicates
+    const existingInputs = form.querySelectorAll('input[data-dynamic="true"]');
+    console.log(`🗑️ [${timestamp}] Removing ${existingInputs.length} existing dynamic inputs`);
+    existingInputs.forEach(input => input.remove());
+
+    // Inject new eduAdmin data from visible inputs
+    const eduAdminInputs = document.querySelectorAll(`input[data-eduadmin-region="${regionId}"]`);
+    console.log(`📊 [${timestamp}] Found ${eduAdminInputs.length} eduAdmin inputs for region ${regionId}`);
+    
+    eduAdminInputs.forEach((input: HTMLInputElement, index) => {
+      if (input.value.trim()) {
+        const hiddenInput = document.createElement('input');
+        hiddenInput.type = 'hidden';
+        hiddenInput.name = 'newEduAdmins';
+        hiddenInput.value = JSON.stringify({ name: input.value.trim(), regionId: regionId });
+        hiddenInput.setAttribute('data-dynamic', 'true');
+        hiddenInput.setAttribute('data-timestamp', timestamp.toString());
+        form.appendChild(hiddenInput);
+        console.log(`➕ [${timestamp}] Injected eduAdmin ${index + 1}:`, input.value.trim());
+      }
+    });
+
+    // Inject school data from visible inputs
+    const schoolInputs = document.querySelectorAll(`input[data-school-region="${regionId}"]`);
+    console.log(`🏫 [${timestamp}] Found ${schoolInputs.length} school inputs for region ${regionId}`);
+    
+    schoolInputs.forEach((input: HTMLInputElement) => {
+      if (input.value.trim()) {
+        const eduAdminId = input.getAttribute('data-eduadmin-id');
+        const newEduAdminIndex = input.getAttribute('data-new-eduadmin-index');
+        
+        if (eduAdminId && eduAdminId !== 'null') {
+          // School for existing eduAdmin
+          const hiddenInput = document.createElement('input');
+          hiddenInput.type = 'hidden';
+          hiddenInput.name = 'newSchools';
+          hiddenInput.value = JSON.stringify({ name: input.value.trim(), eduAdminId: eduAdminId });
+          hiddenInput.setAttribute('data-dynamic', 'true');
+          hiddenInput.setAttribute('data-timestamp', timestamp.toString());
+          form.appendChild(hiddenInput);
+          console.log(`🏫 [${timestamp}] Injected school for existing eduAdmin:`, input.value.trim(), 'eduAdminId:', eduAdminId);
+        } else if (newEduAdminIndex && newEduAdminIndex !== 'null') {
+          // School for new eduAdmin
+          const hiddenInput = document.createElement('input');
+          hiddenInput.type = 'hidden';
+          hiddenInput.name = 'newSchoolsForNewEduAdmins';
+          hiddenInput.value = JSON.stringify({ 
+            name: input.value.trim(), 
+            newEduAdminIndex: parseInt(newEduAdminIndex),
+            regionId: regionId 
+          });
+          hiddenInput.setAttribute('data-dynamic', 'true');
+          hiddenInput.setAttribute('data-timestamp', timestamp.toString());
+          form.appendChild(hiddenInput);
+          console.log(`🏫 [${timestamp}] Injected school for new eduAdmin:`, input.value.trim(), 'eduAdminIndex:', newEduAdminIndex);
+        } else {
+          console.warn('School input found but no valid parent identified:', {
+            value: input.value.trim(),
+            eduAdminId: eduAdminId,
+            newEduAdminIndex: newEduAdminIndex,
+            input: input
+          });
+        }
+      }
+    });
+  };
+
+  // Validation functions
+  const validateName = (name: string, fieldId: string): string => {
+    let error = "";
+    
+    if (!name.trim()) {
+      error = "هذا الحقل مطلوب";
+    } else if (name.trim().length < 2) {
+      error = "يجب أن يكون الاسم أكثر من حرفين";
+    } else if (name.trim().length > 100) {
+      error = "يجب أن يكون الاسم أقل من 100 حرف";
+    } else if (!/^[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF\s]+$/.test(name.trim())) {
+      error = "يجب أن يحتوي الاسم على أحرف عربية فقط";
+    }
+    
+    setValidationErrors(prev => ({ ...prev, [fieldId]: error }));
+    return error;
+  };
+
+  const validateUniqueRegionName = (name: string, excludeId?: string): string => {
+    const existingRegion = safeData.regions.find(r => 
+      r.id !== excludeId && r.name.toLowerCase().trim() === name.toLowerCase().trim()
+    );
+    
+    if (existingRegion) {
+      return "اسم المنطقة موجود بالفعل";
+    }
+    
+    return "";
+  };
+
+  const validateUniqueEduAdminName = (name: string, regionId: string, excludeId?: string): string => {
+    const existingEduAdmin = safeData.eduAdmins.find(ea => 
+      ea?.id !== excludeId && 
+      ea?.regionId === regionId && 
+      ea?.name?.toLowerCase()?.trim() === name?.toLowerCase()?.trim()
+    );
+    
+    if (existingEduAdmin) {
+      return "اسم الإدارة التعليمية موجود بالفعل في هذه المنطقة";
+    }
+    
+    return "";
+  };
+
+  const validateUniqueSchoolName = (name: string, eduAdminId: string, excludeId?: string): string => {
+    const existingSchool = safeData?.schools?.find(s => 
+      s?.id !== excludeId && 
+      s?.eduAdminId === eduAdminId && 
+      s?.name?.toLowerCase()?.trim() === name?.toLowerCase()?.trim()
+    );
+    
+    if (existingSchool) {
+      return "اسم المدرسة موجود بالفعل في هذه الإدارة التعليمية";
+    }
+    
+    return "";
+  };
+
+  // Real-time validation handlers
+  const handleRegionNameChange = (value: string, fieldId: string) => {
+    const basicError = validateName(value, fieldId);
+    if (!basicError && value.trim()) {
+      const uniqueError = validateUniqueRegionName(value);
+      setValidationErrors(prev => ({ ...prev, [fieldId]: uniqueError }));
+    }
+  };
+
+  const handleEduAdminNameChange = (value: string, fieldId: string, regionId: string) => {
+    const basicError = validateName(value, fieldId);
+    if (!basicError && value.trim()) {
+      const uniqueError = validateUniqueEduAdminName(value, regionId);
+      setValidationErrors(prev => ({ ...prev, [fieldId]: uniqueError }));
+    }
+  };
+
+  const handleSchoolNameChange = (value: string, fieldId: string, eduAdminId: string) => {
+    const basicError = validateName(value, fieldId);
+    if (!basicError && value.trim()) {
+      const uniqueError = validateUniqueSchoolName(value, eduAdminId);
+      setValidationErrors(prev => ({ ...prev, [fieldId]: uniqueError }));
+    }
+  };
+
+  // Check if region has any validation errors in its hierarchy
+  const hasRegionHierarchyErrors = (regionId: string): boolean => {
+    // Check region itself
+    if (validationErrors[`region-${regionId}-input`]) {
+      return true;
+    }
+
+    // Check new eduAdmins for this region
+    const eduAdminsForRegion = newEduAdmins[regionId] || [];
+    for (let i = 0; i < eduAdminsForRegion.length; i++) {
+      if (validationErrors[`new-eduadmin-${regionId}-${i}`]) {
+        return true;
+      }
+
+      // Check schools for new eduAdmins
+      const schoolsForNewEduAdmin = newSchools[`new-eduadmin-${regionId}-${i}`] || [];
+      for (let j = 0; j < schoolsForNewEduAdmin.length; j++) {
+        if (validationErrors[`new-school-${regionId}-${i}-${j}`]) {
+          return true;
+        }
+      }
+    }
+
+    // Check existing eduAdmins and their schools
+    const existingEduAdmins = getEduAdminsForRegion(regionId);
+    for (const eduAdmin of existingEduAdmins) {
+      if (validationErrors[`eduadmin-${eduAdmin.id}-input`]) {
+        return true;
+      }
+
+      const schoolsForEduAdmin = newSchools[eduAdmin.id] || [];
+      for (let k = 0; k < schoolsForEduAdmin.length; k++) {
+        if (validationErrors[`school-${eduAdmin.id}-${k}`]) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  };
+
   return (
     <div className="h-full mb-[423px]">
+      {/* Global Error Display */}
+      {errors.general && (
+        <div className="w-full bg-red-50 border border-red-200 rounded-lg p-4 mb-4 [direction:rtl]">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <XIcon className="h-5 w-5 text-red-400" />
+            </div>
+            <div className="mr-3">
+              <p className="text-sm text-red-800">{errors.general}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Test Example Button */}
+      <div className="w-full bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="text-green-800 font-medium">إنشاء مثال تجريبي</span>
+            <span className="text-green-600 text-sm">منطقة تجريبية → إدارة تعليمية تجريبية → مدرسة تجريبية</span>
+          </div>
+          <Form method="post">
+            <input type="hidden" name="actionType" value="createExample" />
+            <button
+              type="submit"
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+            >
+              إنشاء مثال تجريبي
+            </button>
+          </Form>
+        </div>
+      </div>
 
       {/* Single Region Add Section - As shown in image.png */}
       <div className="w-full bg-white rounded-2xl border border-solid border-[#d0d5dd] mt-8">
@@ -551,10 +1261,12 @@ export const ManageData = (): JSX.Element => {
             <div className="flex w-full h-14 items-center justify-between gap-3 p-5 bg-[#006173] rounded-xl shadow-shadows-shadow-xs">
               <div className="flex items-center gap-2">
                 <button
-                  type="submit"
-                  className="py-1.5 px-8 bg-white border border-[#D5D7DA] rounded-lg text-[#535861] font-medium hover:bg-gray-100 transition-colors"
+                  type="button"
+                  disabled={loadingStates["new-region-form"] || validationErrors["new-region-input"]}
+                  onClick={(e) => !loadingStates["new-region-form"] && !validationErrors["new-region-input"] && handleSaveClick("new-region-form", e.currentTarget)}
+                  className="py-1.5 px-8 bg-white border border-[#D5D7DA] rounded-lg text-[#535861] font-medium hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  حفظ
+                  {loadingStates["new-region-form"] ? "جاري الحفظ..." : "حفظ"}
                 </button>
               </div>
               <div className="flex items-center gap-3">
@@ -581,10 +1293,29 @@ export const ManageData = (): JSX.Element => {
                   type="text"
                   name="itemName"
                   placeholder="اكتب المنطقة المراد اضافتها"
-                  className="flex-1 px-4 py-3 bg-white border border-[#D5D7DA] rounded-lg text-right text-[#535861] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#17b169] focus:border-transparent"
+                  className={`flex-1 px-4 py-3 bg-white border rounded-lg text-right text-[#535861] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:border-transparent ${
+                    validationErrors["new-region-input"] 
+                      ? "border-red-500 focus:ring-red-500" 
+                      : "border-[#D5D7DA] focus:ring-[#17b169]"
+                  }`}
+                  onChange={(e) => handleRegionNameChange(e.target.value, "new-region-input")}
                   required
                 />
               </div>
+              
+              {/* Validation Error for new region input */}
+              {validationErrors["new-region-input"] && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-2 [direction:rtl]">
+                  <p className="text-xs text-red-600">{validationErrors["new-region-input"]}</p>
+                </div>
+              )}
+              
+              {/* Error Display for new region form */}
+              {errors["new-region-form"] && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3 [direction:rtl]">
+                  <p className="text-sm text-red-800">{errors["new-region-form"]}</p>
+                </div>
+              )}
             </div>
           </Form>
         </div>
@@ -660,10 +1391,13 @@ export const ManageData = (): JSX.Element => {
 
                   <div className="flex items-center justify-between mb-6">
                     <button
-                      type="submit"
-                      className="px-6 py-3 bg-[#F8F9FA] border border-[#D5D7DA] rounded-lg text-[#535861] font-medium hover:bg-gray-100 transition-colors"
+                      type="button"
+                      disabled={loadingStates[`region-${region.id}`] || hasRegionHierarchyErrors(region.id)}
+                      onClick={(e) => !loadingStates[`region-${region.id}`] && !hasRegionHierarchyErrors(region.id) && handleSaveClick(`region-${region.id}`, e.currentTarget)}
+                      className="px-6 py-3 bg-[#F8F9FA] border border-[#D5D7DA] rounded-lg text-[#535861] font-medium hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      title={hasRegionHierarchyErrors(region.id) ? "يرجى إصلاح الأخطاء في الحقول قبل الحفظ" : "حفظ المنطقة وجميع الإدارات والمدارس"}
                     >
-                      حفظ
+                      {loadingStates[`region-${region.id}`] ? "جاري الحفظ..." : "حفظ الكل"}
                     </button>
                     <div className="flex items-center gap-3">
                       <button
@@ -690,10 +1424,22 @@ export const ManageData = (): JSX.Element => {
                       name="itemName"
                       defaultValue={region.name}
                       placeholder="اكتب اسم المنطقة المراد اضافتها"
-                      className="flex-1 px-4 py-3 bg-white border border-[#D5D7DA] rounded-lg text-right text-[#535861] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#17b169] focus:border-transparent"
+                      className={`flex-1 px-4 py-3 bg-white border rounded-lg text-right text-[#535861] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:border-transparent ${
+                        validationErrors[`region-${region.id}-input`] 
+                          ? "border-red-500 focus:ring-red-500" 
+                          : "border-[#D5D7DA] focus:ring-[#17b169]"
+                      }`}
+                      onChange={(e) => handleRegionNameChange(e.target.value, `region-${region.id}-input`)}
                       required
                     />
                   </div>
+                  
+                  {/* Validation Error for region input */}
+                  {validationErrors[`region-${region.id}-input`] && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-2 [direction:rtl]">
+                      <p className="text-xs text-red-600">{validationErrors[`region-${region.id}-input`]}</p>
+                    </div>
+                  )}
                 </Form>
 
                 {/* New EduAdmin Inputs - Show first */}
@@ -707,21 +1453,9 @@ export const ManageData = (): JSX.Element => {
                       <input type="hidden" name="entityType" value="eduAdmin" />
                       <input type="hidden" name="parentId" value={region.id} />
 
-                      <div className="flex items-center justify-between mb-6">
-                        <button
-                          type="submit"
-                          className="px-6 py-3 bg-[#F8F9FA] border border-[#D5D7DA] rounded-lg text-[#535861] font-medium hover:bg-gray-100 transition-colors"
-                        >
-                          حفظ
-                        </button>
+                      <div className="flex items-center justify-end mb-6">
                         <div className="flex items-center gap-3">
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveEduAdminInput(region.id, index)}
-                            className="w-6 h-6 bg-red-500 rounded flex items-center justify-center hover:bg-red-600 transition-colors"
-                          >
-                            <XIcon className="w-4 h-4 text-white" />
-                          </button>
+                     
                           <div className="w-6 h-6 bg-[#17b169] rounded flex items-center justify-center">
                             <span className="text-white text-sm font-bold">+</span>
                           </div>
@@ -734,12 +1468,28 @@ export const ManageData = (): JSX.Element => {
                           type="text"
                           name="itemName"
                           value={eduAdminName}
-                          onChange={(e) => handleEduAdminInputChange(region.id, index, e.target.value)}
+                          data-eduadmin-region={region.id}
+                          data-eduadmin-index={index}
+                          onChange={(e) => {
+                            handleEduAdminInputChange(region.id, index, e.target.value);
+                            handleEduAdminNameChange(e.target.value, `new-eduadmin-${region.id}-${index}`, region.id);
+                          }}
                           placeholder="اكتب اسم الإدارة المراد اضافتها"
-                          className="flex-1 px-4 py-3 bg-white border border-[#D5D7DA] rounded-lg text-right text-[#535861] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#17b169] focus:border-transparent"
+                          className={`flex-1 px-4 py-3 bg-white border rounded-lg text-right text-[#535861] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:border-transparent ${
+                            validationErrors[`new-eduadmin-${region.id}-${index}`] 
+                              ? "border-red-500 focus:ring-red-500" 
+                              : "border-[#D5D7DA] focus:ring-[#17b169]"
+                          }`}
                           required
                         />
                       </div>
+                      
+                      {/* Validation Error for new eduAdmin input */}
+                      {validationErrors[`new-eduadmin-${region.id}-${index}`] && (
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-2 [direction:rtl] mt-2">
+                          <p className="text-xs text-red-600">{validationErrors[`new-eduadmin-${region.id}-${index}`]}</p>
+                        </div>
+                      )}
                     </Form>
 
                     {/* Schools section for new eduAdmin */}
@@ -765,6 +1515,9 @@ export const ManageData = (): JSX.Element => {
                           <input
                             type="text"
                             value={schoolName}
+                            data-school-region={region.id}
+                            data-new-eduadmin-index={index}
+                            data-school-index={schoolIndex}
                             onChange={(e) => handleSchoolInputChange(`new-eduadmin-${region.id}-${index}`, schoolIndex, e.target.value)}
                             placeholder="اكتب اسم المدرسة المراد اضافتها"
                             className="flex-1 px-4 py-3 bg-white border border-[#D5D7DA] rounded-lg text-right text-[#535861] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#17b169] focus:border-transparent"
@@ -805,12 +1558,7 @@ export const ManageData = (): JSX.Element => {
                       ))}
 
                       <div className="flex items-center justify-between mb-6">
-                        <button
-                          type="submit"
-                          className="px-6 py-3 bg-[#F8F9FA] border border-[#D5D7DA] rounded-lg text-[#535861] font-medium hover:bg-gray-100 transition-colors"
-                        >
-                          حفظ
-                        </button>
+                        <div></div>
                         <div className="flex items-center gap-3">
                           <button
                             type="button"
@@ -866,6 +1614,9 @@ export const ManageData = (): JSX.Element => {
                             <input
                               type="text"
                               value={schoolName}
+                              data-school-region={region.id}
+                              data-eduadmin-id={eduAdmin.id}
+                              data-school-index={index}
                               onChange={(e) => handleSchoolInputChange(eduAdmin.id, index, e.target.value)}
                               placeholder="اكتب اسم المدرسة المراد اضافتها"
                               className="flex-1 px-4 py-3 bg-white border border-[#D5D7DA] rounded-lg text-right text-[#535861] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#17b169] focus:border-transparent"

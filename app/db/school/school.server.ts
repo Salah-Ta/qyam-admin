@@ -200,11 +200,45 @@ Promise<StatusResponse<School[]>> => {
   });
 };
 
+const checkSchoolExists = 
+(name: string, eduAdminId: string, dbUrl?: string): 
+Promise<StatusResponse<{ exists: boolean; school?: School }>> => {
+  
+  const db = initializeDatabase(dbUrl);
+  
+  return new Promise((resolve, reject) => {
+    db.school
+      .findFirst({
+        where: { 
+          name: name.trim(),
+          eduAdminId 
+        }
+      })
+      .then((res) => {
+        resolve({ 
+          status: "success", 
+          data: { 
+            exists: !!res,
+            school: res || undefined
+          }
+        });
+      })
+      .catch((error: any) => {
+        console.log("ERROR [checkSchoolExists]: ", error);
+        reject({
+          status: "error",
+          message: "فشل التحقق من وجود المدرسة",
+        });
+      });
+  });
+};
+
 export default {
   getAllSchools,
   getSchool,
   getSchoolsByEduAdmin,
   createSchool,
   updateSchool,
-  deleteSchool
+  deleteSchool,
+  checkSchoolExists
 };

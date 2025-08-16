@@ -48,16 +48,17 @@ const getRegion = (id: string, dbUrl: string): Promise<StatusResponse<Region>> =
   });
 };
 
-const createRegion = (name: string, dbUrl: string): Promise<StatusResponse<null>> => {
+const createRegion = (name: string, dbUrl: string): Promise<StatusResponse<Region>> => {
   const db = client(dbUrl);
   return new Promise((resolve, reject) => {
     db.region
       .create({
         data: { name }
       })
-      .then(() => {
+      .then((res) => {
         resolve({
           status: "success",
+          data: res,
           message: "تم إضافة المنطقة بنجاح",
         });
       })

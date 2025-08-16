@@ -232,6 +232,39 @@ const deleteEduAdminsWithNonExistentRegions =
   });
 };
 
+const checkEduAdminExists = 
+(name: string, regionId: string, dbUrl?: string): 
+Promise<StatusResponse<{ exists: boolean; eduAdmin?: EduAdmin }>> => {
+
+  const db = initializeDatabase(dbUrl);
+
+  return new Promise((resolve, reject) => {
+    db.eduAdmin
+      .findFirst({
+        where: { 
+          name: name.trim(),
+          regionId 
+        }
+      })
+      .then((res) => {
+        resolve({ 
+          status: "success", 
+          data: { 
+            exists: !!res,
+            eduAdmin: res || undefined
+          }
+        });
+      })
+      .catch((error: any) => {
+        console.log("ERROR [checkEduAdminExists]: ", error);
+        reject({
+          status: "error",
+          message: "فشل التحقق من وجود الإدارة التعليمية",
+        });
+      });
+  });
+};
+
 export default {
   createEduAdmin,
   getAllEduAdmins,
@@ -240,5 +273,6 @@ export default {
   updateEduAdmin,
   deleteEduAdmin,
   deleteEduAdminsWithoutRegion,
-  deleteEduAdminsWithNonExistentRegions
+  deleteEduAdminsWithNonExistentRegions,
+  checkEduAdminExists
 };
