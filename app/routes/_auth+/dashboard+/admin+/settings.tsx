@@ -89,64 +89,6 @@ export const action = async ({ request, context }: LoaderFunctionArgs) => {
       return json({ status: "success", message: "تم الحذف بنجاح" });
     }
 
-    // Handle createExample action
-    if (actionType === "createExample") {
-      console.log("Creating example hierarchy: Region → EduAdmin → School");
-      
-      try {
-        const results = [];
-        
-        // Step 1: Create test region
-        const regionName = `منطقة تجريبية ${new Date().getHours()}:${new Date().getMinutes()}`;
-        console.log("Creating test region:", regionName);
-        
-        const regionResult = await regionDB.createRegion(regionName, dbUrl);
-        if (regionResult.status !== "success") {
-          throw new Error(regionResult.message || "Failed to create test region");
-        }
-        results.push(regionResult);
-        const newRegionId = regionResult.data.id;
-        console.log("✅ Created test region:", regionName, "ID:", newRegionId);
-        
-        // Step 2: Create test eduAdmin
-        const eduAdminName = `إدارة تعليمية تجريبية ${new Date().getHours()}:${new Date().getMinutes()}`;
-        console.log("Creating test eduAdmin:", eduAdminName, "for region:", newRegionId);
-        
-        const eduAdminResult = await eduAdminDB.createEduAdmin(eduAdminName, dbUrl, newRegionId);
-        results.push(eduAdminResult);
-        const newEduAdminId = eduAdminResult.data.id;
-        console.log("✅ Created test eduAdmin:", eduAdminName, "ID:", newEduAdminId);
-        
-        // Step 3: Create test school
-        const schoolName = `مدرسة تجريبية ${new Date().getHours()}:${new Date().getMinutes()}`;
-        console.log("Creating test school:", schoolName, "for eduAdmin:", newEduAdminId);
-        
-        const schoolResult = await schoolDB.createSchool(schoolName, "", dbUrl, newEduAdminId);
-        results.push(schoolResult);
-        console.log("✅ Created test school:", schoolName, "ID:", schoolResult.data.id);
-        
-        console.log("🎉 Example hierarchy created successfully!");
-        console.log(`📋 Created: ${regionName} → ${eduAdminName} → ${schoolName}`);
-        
-        return json({ 
-          status: "success", 
-          message: `تم إنشاء المثال التجريبي بنجاح: ${regionName} → ${eduAdminName} → ${schoolName}`,
-          results: results,
-          createdEntityType: "example",
-          createdParentId: newRegionId
-        });
-        
-      } catch (error) {
-        console.error("Error creating example hierarchy:", error);
-        return json(
-          { 
-            status: "error", 
-            message: `فشل في إنشاء المثال التجريبي: ${error.message}` 
-          },
-          { status: 500 }
-        );
-      }
-    }
 
     // Handle create action
     if (actionType === "create") {
@@ -1231,24 +1173,6 @@ export const ManageData = (): JSX.Element => {
         </div>
       )}
 
-      {/* Test Example Button */}
-      <div className="w-full bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="text-green-800 font-medium">إنشاء مثال تجريبي</span>
-            <span className="text-green-600 text-sm">منطقة تجريبية → إدارة تعليمية تجريبية → مدرسة تجريبية</span>
-          </div>
-          <Form method="post">
-            <input type="hidden" name="actionType" value="createExample" />
-            <button
-              type="submit"
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
-            >
-              إنشاء مثال تجريبي
-            </button>
-          </Form>
-        </div>
-      </div>
 
       {/* Single Region Add Section - As shown in image.png */}
       <div className="w-full bg-white rounded-2xl border border-solid border-[#d0d5dd] mt-8">
