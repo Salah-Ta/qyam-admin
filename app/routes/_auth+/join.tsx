@@ -77,13 +77,13 @@ function validateSignup({
     errors.email = "البريد الإلكتروني غير صالح";
   if (!role) errors.role = "يرجى اختيار الدور";
   if (!region) errors.region = "يرجى اختيار المنطقة";
-  
+
   // Only validate eduAdmin and school for non-supervisor roles
   if (role !== "supervisor") {
     if (!eduAdmin) errors.eduAdmin = "يرجى اختيار الإدارة التعليمية";
     if (!school) errors.school = "يرجى اختيار المدرسة";
   }
-  
+
   if (!password) errors.password = "يرجى إدخال كلمة المرور";
   else if (password.length < 8)
     errors.password = "كلمة المرور يجب أن تكون 8 أحرف على الأقل";
@@ -138,7 +138,12 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
     where: { email: fields.email },
   });
   if (existingUser) {
-    console.log("Found existing user with email:", fields.email, "User ID:", existingUser.id);
+    console.log(
+      "Found existing user with email:",
+      fields.email,
+      "User ID:",
+      existingUser.id
+    );
     return json({ error: "البريد الإلكتروني مسجل مسبقاً" }, { status: 400 });
   }
   try {
@@ -168,13 +173,17 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
         mainEmail: context.cloudflare.env.MAIN_EMAIL || "",
       };
 
-      await sendEmail({
-        to: user.email,
-        subject: glossary.email.program_status_subject,
-        template: "user-registration",
-        props: { name: user.name },
-        text: '',
-      }, emailConfig.resendApi, emailConfig.mainEmail);
+      await sendEmail(
+        {
+          to: user.email,
+          subject: glossary.email.program_status_subject,
+          template: "user-registration",
+          props: { name: user.name },
+          text: "",
+        },
+        emailConfig.resendApi,
+        emailConfig.mainEmail
+      );
 
       console.log("✅ Registration email sent successfully to:", user.email);
     } catch (emailError) {
@@ -184,16 +193,21 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
 
     const session = await getSession(request.headers.get("Cookie"));
     session.set("userId", user.id);
-    
-    return redirectWithToast("/login", {
-      type: "success",
-      title: "تم التسجيل بنجاح!",
-      description: "تم استلام طلبك بنجاح. يرجى متابعة بريدك الإلكتروني لمعرفة حالة الطلب قريباً"
-    }, {
-      headers: {
-        "Set-Cookie": await commitSession(session),
+
+    return redirectWithToast(
+      "/login",
+      {
+        type: "success",
+        title: "تم التسجيل بنجاح!",
+        description:
+          "تم استلام طلبك بنجاح. يرجى متابعة بريدك الإلكتروني لمعرفة حالة الطلب قريباً",
       },
-    });
+      {
+        headers: {
+          "Set-Cookie": await commitSession(session),
+        },
+      }
+    );
   } catch (error) {
     console.error("User creation failed:", error);
     return json(
@@ -295,7 +309,7 @@ export default function Signup() {
     formData.append("phone", form.phone);
     formData.append("role", form.role);
     formData.append("region", selectedRegion?.name || "");
-    
+
     // Only append eduAdmin and school if role is not supervisor
     if (form.role !== "supervisor") {
       formData.append("eduAdmin", selectedEduAdmin?.name || "");
@@ -304,7 +318,7 @@ export default function Signup() {
       formData.append("eduAdmin", "");
       formData.append("school", "");
     }
-    
+
     formData.append("password", form.password);
     formData.append("passwordConfirmation", form.passwordConfirmation);
 
@@ -363,9 +377,7 @@ export default function Signup() {
               <ToggleGroup
                 type="single"
                 value={form.role}
-                onValueChange={(value) =>
-                  value && handleChange("role", value)
-                }
+                onValueChange={(value) => value && handleChange("role", value)}
                 className="flex h-11 items-center justify-center gap-0.5 bg-neutral-50 rounded-lg border border-solid border-[#e9e9eb]"
               >
                 <ToggleGroupItem
@@ -408,49 +420,6 @@ export default function Signup() {
                 )}
               </div>
 
-              {/* Phone Number Field */}
-              <div className="flex flex-col gap-1.5">
-                <div className="inline-flex items-start gap-0.5">
-                  <div className="text-[#1C81AC]">*</div>
-                  <div className="font-medium text-[#414651] text-sm tracking-[0] leading-5">
-                    رقم الجوال
-                  </div>
-                </div>
-                <div className="flex gap-2 bg-white rounded-lg border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs">
-                  <div className="flex items-center gap-1 px-3 py-2 overflow-hidden">
-                    <div className="font-normal text-[#414651] text-base tracking-[0] leading-6 whitespace-nowrap">
-                      SA
-                    </div>
-                    <ChevronDownIcon className="relative w-5 text-[#717680]" />
-                  </div>
-                  <input
-                    name="phone"
-                    value={form.phone}
-                    onChange={(e) => handleChange("phone", e.target.value)}
-                    className="flex-1 font-normal h-11 px-[10px] py-[14px] text-[#717680] text-base text-right border-0 rounded-md bg-white border-input shadow-none p-0"
-                  />
-                </div>
-              </div>
-
-              {/* Email Field */}
-              <div className="flex flex-col gap-1.5">
-                <div className="inline-flex items-start gap-0.5">
-                  <div className="text-[#1C81AC]">*</div>
-                  <div className="font-medium text-[#414651] text-sm tracking-[0] leading-5">
-                    البريد الإلكتروني
-                  </div>
-                </div>
-                <div className="flex justify-end items-center gap-2 px-2.5 bg-white rounded-lg border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs">
-                  <MailIcon className="relative w-5 text-[#717680]" />
-                  <input
-                    name="email"
-                    value={form.email}
-                    onChange={(e) => handleChange("email", e.target.value)}
-                    className="flex-1 font-normal h-11 bg-white text-[#717680] text-base text-right border-0 shadow-none p-0"
-                  />
-                </div>
-              </div>
-
               {/* Region Field */}
               <div className="flex flex-col gap-1.5">
                 <div className="inline-flex items-start gap-0.5">
@@ -490,6 +459,25 @@ export default function Signup() {
                     </SelectGroup>
                   </SelectContent>
                 </Select>
+              </div>
+
+              {/* Email Field */}
+              <div className="flex flex-col gap-1.5">
+                <div className="inline-flex items-start gap-0.5">
+                  <div className="text-[#1C81AC]">*</div>
+                  <div className="font-medium text-[#414651] text-sm tracking-[0] leading-5">
+                    البريد الإلكتروني
+                  </div>
+                </div>
+                <div className="flex justify-end items-center gap-2 px-2.5 bg-white rounded-lg border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs">
+                  <MailIcon className="relative w-5 text-[#717680]" />
+                  <input
+                    name="email"
+                    value={form.email}
+                    onChange={(e) => handleChange("email", e.target.value)}
+                    className="flex-1 font-normal h-11 bg-white text-[#717680] text-base text-right border-0 shadow-none p-0"
+                  />
+                </div>
               </div>
 
               {/* Education Department Field - Hidden for supervisors */}
@@ -534,6 +522,30 @@ export default function Signup() {
                   </Select>
                 </div>
               )}
+
+              {/* Phone Number Field */}
+              <div className="flex flex-col gap-1.5">
+                <div className="inline-flex items-start gap-0.5">
+                  <div className="text-[#1C81AC]">*</div>
+                  <div className="font-medium text-[#414651] text-sm tracking-[0] leading-5">
+                    رقم الجوال
+                  </div>
+                </div>
+                <div className="flex gap-2 bg-white rounded-lg border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs">
+                  <div className="flex items-center gap-1 px-3 py-2 overflow-hidden">
+                    <div className="font-normal text-[#414651] text-base tracking-[0] leading-6 whitespace-nowrap">
+                      SA
+                    </div>
+                    <ChevronDownIcon className="relative w-5 text-[#717680]" />
+                  </div>
+                  <input
+                    name="phone"
+                    value={form.phone}
+                    onChange={(e) => handleChange("phone", e.target.value)}
+                    className="flex-1 font-normal h-11 px-[10px] py-[14px] text-[#717680] text-base text-right border-0 rounded-md bg-white border-input shadow-none p-0"
+                  />
+                </div>
+              </div>
 
               {/* School Field with Dropdown - Hidden for supervisors */}
               {form.role !== "supervisor" && (
@@ -657,10 +669,9 @@ export default function Signup() {
       <div
         className=" lg:block w-5/12  max-lg:hidden h-full bg-no-repeat bg-cover"
         style={{
-            backgroundImage: `url(${section})`,
-          }}
+          backgroundImage: `url(${section})`,
+        }}
       />
     </div>
-    
   );
 }
