@@ -77,8 +77,13 @@ function validateSignup({
     errors.email = "البريد الإلكتروني غير صالح";
   if (!role) errors.role = "يرجى اختيار الدور";
   if (!region) errors.region = "يرجى اختيار المنطقة";
-  if (!eduAdmin) errors.eduAdmin = "يرجى اختيار الإدارة التعليمية";
-  if (!school) errors.school = "يرجى اختيار المدرسة";
+  
+  // Only validate eduAdmin and school for non-supervisor roles
+  if (role !== "supervisor") {
+    if (!eduAdmin) errors.eduAdmin = "يرجى اختيار الإدارة التعليمية";
+    if (!school) errors.school = "يرجى اختيار المدرسة";
+  }
+  
   if (!password) errors.password = "يرجى إدخال كلمة المرور";
   else if (password.length < 8)
     errors.password = "كلمة المرور يجب أن تكون 8 أحرف على الأقل";
@@ -242,6 +247,13 @@ export default function Signup() {
     setForm((f) => ({ ...f, school: "" }));
   }, [form.eduAdmin]);
 
+  // Reset eduAdmin and school when role changes to supervisor
+  useEffect(() => {
+    if (form.role === "supervisor") {
+      setForm((f) => ({ ...f, eduAdmin: "", school: "" }));
+    }
+  }, [form.role]);
+
   useEffect(() => {
     const validationErrors = validateSignup(form);
     setErrors(validationErrors);
@@ -283,8 +295,16 @@ export default function Signup() {
     formData.append("phone", form.phone);
     formData.append("role", form.role);
     formData.append("region", selectedRegion?.name || "");
-    formData.append("eduAdmin", selectedEduAdmin?.name || "");
-    formData.append("school", selectedSchool?.name || "");
+    
+    // Only append eduAdmin and school if role is not supervisor
+    if (form.role !== "supervisor") {
+      formData.append("eduAdmin", selectedEduAdmin?.name || "");
+      formData.append("school", selectedSchool?.name || "");
+    } else {
+      formData.append("eduAdmin", "");
+      formData.append("school", "");
+    }
+    
     formData.append("password", form.password);
     formData.append("passwordConfirmation", form.passwordConfirmation);
 
@@ -332,151 +352,148 @@ export default function Signup() {
             onSubmit={handleFormSubmit}
             className="flex flex-col gap-8"
           >
-            <div className="flex flex-col md:flex-row gap-8">
-              {/* Right column */}
-              <div className="flex-1 space-y-6">
-                {/* Full Name Field */}
-                <div className="flex flex-col gap-1.5">
-                  <div className="inline-flex items-start gap-0.5">
-                    <div className="text-[#1C81AC]">*</div>
-                    <div className="font-medium text-[#414651] text-sm tracking-[0] leading-5">
-                      الاسم الرباعي
-                    </div>
+            {/* Role selection toggle - Full width at top */}
+            <div className="flex flex-col gap-1.5">
+              <div className="inline-flex items-start gap-0.5">
+                <div className="text-[#1C81AC]">*</div>
+                <div className="font-medium text-[#414651] text-sm tracking-[0] leading-5">
+                  الدور
+                </div>
+              </div>
+              <ToggleGroup
+                type="single"
+                value={form.role}
+                onValueChange={(value) =>
+                  value && handleChange("role", value)
+                }
+                className="flex h-11 items-center justify-center gap-0.5 bg-neutral-50 rounded-lg border border-solid border-[#e9e9eb]"
+              >
+                <ToggleGroupItem
+                  value="supervisor"
+                  className="flex h-11 items-center justify-center gap-2 px-3 py-2 relative flex-1 grow rounded-lg overflow-hidden data-[state=off]:bg-transparent data-[state=on]:bg-white data-[state=on]:border data-[state=on]:border-solid data-[state=on]:border-[#d5d6d9] data-[state=on]:shadow-shadows-shadow-xs"
+                >
+                  <div className="w-fit font-bold text-[#414651] text-base text-left whitespace-nowrap [direction:rtl] relative tracking-[0] leading-6">
+                    مشرف
                   </div>
-                  <Input
-                    value={form.name}
-                    onChange={(e) => handleChange("name", e.target.value)}
-                    onBlur={() => handleBlur("name")}
-                    className="justify-end gap-2 px-[10px] py-[14px] text-[#717680] bg-white rounded-lg border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs [direction:rtl]"
+                </ToggleGroupItem>
+                <ToggleGroupItem
+                  value="user"
+                  className="flex h-11 items-center justify-center gap-2 px-3 py-2 relative flex-1 grow rounded-lg overflow-hidden data-[state=off]:bg-transparent data-[state=on]:bg-white data-[state=on]:border data-[state=on]:border-solid data-[state=on]:border-[#d5d6d9] data-[state=on]:shadow-shadows-shadow-xs"
+                >
+                  <div className="w-fit font-bold text-[#717680] text-base text-left whitespace-nowrap [direction:rtl] relative tracking-[0] leading-6 data-[state=on]:text-[#414651]">
+                    مدرب
+                  </div>
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </div>
+
+            {/* Form fields in responsive grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Full Name Field */}
+              <div className="flex flex-col gap-1.5">
+                <div className="inline-flex items-start gap-0.5">
+                  <div className="text-[#1C81AC]">*</div>
+                  <div className="font-medium text-[#414651] text-sm tracking-[0] leading-5">
+                    الاسم الرباعي
+                  </div>
+                </div>
+                <Input
+                  value={form.name}
+                  onChange={(e) => handleChange("name", e.target.value)}
+                  onBlur={() => handleBlur("name")}
+                  className="justify-end gap-2 px-[10px] py-[14px] text-[#717680] bg-white rounded-lg border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs [direction:rtl]"
+                />
+                {touched.name && errors.name && (
+                  <p className="text-red-500 text-sm">{errors.name}</p>
+                )}
+              </div>
+
+              {/* Phone Number Field */}
+              <div className="flex flex-col gap-1.5">
+                <div className="inline-flex items-start gap-0.5">
+                  <div className="text-[#1C81AC]">*</div>
+                  <div className="font-medium text-[#414651] text-sm tracking-[0] leading-5">
+                    رقم الجوال
+                  </div>
+                </div>
+                <div className="flex gap-2 bg-white rounded-lg border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs">
+                  <div className="flex items-center gap-1 px-3 py-2 overflow-hidden">
+                    <div className="font-normal text-[#414651] text-base tracking-[0] leading-6 whitespace-nowrap">
+                      SA
+                    </div>
+                    <ChevronDownIcon className="relative w-5 text-[#717680]" />
+                  </div>
+                  <input
+                    name="phone"
+                    value={form.phone}
+                    onChange={(e) => handleChange("phone", e.target.value)}
+                    className="flex-1 font-normal h-11 px-[10px] py-[14px] text-[#717680] text-base text-right border-0 rounded-md bg-white border-input shadow-none p-0"
                   />
-                  {touched.name && errors.name && (
-                    <p className="text-red-500 text-sm">{errors.name}</p>
-                  )}
-                </div>
-
-                {/* Phone Number Field */}
-                <div className="flex flex-col gap-1.5">
-                  <div className="inline-flex items-start gap-0.5">
-                    <div className="text-[#1C81AC]">*</div>
-                    <div className="font-medium text-[#414651] text-sm tracking-[0] leading-5">
-                      رقم الجوال
-                    </div>
-                  </div>
-                  <div className="flex gap-2 bg-white rounded-lg border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs">
-                    <div className="flex items-center gap-1 px-3 py-2 overflow-hidden">
-                      <div className="font-normal text-[#414651] text-base tracking-[0] leading-6 whitespace-nowrap">
-                        SA
-                      </div>
-                      <ChevronDownIcon className="relative w-5 text-[#717680]" />
-                    </div>
-                    <input
-                      name="phone"
-                      value={form.phone}
-                      onChange={(e) => handleChange("phone", e.target.value)}
-                      className="flex-1 font-normal h-11 px-[10px] py-[14px] text-[#717680] text-base text-right border-0 rounded-md bg-white border-input shadow-none p-0"
-                    />
-                  </div>
-                </div>
-
-                {/* Email Field */}
-                <div className="flex flex-col gap-1.5">
-                  <div className="inline-flex items-start gap-0.5">
-                    <div className="text-[#1C81AC]">*</div>
-                    <div className="font-medium text-[#414651] text-sm tracking-[0] leading-5">
-                      البريد الإلكتروني
-                    </div>
-                  </div>
-                  <div className="flex justify-end items-center gap-2 px-2.5 bg-white rounded-lg border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs">
-                    <MailIcon className="relative w-5 text-[#717680]" />
-                    <input
-                      name="email"
-                      value={form.email}
-                      onChange={(e) => handleChange("email", e.target.value)}
-                      className="flex-1 font-normal h-11 bg-white text-[#717680] text-base text-right border-0 shadow-none p-0"
-                    />
-                  </div>
-                </div>
-
-                {/* Role selection toggle */}
-                <div className="flex flex-col gap-1.5">
-                  <div className="inline-flex items-start gap-0.5">
-                    <div className="text-[#1C81AC]">*</div>
-                    <div className="font-medium text-[#414651] text-sm tracking-[0] leading-5">
-                      الدور
-                    </div>
-                  </div>
-                  <ToggleGroup
-                    type="single"
-                    value={form.role}
-                    onValueChange={(value) =>
-                      value && handleChange("role", value)
-                    }
-                    className="flex h-11 items-center justify-center gap-0.5 bg-neutral-50 rounded-lg border border-solid border-[#e9e9eb]"
-                  >
-                    <ToggleGroupItem
-                      value="supervisor"
-                      className="flex h-11 items-center justify-center gap-2 px-3 py-2 relative flex-1 grow rounded-lg overflow-hidden data-[state=off]:bg-transparent data-[state=on]:bg-white data-[state=on]:border data-[state=on]:border-solid data-[state=on]:border-[#d5d6d9] data-[state=on]:shadow-shadows-shadow-xs"
-                    >
-                      <div className="w-fit font-bold text-[#414651] text-base text-left whitespace-nowrap [direction:rtl] relative tracking-[0] leading-6">
-                        مشرف
-                      </div>
-                    </ToggleGroupItem>
-                    <ToggleGroupItem
-                      value="user"
-                      className="flex h-11 items-center justify-center gap-2 px-3 py-2 relative flex-1 grow rounded-lg overflow-hidden data-[state=off]:bg-transparent data-[state=on]:bg-white data-[state=on]:border data-[state=on]:border-solid data-[state=on]:border-[#d5d6d9] data-[state=on]:shadow-shadows-shadow-xs"
-                    >
-                      <div className="w-fit font-bold text-[#717680] text-base text-left whitespace-nowrap [direction:rtl] relative tracking-[0] leading-6 data-[state=on]:text-[#414651]">
-                        مدرب
-                      </div>
-                    </ToggleGroupItem>
-                  </ToggleGroup>
                 </div>
               </div>
 
-              {/* Left column */}
-              <div className="flex-1 space-y-6">
-                {/* Region Field */}
-                <div className="flex flex-col gap-1.5">
-                  <div className="inline-flex items-start gap-0.5">
-                    <div className="text-[#1C81AC]">*</div>
-                    <div className="font-medium text-[#414651] text-sm tracking-[0] leading-5">
-                      المنطقة
-                    </div>
+              {/* Email Field */}
+              <div className="flex flex-col gap-1.5">
+                <div className="inline-flex items-start gap-0.5">
+                  <div className="text-[#1C81AC]">*</div>
+                  <div className="font-medium text-[#414651] text-sm tracking-[0] leading-5">
+                    البريد الإلكتروني
                   </div>
-                  <Select
-                    name="region"
-                    value={form.region}
-                    onValueChange={(value) => handleChange("region", value)} // Make sure this updates state
-                  >
-                    <SelectTrigger className="justify-end gap-2 px-3.5 bg-white rounded-lg border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs [direction:rtl]">
-                      {/* Fixed: Use selectedRegion instead of region */}
-                      <div className="flex-1 text-start font-normal text-[#717680] text-base">
-                        {form.region
-                          ? (regions as any[]).find(
-                              (r: any) => r.id === form.region
-                            )?.name
-                          : "اختر المنطقة"}
-                      </div>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        {regions.map((reg: any) => (
-                          <SelectItem
-                            key={reg.id}
-                            className={`${
-                              form.region === reg.id ? "bg-gray-50" : ""
-                            }`}
-                            value={reg.id}
-                          >
-                            {reg.name}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
                 </div>
+                <div className="flex justify-end items-center gap-2 px-2.5 bg-white rounded-lg border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs">
+                  <MailIcon className="relative w-5 text-[#717680]" />
+                  <input
+                    name="email"
+                    value={form.email}
+                    onChange={(e) => handleChange("email", e.target.value)}
+                    className="flex-1 font-normal h-11 bg-white text-[#717680] text-base text-right border-0 shadow-none p-0"
+                  />
+                </div>
+              </div>
 
-                {/* Education Department Field */}
+              {/* Region Field */}
+              <div className="flex flex-col gap-1.5">
+                <div className="inline-flex items-start gap-0.5">
+                  <div className="text-[#1C81AC]">*</div>
+                  <div className="font-medium text-[#414651] text-sm tracking-[0] leading-5">
+                    المنطقة
+                  </div>
+                </div>
+                <Select
+                  name="region"
+                  value={form.region}
+                  onValueChange={(value) => handleChange("region", value)} // Make sure this updates state
+                >
+                  <SelectTrigger className="justify-end gap-2 px-3.5 bg-white rounded-lg border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs [direction:rtl]">
+                    {/* Fixed: Use selectedRegion instead of region */}
+                    <div className="flex-1 text-start font-normal text-[#717680] text-base">
+                      {form.region
+                        ? (regions as any[]).find(
+                            (r: any) => r.id === form.region
+                          )?.name
+                        : "اختر المنطقة"}
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {regions.map((reg: any) => (
+                        <SelectItem
+                          key={reg.id}
+                          className={`${
+                            form.region === reg.id ? "bg-gray-50" : ""
+                          }`}
+                          value={reg.id}
+                        >
+                          {reg.name}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Education Department Field - Hidden for supervisors */}
+              {form.role !== "supervisor" && (
                 <div className="flex flex-col gap-1.5">
                   <div className="inline-flex items-start gap-0.5">
                     <div className="text-[#1C81AC]">*</div>
@@ -516,8 +533,10 @@ export default function Signup() {
                     </SelectContent>
                   </Select>
                 </div>
+              )}
 
-                {/* School Field with Dropdown */}
+              {/* School Field with Dropdown - Hidden for supervisors */}
+              {form.role !== "supervisor" && (
                 <div className="flex flex-col gap-1.5">
                   <div className="inline-flex items-start gap-0.5">
                     <div className="text-[#1C81AC]">*</div>
@@ -563,50 +582,53 @@ export default function Signup() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="flex flex-col gap-1.5">
-                  <div className="inline-flex items-start gap-0.5">
-                    <div className="text-[#1C81AC]">*</div>
-                    <div className="font-medium text-[#414651] text-sm">
-                      كلمة المرور
-                    </div>
-                  </div>
-                  <Input
-                    type="password"
-                    name="password"
-                    placeholder="••••••••"
-                    value={form.password}
-                    onChange={(e) => handleChange("password", e.target.value)}
-                    onBlur={() => handleBlur("password")}
-                  />
-                  {touched.password && errors.password && (
-                    <p className="text-red-500 text-sm">{errors.password}</p>
-                  )}
-                </div>
+              )}
 
-                <div className="flex flex-col gap-1.5">
-                  <div className="inline-flex items-start gap-0.5">
-                    <div className="text-[#1C81AC]">*</div>
-                    <div className="font-medium text-[#414651] text-sm">
-                      تأكيد كلمة المرور
-                    </div>
+              {/* Password Field */}
+              <div className="flex flex-col gap-1.5">
+                <div className="inline-flex items-start gap-0.5">
+                  <div className="text-[#1C81AC]">*</div>
+                  <div className="font-medium text-[#414651] text-sm">
+                    كلمة المرور
                   </div>
-                  <Input
-                    type="password"
-                    name="passwordConfirmation"
-                    placeholder="••••••••"
-                    value={form.passwordConfirmation}
-                    onChange={(e) =>
-                      handleChange("passwordConfirmation", e.target.value)
-                    }
-                    onBlur={() => handleBlur("passwordConfirmation")}
-                  />
-                  {touched.passwordConfirmation &&
-                    errors.passwordConfirmation && (
-                      <p className="text-red-500 text-sm">
-                        {errors.passwordConfirmation}
-                      </p>
-                    )}
                 </div>
+                <Input
+                  type="password"
+                  name="password"
+                  placeholder="••••••••"
+                  value={form.password}
+                  onChange={(e) => handleChange("password", e.target.value)}
+                  onBlur={() => handleBlur("password")}
+                />
+                {touched.password && errors.password && (
+                  <p className="text-red-500 text-sm">{errors.password}</p>
+                )}
+              </div>
+
+              {/* Password Confirmation Field */}
+              <div className="flex flex-col gap-1.5">
+                <div className="inline-flex items-start gap-0.5">
+                  <div className="text-[#1C81AC]">*</div>
+                  <div className="font-medium text-[#414651] text-sm">
+                    تأكيد كلمة المرور
+                  </div>
+                </div>
+                <Input
+                  type="password"
+                  name="passwordConfirmation"
+                  placeholder="••••••••"
+                  value={form.passwordConfirmation}
+                  onChange={(e) =>
+                    handleChange("passwordConfirmation", e.target.value)
+                  }
+                  onBlur={() => handleBlur("passwordConfirmation")}
+                />
+                {touched.passwordConfirmation &&
+                  errors.passwordConfirmation && (
+                    <p className="text-red-500 text-sm">
+                      {errors.passwordConfirmation}
+                    </p>
+                  )}
               </div>
             </div>
 
