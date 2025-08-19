@@ -138,6 +138,9 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
   }
 
   try {
+    // Get current authenticated user
+    const currentUser = await getAuthenticated({ request, context });
+    
     // Import database functions with safe fallback
     const userDB = (await import("~/db/user/user.server")).default;
     const statisticsDB = (await import("~/db/statistics/statistics.server"))
@@ -148,14 +151,17 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
       setTimeout(() => reject(new Error("Database operation timeout")), 10000)
     );
 
-    const userPromise = userDB.getUser(
-      userId,
-      context?.cloudflare?.env?.DATABASE_URL
-    );
-    const userResult = (await Promise.race([
-      userPromise,
-      timeoutPromise,
-    ])) as any;
+    // Get both target user and current user data
+    const [userResult, currentUserResult] = await Promise.all([
+      Promise.race([
+        userDB.getUser(userId, context?.cloudflare?.env?.DATABASE_URL),
+        timeoutPromise,
+      ]) as any,
+      currentUser ? Promise.race([
+        userDB.getUser(currentUser.id, context?.cloudflare?.env?.DATABASE_URL),
+        timeoutPromise,
+      ]) as any : Promise.resolve(null)
+    ]);
 
     if (!userResult || userResult.status === "error" || !userResult.data) {
       throw new Response("User not found", { status: 404 });
@@ -195,10 +201,20 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
       // Continue with default statistics
     }
 
+    // Check if current user and target user are in the same region
+    let canSendMessage = false;
+    if (currentUserResult && currentUserResult.data) {
+      const currentUserData: any = Array.isArray(currentUserResult.data) ? currentUserResult.data[0] : currentUserResult.data;
+      const targetUserData: any = Array.isArray(userResult.data) ? userResult.data[0] : userResult.data;
+      
+      canSendMessage = currentUserData.region === targetUserData.region;
+    }
+
     return Response.json({
       user: userResult.data,
       statistics: finalStatistics,
       reports: [], // We don't need individual reports anymore since we have aggregated stats
+      canSendMessage, // Add this flag to indicate if messaging is allowed
     });
   } catch (error) {
     console.error("Error loading user data:", error);
@@ -218,6 +234,7 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
           skillsTrainedCount: 0,
         },
         reports: [],
+        canSendMessage: false,
         error: "Failed to load user data",
       },
       { status: 200 }
@@ -266,6 +283,51 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
     }
 
     try {
+      const userDB = (await import("~/db/user/user.server")).default;
+      
+      // Get both the current user's full data and target user's data to check their regions
+      const [currentUserResult, targetUserResult] = await Promise.all([
+        userDB.getUser(currentUser.id, context?.cloudflare?.env?.DATABASE_URL),
+        userDB.getUser(toUserId, context?.cloudflare?.env?.DATABASE_URL)
+      ]);
+
+      if (!currentUserResult || currentUserResult.status === "error" || !currentUserResult.data) {
+        return Response.json(
+          {
+            status: "error",
+            message: "بيانات المستخدم الحالي غير موجودة",
+          },
+          { status: 404 }
+        );
+      }
+
+      if (!targetUserResult || targetUserResult.status === "error" || !targetUserResult.data) {
+        return Response.json(
+          {
+            status: "error",
+            message: "المستخدم المستهدف غير موجود",
+          },
+          { status: 404 }
+        );
+      }
+
+      const currentUserData:any = Array.isArray(currentUserResult.data) ? currentUserResult.data[0] : currentUserResult.data;
+      const targetUserData:any = Array.isArray(targetUserResult.data) ? targetUserResult.data[0] : targetUserResult.data;
+
+      console.log("Current User Data:", currentUserData);
+      console.log("Target User Data:", targetUserData);
+
+      // Check if supervisor and target user are in the same region
+      if (currentUserData.region !== targetUserData.region) {
+        return Response.json(
+          {
+            status: "error",
+            message: "لا يمكنك إرسال رسالة لمستخدم من منطقة أخرى. يمكنك فقط التواصل مع المستخدمين في منطقتك",
+          },
+          { status: 403 }
+        );
+      }
+
       const messageDB = (await import("~/db/message/message.server")).default;
 
       const result = await messageDB.sendMessage(
@@ -460,6 +522,7 @@ export const SupervisorStatistics = (): JSX.Element => {
     skillsTrainedCount: 0,
   };
   const reports = Array.isArray(loaderData?.reports) ? loaderData.reports : [];
+  const canSendMessage = loaderData?.canSendMessage || false;
   const userId = params?.id;
 
   // Debug logging to verify getUserTotalStats integration
@@ -627,7 +690,7 @@ export const SupervisorStatistics = (): JSX.Element => {
 
   const regions = [
     {
-      name: userData?.region || "المنطقة الحالية",
+      name: userData?.regionName || "المنطقة الحالية",
       value: userRegionValue,
       isUserRegion: true,
     },
@@ -880,52 +943,71 @@ export const SupervisorStatistics = (): JSX.Element => {
               </div>
             </div>
 
-            <div className="w-full p-4 bg-white rounded-xl border border-[#e4e7ec]   rotate-180 mt-8 ">
-              <div className="flex items-start gap-4 p-0 mt-2">
-                {/* Message Content */}
-                <div className="flex flex-col items-start gap-3 relative flex-1 grow">
-                  {/* Message Text */}
-                  <div className="flex flex-col items-end gap-1 relative self-stretch w-full rotate-180">
-                    {/* <div className="flex items-center justify-end gap-2 relative self-stretch w-full">
-                      <div className="relative w-fit mt-[-1.00px]   font-normal text-[#717680] text-sm tracking-[0] leading-5 whitespace-nowrap [direction:rtl]">
-                        منذ دقيقتين
-                      </div>
-                      <div className="relative w-fit mt-[-1.00px]   font-bold text-[#181d27] text-sm tracking-[0] leading-5 whitespace-nowrap [direction:rtl]">
-                        اسم المشرف
-                      </div>
-                    </div> */}
-                    <textarea
-                      className="self-stretch mt-[-1.00px] text-[#414651] text-sm leading-5 relative font-normal tracking-[0] [direction:rtl] bg-transparent border-none focus:outline-none resize-none"
-                      placeholder="اكتب رسالتك هنا..."
-                      value={messageContent}
-                      rows={3}
-                      onChange={(e) => setMessageContent(e.target.value)}
-                      disabled={isMessageSending}
-                    />
+            {/* Message Section - Only show if user can send message (same region) */}
+            {canSendMessage && (
+              <div className="w-full p-4 bg-white rounded-xl border border-[#e4e7ec]   rotate-180 mt-8 ">
+                <div className="flex items-start gap-4 p-0 mt-2">
+                  {/* Message Content */}
+                  <div className="flex flex-col items-start gap-3 relative flex-1 grow">
+                    {/* Message Text */}
+                    <div className="flex flex-col items-end gap-1 relative self-stretch w-full rotate-180">
+                      {/* <div className="flex items-center justify-end gap-2 relative self-stretch w-full">
+                        <div className="relative w-fit mt-[-1.00px]   font-normal text-[#717680] text-sm tracking-[0] leading-5 whitespace-nowrap [direction:rtl]">
+                          منذ دقيقتين
+                        </div>
+                        <div className="relative w-fit mt-[-1.00px]   font-bold text-[#181d27] text-sm tracking-[0] leading-5 whitespace-nowrap [direction:rtl]">
+                          اسم المشرف
+                        </div>
+                      </div> */}
+                      <textarea
+                        className="self-stretch mt-[-1.00px] text-[#414651] text-sm leading-5 relative font-normal tracking-[0] [direction:rtl] bg-transparent border-none focus:outline-none resize-none"
+                        placeholder="اكتب رسالتك هنا..."
+                        value={messageContent}
+                        rows={3}
+                        onChange={(e) => setMessageContent(e.target.value)}
+                        disabled={isMessageSending}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* New Message Button */}
+                <div className="flex items-baseline justify-between">
+                  <Avatar
+                    className="w-10 h-10 rotate-180"
+                    image={content}
+                    fallback="NA"
+                  />
+                  <Button
+                    variant="outline"
+                    className="inline-flex items-center justify-center gap-1 px-3 py-2 bg-white rounded-md rotate-180 shadow-shadows-shadow-xs-skeuomorphic"
+                    onClick={handleSendMessage}
+                    disabled={isMessageSending || !messageContent.trim()}
+                  >
+                    <PlusIcon className="w-5 h-5 -rotate-180" />
+                    <span className="font-bold text-[#414651] text-sm text-left tracking-[0] leading-5 whitespace-nowrap [direction:rtl]">
+                      {isMessageSending ? "جاري الإرسال..." : "إرسال الرسالة"}
+                    </span>
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Show region restriction message if user cannot send message */}
+            {!canSendMessage && (
+              <div className="w-full p-4 bg-orange-50 border border-orange-200 rounded-xl mt-8">
+                <div className="flex items-center justify-center text-center">
+                  <div className="text-orange-700">
+                    <p className="font-medium text-sm [direction:rtl]">
+                      لا يمكن إرسال الرسائل لهذا المستخدم
+                    </p>
+                    <p className="text-xs mt-1 [direction:rtl]">
+                      يمكنك فقط التواصل مع المستخدمين في منطقتك
+                    </p>
                   </div>
                 </div>
               </div>
-
-              {/* New Message Button */}
-              <div className="flex items-baseline justify-between">
-                <Avatar
-                  className="w-10 h-10 rotate-180"
-                  image={content}
-                  fallback="NA"
-                />
-                <Button
-                  variant="outline"
-                  className="inline-flex items-center justify-center gap-1 px-3 py-2 bg-white rounded-md rotate-180 shadow-shadows-shadow-xs-skeuomorphic"
-                  onClick={handleSendMessage}
-                  disabled={isMessageSending || !messageContent.trim()}
-                >
-                  <PlusIcon className="w-5 h-5 -rotate-180" />
-                  <span className="font-bold text-[#414651] text-sm text-left tracking-[0] leading-5 whitespace-nowrap [direction:rtl]">
-                    {isMessageSending ? "جاري الإرسال..." : "إرسال الرسالة"}
-                  </span>
-                </Button>
-              </div>
-            </div>
+            )}
 
             {/* Separator */}
           </div>
@@ -953,13 +1035,13 @@ export const SupervisorStatistics = (): JSX.Element => {
                     <div className="flex items-center justify-center gap-6 relative flex-1 grow">
                       <div className="flex-col items-end gap-6 flex-1 grow flex relative">
                         <div className="self-stretch mt-[-1.00px] font-bold text-base leading-6 relative text-[#181d27] tracking-[0] [direction:rtl]">
-                          عدد الطالبات
+                          عدد المتطوعين
                         </div>
 
                         <div className="flex flex-col items-start gap-2 relative self-stretch w-full flex-[0_0_auto]">
                           <div className="flex items-end gap-4 relative self-stretch w-full flex-[0_0_auto]">
                             <div className="relative flex-1 mt-[-1.00px] font-bold text-[#181d27] text-5xl tracking-[0] leading-[38px] [direction:rtl]">
-                              {userData?.noStudents || 0}
+                              {statistics?.volunteerCount || 0}
                             </div>
                             {/* Show data freshness indicator */}
                             {statistics && statistics.reportsCount > 0 && (
@@ -986,7 +1068,7 @@ export const SupervisorStatistics = (): JSX.Element => {
                               statistics
                                 ? Math.min(
                                     100,
-                                    Math.max(5, (userData?.noStudents || 0) * 2)
+                                    Math.max(5, (statistics?.volunteerCount || 0) * 2)
                                   )
                                 : 25
                             )}
