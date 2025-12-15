@@ -34,6 +34,19 @@ interface DeleteConfirmation {
   itemTitle: string;
 }
 
+// Allowed file types per category
+// Category 4 (بنك الفرص التطوعية) allows Word files for editing
+const getAcceptedFileTypes = (categoryId: string): Record<string, string[]> => {
+  if (categoryId === "4") {
+    return {
+      "application/pdf": [".pdf"],
+      "application/msword": [".doc"],
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
+    };
+  }
+  return { "application/pdf": [".pdf"] };
+};
+
 const INITIAL_DELETE_CONFIRMATION: DeleteConfirmation = {
   isOpen: false,
   itemId: "",
@@ -47,11 +60,13 @@ const useFileUpload = (selectedCategory: string, onSuccess: () => void) => {
   const fetcher = useFetcher<ActionData>();
   const successHandledRef = useRef<string | null>(null);
 
+  const acceptedTypes = useMemo(() => getAcceptedFileTypes(selectedCategory), [selectedCategory]);
+
   const { getRootProps, getInputProps } = useDropzone({
     onDrop: useCallback((acceptedFiles: File[]) => {
       setSelectedFiles((prev) => [...prev, ...acceptedFiles]);
     }, []),
-    accept: { "application/pdf": [".pdf"] },
+    accept: acceptedTypes,
     maxSize: 4 * 1024 * 1024, // 4MB
   });
 
@@ -305,7 +320,7 @@ export const MaterialManagement: React.FC<MaterialManagementProps> = ({
               </div>
             </div>
             <div className="text-gray-600 text-xs text-center leading-[18px] font-normal tracking-[0]">
-              PDF فقط (max.4.00 MB)
+              {selectedCategory === "4" ? "PDF و Word فقط" : "PDF فقط"} (max.4.00 MB)
             </div>
           </div>
         </div>

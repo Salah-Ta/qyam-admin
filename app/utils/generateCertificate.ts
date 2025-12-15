@@ -1,322 +1,335 @@
-import { jsPDF } from "jspdf";
-import { AmiriFontBase64 } from "./amiriFont";
+import { PDFDocument, rgb, PageSizes, PDFPage } from "pdf-lib";
+import fontkit from "@pdf-lib/fontkit";
 
 export interface CertificateData {
-  id: string;
   fullName: string;
   administration: string;
   school: string;
   hours: string;
+  programTrainer: string;
 }
 
-// Add Arabic font support
-const addArabicFontToDoc = (doc: jsPDF) => {
+async function loadCertificateTemplate(): Promise<Uint8Array> {
   try {
-    // Extract base64 font data (remove the data:font/truetype;base64, prefix)
-    const fontData = AmiriFontBase64.split(",")[1];
+    const templatePath = "/templates/second_certif.pdf";
+    console.log(`Loading template from: ${templatePath}`);
 
-    // Add the font file to jsPDF's virtual file system
-    doc.addFileToVFS("Amiri-Regular.ttf", fontData);
+    const response = await fetch(templatePath);
+    console.log("Response status:", response.status);
 
-    // Register the font with jsPDF
-    doc.addFont("Amiri-Regular.ttf", "Amiri", "normal");
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
 
-    console.log("Amiri Arabic font loaded successfully");
+    const arrayBuffer = await response.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuffer);
+
+    if (
+      bytes.length < 4 ||
+      String.fromCharCode(bytes[0], bytes[1], bytes[2], bytes[3]) !== "%PDF"
+    ) {
+      throw new Error("File is not a valid PDF");
+    }
+
+    console.log("Template loaded successfully, size:", bytes.length);
+    return bytes;
   } catch (error) {
-    console.warn("Failed to load Arabic font:", error);
+    console.error("Error loading template:", error);
+    return await createFallbackTemplate();
+  }
+}
+
+async function createFallbackTemplate(): Promise<Uint8Array> {
+  try {
+    const pdfDoc = await PDFDocument.create();
+    const page = pdfDoc.addPage(PageSizes.A4);
+    const { width, height } = page.getSize();
+
+    page.drawRectangle({
+      x: 0,
+      y: 0,
+      width,
+      height,
+      color: rgb(1, 1, 1),
+    });
+
+    page.drawRectangle({
+      x: 20,
+      y: 20,
+      width: width - 40,
+      height: height - 40,
+      borderColor: rgb(0.2, 0.4, 0.6),
+      borderWidth: 3,
+    });
+
+    page.drawRectangle({
+      x: 20,
+      y: height - 120,
+      width: width - 40,
+      height: 100,
+      color: rgb(0.2, 0.4, 0.6),
+    });
+
+    page.drawText("شهادة تخرج", {
+      x: width / 2 - 50,
+      y: height - 60,
+      size: 28,
+      color: rgb(1, 1, 1),
+      font: await pdfDoc.embedFont("Helvetica-Bold"),
+    });
+
+    page.drawText("Certificate of Graduation", {
+      x: width / 2 - 70,
+      y: height - 90,
+      size: 16,
+      color: rgb(0.9, 0.9, 0.9),
+      font: await pdfDoc.embedFont("Helvetica"),
+    });
+
+    page.drawText("اسم الطالب", {
+      x: width / 2 - 40,
+      y: height / 2 + 40,
+      size: 18,
+      color: rgb(0.7, 0.7, 0.7),
+      font: await pdfDoc.embedFont("Helvetica"),
+    });
+
+    page.drawText("اسم المدرسة", {
+      x: width / 2 - 40,
+      y: height / 2 - 30,
+      size: 14,
+      color: rgb(0.7, 0.7, 0.7),
+      font: await pdfDoc.embedFont("Helvetica"),
+    });
+    page.drawText("مدربة البرنامج  ", {
+      x: width / 2 - 40,
+      y: height / 2 - 30,
+      size: 14,
+      color: rgb(0.7, 0.7, 0.7),
+      font: await pdfDoc.embedFont("Helvetica"),
+    });
+    const pdfBytes = await pdfDoc.save();
+    return new Uint8Array(pdfBytes);
+  } catch (error) {
+    console.error("Error creating fallback template:", error);
+    const pdfDoc = await PDFDocument.create();
+    pdfDoc.addPage(PageSizes.A4);
+    const pdfBytes = await pdfDoc.save();
+    return new Uint8Array(pdfBytes);
+  }
+}
+
+async function loadArabicFont(
+  pdfDoc: PDFDocument
+): Promise<{ regular: any; bold: any }> {
+  const fontPaths = {
+    regular: [
+      "/fonts/Lateef-Regular.ttf",
+      "/fonts/Almarai-Regular.ttf",
+      "/fonts/Amiri-Regular.ttf",
+      "/fonts/NotoNaskhArabic-Regular.ttf",
+    ],
+    bold: [
+      // "/fonts/Lateef-Regular.ttf",
+      // "/fonts/Mothanna.ttf",
+      "/fonts/Tajawal-Regular.ttf",
+      "/fonts/Almarai-Regular.ttf",
+    ],
+  };
+
+  async function loadFont(paths: string[]) {
+    for (const path of paths) {
+      try {
+        console.log(`Trying to load font from: ${path}`);
+        const response = await fetch(path);
+        if (response.ok) {
+          const arrayBuffer = await response.arrayBuffer();
+          console.log(`Successfully loaded font from: ${path}`);
+          return await pdfDoc.embedFont(new Uint8Array(arrayBuffer));
+        } else {
+          console.warn(
+            `Failed to load font from ${path} - status ${response.status}`
+          );
+        }
+      } catch (error) {
+        console.warn(`Error loading font from ${path}:`, error);
+        continue;
+      }
+    }
+    return null;
   }
 
-  return doc;
-};
+  const regularFont = await loadFont(fontPaths.regular);
+  const boldFont = await loadFont(fontPaths.bold);
 
-// Function to process Arabic text for better display
-const processArabicText = (text: string): string => {
-  try {
-    // Basic Arabic text processing
-    // In a real implementation, you might want to use arabic-reshaper and bidi-js
-    // For now, we'll return the text as-is since we're using bilingual approach
-    return text;
-  } catch (error) {
-    console.warn("Arabic text processing failed:", error);
-    return text;
+  if (!regularFont || !boldFont) {
+    console.warn(
+      "Could not load one or both Arabic fonts, falling back to Helvetica/Helvetica-Bold"
+    );
+    return {
+      regular: await pdfDoc.embedFont("Helvetica"),
+      bold: await pdfDoc.embedFont("Helvetica-Bold"),
+    };
   }
-};
 
-export const generateCertificatePDF = (data: CertificateData): string => {
-  const doc = new jsPDF({
-    orientation: "landscape",
-    unit: "mm",
-    format: "a4",
+  return { regular: regularFont, bold: boldFont };
+}
+
+function drawArabicText(
+  page: PDFPage,
+  font: any,
+  text: string,
+  x: number,
+  y: number,
+  size: number = 12,
+  color: [number, number, number] = [0, 0, 0],
+  align: "right" | "center" | "left" = "right"
+) {
+  let drawX = x;
+  if (align === "center") {
+    drawX = x - font.widthOfTextAtSize(text, size) / 2;
+  } else if (align === "right") {
+    drawX = x - font.widthOfTextAtSize(text, size);
+  }
+  page.drawText(text, {
+    x: drawX,
+    y,
+    size,
+    font,
+    color: rgb(color[0], color[1], color[2]),
   });
+}
 
-  // Add Arabic font support
-  addArabicFontToDoc(doc);
+export async function generateCertificatePDF(
+  certificateData: CertificateData
+): Promise<Blob> {
+  try {
+    console.log("Starting certificate generation with data:", certificateData);
 
-  // Set up colors - clean blue and yellow scheme like the reference
-  const primaryBlue = [41, 128, 185]; // #2980B9 - Blue
-  const darkBlue = [21, 67, 96]; // #154360 - Dark blue
-  const yellowAccent = [241, 196, 15]; // #F1C40F - Yellow
-  const lightGray = [245, 245, 245]; // #F5F5F5 - Light gray
-  const textColor = [52, 73, 94]; // #34495E - Dark gray
-  const whiteColor = [255, 255, 255]; // White
+    const templateBytes = await loadCertificateTemplate();
 
-  // Clean white background
-  doc.setFillColor(...whiteColor);
-  doc.rect(0, 0, 297, 210, "F");
+    const pdfDoc = await PDFDocument.load(templateBytes);
 
-  // Top blue header section
-  doc.setFillColor(...primaryBlue);
-  doc.rect(0, 0, 297, 45, "F");
+    pdfDoc.registerFontkit(fontkit);
 
-  // Yellow accent stripe
-  doc.setFillColor(...yellowAccent);
-  doc.rect(0, 45, 297, 8, "F");
+    const { regular: arabicFontRegular, bold: arabicFontBold } =
+      await loadArabicFont(pdfDoc);
 
-  // School name in header
-  doc.setTextColor(...whiteColor);
-  doc.setFontSize(22);
-  doc.setFont("Amiri", "normal");
-  doc.text("مدرسة البنات النموذجية", 148.5, 25, { align: "center" });
-  
-  doc.setFontSize(14);
-  doc.text("Model Girls School", 148.5, 38, { align: "center" });
+    const pages = pdfDoc.getPages();
+    const page = pages[0];
+    const { width, height } = page.getSize();
 
-  // Main title - Certificate of Achievement
-  doc.setFontSize(36);
-  doc.setTextColor(...darkBlue);
-  doc.setFont("Amiri", "normal");
-  doc.text("شهادة تخرج", 148.5, 75, { align: "center" });
+    const fullNameX = 390;
+    const administrationX = 420;
 
-  // Subtitle
-  doc.setFontSize(16);
-  doc.setTextColor(...primaryBlue);
-  doc.text("شهادة إتمام المرحلة الدراسية", 148.5, 88, { align: "center" });
+    const administrationY = height / 2 + 8;
+    const fullNameY = height / 2 - 27;
 
-  // Certification statement
-  doc.setFontSize(14);
-  doc.setTextColor(...textColor);
-  doc.setFont("Amiri", "normal");
-  doc.text("تشهد إدارة المدرسة بأن الطالبة المتفوقة", 148.5, 105, { align: "center" });
+    // Draw fullName with conditional alignment
+    if (certificateData.fullName) {
+      const fullNameAlign =
+        certificateData.fullName.length < 15 ? "center" : "right";
+      drawArabicText(
+        page,
+        arabicFontBold,
+        certificateData.fullName,
+        fullNameAlign === "center" ? width / 2 : fullNameX,
+        fullNameY,
+        16,
+        [0.3, 0.3, 0.3],
+        fullNameAlign
+      );
+    }
 
-  // Student name with underline
-  doc.setFontSize(28);
-  doc.setTextColor(...darkBlue);
-  doc.setFont("Amiri", "normal");
-  doc.text(data.fullName, 148.5, 125, { align: "center" });
-  
-  // Underline for name
-  doc.setLineWidth(1);
-  doc.setDrawColor(...yellowAccent);
-  doc.line(70, 130, 225, 130);
+    // Draw administration with conditional alignment
+    if (certificateData.administration) {
+      const administrationAlign =
+        certificateData.administration.length < 15 ? "center" : "right";
+      drawArabicText(
+        page,
+        arabicFontBold,
+        certificateData.administration,
+        administrationAlign === "center" ? width / 2 : administrationX,
+        administrationY,
+        16,
+        [0.3, 0.3, 0.3],
+        administrationAlign
+      );
+    }
 
-  // Achievement statement
-  doc.setFontSize(14);
-  doc.setTextColor(...textColor);
-  doc.setFont("Amiri", "normal");
-  doc.text("قد أنهت بتفوق ونجاح جميع متطلبات المرحلة الدراسية", 148.5, 145, { align: "center" });
+    // Draw programTrainer (المدربة) - positioned at bottom right
 
-  // Details section with clean design
-  doc.setFillColor(...lightGray);
-  doc.rect(40, 155, 217, 25, "F");
-  doc.setDrawColor(...primaryBlue);
-  doc.setLineWidth(1);
-  doc.rect(40, 155, 217, 25);
+    if (certificateData.programTrainer) {
+      // Dynamic margin based on character count
+      const marginRight =
+        certificateData.programTrainer.length <= 15 ? 100 : 50;
+      const bottomMargin = 81;
 
-  // Details content - organized layout
-  doc.setFontSize(12);
-  doc.setTextColor(...textColor);
-  doc.setFont("Amiri", "normal");
-  
-  // First row - Administration and School
-  doc.text("الإدارة التعليمية:", 250, 165, { align: "right" });
-  doc.text(data.administration, 180, 165, { align: "right" });
-  
-  doc.text("المدرسة:", 130, 165, { align: "right" });
-  doc.text(data.school, 80, 165, { align: "right" });
-  
-  // Second row - Hours and Date
-  doc.text("الساعات المعتمدة:", 250, 175, { align: "right" });
-  doc.text(`${data.hours} ساعة`, 190, 175, { align: "right" });
-  
-  // Date with Arabic formatting
-  const currentDate = new Date();
-  const arabicDate = currentDate.toLocaleDateString("ar-SA", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-  
-  doc.text("تاريخ التخرج:", 130, 175, { align: "right" });
-  doc.text(arabicDate, 80, 175, { align: "right" });
+      // Calculate the width of the text to right-align from the right margin
+      const textWidth = arabicFontBold.widthOfTextAtSize(
+        certificateData.programTrainer,
+        14
+      );
+      const drawX = width - marginRight; // Start near right edge
 
-  // Signature section - clean and minimal
-  doc.setFontSize(11);
-  doc.setTextColor(...textColor);
-  doc.setFont("Amiri", "normal");
-  
-  // Principal signature
-  doc.text("مديرة المدرسة", 80, 195, { align: "center" });
-  doc.setLineWidth(0.5);
-  doc.setDrawColor(...textColor);
-  doc.line(45, 198, 115, 198);
+      const drawY = bottomMargin; // Near bottom, adjust visually as needed
 
-  // School seal - simple circle design
-  doc.setDrawColor(...primaryBlue);
-  doc.setLineWidth(2);
-  doc.circle(200, 195, 10);
-  doc.setFontSize(9);
-  doc.setTextColor(...primaryBlue);
-  doc.text("ختم", 200, 192, { align: "center" });
-  doc.text("المدرسة", 200, 199, { align: "center" });
+      console.log(
+        "Drawing programTrainer at x=",
+        drawX,
+        "y=",
+        drawY,
+        "text:",
+        certificateData.programTrainer
+      );
 
-  // Certificate number
-  doc.setFontSize(8);
-  doc.setTextColor(...primaryBlue);
-  doc.text(`رقم الشهادة: ${data.id}`, 270, 205, { align: "right" });
+      drawArabicText(
+        page,
+        arabicFontBold,
+        certificateData.programTrainer,
+        drawX,
+        drawY,
+        14,
+        [0.3, 0.3, 0.3],
+        "right" // Right aligned for Arabic text
+      );
+    }
 
-  // Bottom border accent
-  doc.setFillColor(...yellowAccent);
-  doc.rect(0, 205, 297, 5, "F");
+    const pdfBytes = await pdfDoc.save();
 
-  return doc.output("datauristring");
-};
+    return new Blob([pdfBytes], { type: "application/pdf" });
+  } catch (error) {
+    console.error("Error generating certificate PDF:", error);
 
-export const downloadCertificate = (data: CertificateData): void => {
-  const doc = new jsPDF({
-    orientation: "landscape",
-    unit: "mm",
-    format: "a4",
-  });
+    const pdfDoc = await PDFDocument.create();
+    const page = pdfDoc.addPage(PageSizes.A4);
 
-  // Add Arabic font support
-  addArabicFontToDoc(doc);
+    page.drawText("خطأ في توليد الشهادة", {
+      x: 300,
+      y: 400,
+      size: 18,
+      color: rgb(1, 0, 0),
+    });
 
-  // Set up colors - clean blue and yellow scheme like the reference
-  const primaryBlue = [41, 128, 185]; // #2980B9 - Blue
-  const darkBlue = [21, 67, 96]; // #154360 - Dark blue
-  const yellowAccent = [241, 196, 15]; // #F1C40F - Yellow
-  const lightGray = [245, 245, 245]; // #F5F5F5 - Light gray
-  const textColor = [52, 73, 94]; // #34495E - Dark gray
-  const whiteColor = [255, 255, 255]; // White
+    page.drawText("Error generating certificate", {
+      x: 300,
+      y: 370,
+      size: 12,
+      color: rgb(0.5, 0, 0),
+    });
 
-  // Clean white background
-  doc.setFillColor(...whiteColor);
-  doc.rect(0, 0, 297, 210, "F");
+    const pdfBytes = await pdfDoc.save();
+    return new Blob([pdfBytes], { type: "application/pdf" });
+  }
+}
 
-  // Top blue header section
-  doc.setFillColor(...primaryBlue);
-  doc.rect(0, 0, 297, 45, "F");
-
-  // Yellow accent stripe
-  doc.setFillColor(...yellowAccent);
-  doc.rect(0, 45, 297, 8, "F");
-
-  // School name in header
-  doc.setTextColor(...whiteColor);
-  doc.setFontSize(22);
-  doc.setFont("Amiri", "normal");
-  doc.text("مدرسة البنات النموذجية", 148.5, 25, { align: "center" });
-  
-  doc.setFontSize(14);
-  doc.text("Model Girls School", 148.5, 38, { align: "center" });
-
-  // Main title - Certificate of Achievement
-  doc.setFontSize(36);
-  doc.setTextColor(...darkBlue);
-  doc.setFont("Amiri", "normal");
-  doc.text("شهادة تخرج", 148.5, 75, { align: "center" });
-
-  // Subtitle
-  doc.setFontSize(16);
-  doc.setTextColor(...primaryBlue);
-  doc.text("شهادة إتمام المرحلة الدراسية", 148.5, 88, { align: "center" });
-
-  // Certification statement
-  doc.setFontSize(14);
-  doc.setTextColor(...textColor);
-  doc.setFont("Amiri", "normal");
-  doc.text("تشهد إدارة المدرسة بأن الطالبة المتفوقة", 148.5, 105, { align: "center" });
-
-  // Student name with underline
-  doc.setFontSize(28);
-  doc.setTextColor(...darkBlue);
-  doc.setFont("Amiri", "normal");
-  doc.text(data.fullName, 148.5, 125, { align: "center" });
-  
-  // Underline for name
-  doc.setLineWidth(1);
-  doc.setDrawColor(...yellowAccent);
-  doc.line(70, 130, 225, 130);
-
-  // Achievement statement
-  doc.setFontSize(14);
-  doc.setTextColor(...textColor);
-  doc.setFont("Amiri", "normal");
-  doc.text("قد أنهت بتفوق ونجاح جميع متطلبات المرحلة الدراسية", 148.5, 145, { align: "center" });
-
-  // Details section with clean design
-  doc.setFillColor(...lightGray);
-  doc.rect(40, 155, 217, 25, "F");
-  doc.setDrawColor(...primaryBlue);
-  doc.setLineWidth(1);
-  doc.rect(40, 155, 217, 25);
-
-  // Details content - organized layout
-  doc.setFontSize(12);
-  doc.setTextColor(...textColor);
-  doc.setFont("Amiri", "normal");
-  
-  // First row - Administration and School
-  doc.text("الإدارة التعليمية:", 250, 165, { align: "right" });
-  doc.text(data.administration, 180, 165, { align: "right" });
-  
-  doc.text("المدرسة:", 130, 165, { align: "right" });
-  doc.text(data.school, 80, 165, { align: "right" });
-  
-  // Second row - Hours and Date
-  doc.text("الساعات المعتمدة:", 250, 175, { align: "right" });
-  doc.text(`${data.hours} ساعة`, 190, 175, { align: "right" });
-  
-  // Date with Arabic formatting
-  const currentDate = new Date();
-  const arabicDate = currentDate.toLocaleDateString("ar-SA", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-  
-  doc.text("تاريخ التخرج:", 130, 175, { align: "right" });
-  doc.text(arabicDate, 80, 175, { align: "right" });
-
-  // Signature section - clean and minimal
-  doc.setFontSize(11);
-  doc.setTextColor(...textColor);
-  doc.setFont("Amiri", "normal");
-  
-  // Principal signature
-  doc.text("مديرة المدرسة", 80, 195, { align: "center" });
-  doc.setLineWidth(0.5);
-  doc.setDrawColor(...textColor);
-  doc.line(45, 198, 115, 198);
-
-  // School seal - simple circle design
-  doc.setDrawColor(...primaryBlue);
-  doc.setLineWidth(2);
-  doc.circle(200, 195, 10);
-  doc.setFontSize(9);
-  doc.setTextColor(...primaryBlue);
-  doc.text("ختم", 200, 192, { align: "center" });
-  doc.text("المدرسة", 200, 199, { align: "center" });
-
-  // Certificate number
-  doc.setFontSize(8);
-  doc.setTextColor(...primaryBlue);
-  doc.text(`رقم الشهادة: ${data.id}`, 270, 205, { align: "right" });
-
-  // Bottom border accent
-  doc.setFillColor(...yellowAccent);
-  doc.rect(0, 205, 297, 5, "F");
-
-  // Download the PDF
-  doc.save(`Certificate_${data.fullName.replace(/\s+/g, "_")}.pdf`);
-};
+export function downloadPDF(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}

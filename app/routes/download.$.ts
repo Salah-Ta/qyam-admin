@@ -16,14 +16,20 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     }
 
 
-    // Get original filename or use the key
-    const filename = key.split("-").slice(1).join("-") || key;
+    // Get original filename from key (format: timestamp-cuid.extension)
+    const keyParts = key.split("-");
+    // Remove timestamp (first part) and rejoin the rest
+    const filename = keyParts.slice(1).join("-") || key;
+
+    // Encode filename for Content-Disposition header (RFC 5987)
+    const encodedFilename = encodeURIComponent(filename).replace(/['()]/g, escape);
+
     const content = await object.blob()
 
     return new Response(content, {
       headers: {
         "Content-Type": object.httpMetadata?.contentType || "application/octet-stream",
-        "Content-Disposition": `attachment`,
+        "Content-Disposition": `attachment; filename="${filename}"; filename*=UTF-8''${encodedFilename}`,
         // Prevent caching of sensitive files
         "Cache-Control": "private, no-cache, no-store, must-revalidate",
         "Pragma": "no-cache",
