@@ -20,8 +20,6 @@ import userDB from "~/db/user/user.server";
 import { QUser } from "~/types/types";
 import { getAuthenticated } from "~/lib/get-authenticated.server";
 import squareArrow from "../../../assets/icons/square-arrow-right.svg";
-import supervisorProfile from "../../../assets/images/new-design/supervisor-profile.png";
-import verifiedTick from "./assets/verified-tick.svg";
 // Utility function
 const cn = (...inputs: ClassValue[]) => {
   return twMerge(clsx(inputs));
@@ -511,39 +509,10 @@ export const AllTrainers = (): JSX.Element => {
   return (
     <div className="w-full mx-auto py-6 pt-12 md:pt-24  pb-36 lg:px-[112px] bg-section min-h-screen">
       <Card className="w-full rounded-2xl border border-gray-300 overflow-hidden">
-        {/* Banner Gradient */}
-        <div className="relative w-full h-24 bg-gradient-to-l from-[#17b169] to-[#0a5c3a] rounded-t-2xl" />
-
         <div className="flex flex-col w-full p-6">
-          {/* Supervisor Profile Section */}
-          <div className="flex flex-col items-end gap-4 relative self-stretch w-full [direction:rtl] mb-6">
-            <div className="relative w-24 h-24 -mt-[72px]">
-              <div className="absolute w-[96px] h-[96px] rounded-full border-4 border-solid border-white shadow-lg overflow-hidden bg-white">
-                <img
-                  src={currentUser?.image || supervisorProfile}
-                  alt="صورة المشرف"
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <img
-                className="absolute w-6 h-6 top-[70px] right-[70px]"
-                alt="Verified"
-                src={verifiedTick}
-              />
-            </div>
-            <div className="flex flex-col items-end gap-1 w-full">
-              <h2 className="text-xl font-bold text-[#181d27]">
-                {currentUser?.name || "المشرف"}
-              </h2>
-              <p className="text-sm text-[#535862]">
-                {currentUser?.region || ""}
-              </p>
-            </div>
-          </div>
-
           {/* Header Section */}
-          <div className="flex justify-between items-baseline w-full mx-auto py-6 rounded-xl [direction:rtl]">
-            <div className="flex flex-col items-start mb-6 pb-4 max-md:m-5">
+          <div className="flex   justify-between items-baseline w-full   mx-auto py-6  rounded-xl  [direction:rtl] ">
+            <div className="flex flex-col items-start mb-6  pb-4 max-md:m-5">
               <h1 className="text-2xl font-bold text-gray-800 mb-2">
                 إحصاءات المدربين
               </h1>
