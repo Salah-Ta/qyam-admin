@@ -6,6 +6,7 @@ import { AppLoadContext } from "@remix-run/cloudflare";
 import { client } from "~/db/db-client.server";
 import { getSession } from "../utils/session.server";
 import { redirect } from "@remix-run/cloudflare";
+import { QUser } from "~/types/types";
 
 export type Environment = {
   Variables: {
@@ -15,12 +16,7 @@ export type Environment = {
 };
 
 export const getAuth = (context: AppLoadContext) => {
-  // Create a new auth instance for each request
-   const dbClient = client(context.cloudflare.env.DATABASE_URL);
-   console.log("db client is null?:   ", !!dbClient);
-   console.log("db connection::::",context.cloudflare.env.DATABASE_URL);
-  
-  
+  const dbClient = client(context.cloudflare.env.DATABASE_URL);
 
   return betterAuth({
     databaseHooks: {
@@ -88,32 +84,6 @@ export const getAuth = (context: AppLoadContext) => {
         provider: "postgresql",
       }
     ),
-
-    // databaseHooks: {
-    //   session: {
-    //     create: {
-    //       before: async (sessionInstance: any) => {
-    //         const user = (await dbClient.user.findUnique({
-    //           where: { id: sessionInstance.userId },
-    //         })) as QUser;
-
-    //         if (
-    //           user &&
-    //           user.acceptenceState !== "accepted" &&
-    //           user.role === "user"
-    //         ) {
-    //           return false;
-    //         }
-
-    //         return {
-    //           data: {
-    //             ...sessionInstance,
-    //           },
-    //         };
-    //       },
-    //     },
-    //   },
-    // },
     plugins: [admin()],
   });
 };
@@ -136,5 +106,5 @@ export async function getAuthenticatedUser(request: Request) {
 
 export async function redirectIfAuthenticated(request: Request, context: any) {
   const user = await getAuthenticatedUser(request);
-  if (user) throw redirect("/login");
+  if (user) throw redirect("/");
 }

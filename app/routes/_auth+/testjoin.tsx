@@ -200,9 +200,9 @@ export default function Signup() {
 
   // Loader data
   const loaderData = useLoaderData<typeof loader>();
-  const regions = loaderData.regions;
-  const eduAdmins = loaderData.eduAdmins;
-  const schools = loaderData.schools;
+  const regions = loaderData.regions as { id: string; name: string; }[];
+  const eduAdmins = loaderData.eduAdmins as { id: string; name: string; regionId?: string; }[];
+  const schools = loaderData.schools as { id: string; name: string; eduAdminId?: string; }[];
   console.log("loaderData", loaderData);
 
   // Filter eduAdmins by selected region

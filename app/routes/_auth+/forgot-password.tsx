@@ -41,10 +41,10 @@ export async function action({ request, context }: ActionFunctionArgs) {
     }
 
     // Check user approval status
-    const user = userResult.data;
+    const user = Array.isArray(userResult.data) ? userResult.data[0] : userResult.data;
     if (user?.acceptenceState !== "accepted") {
       let errorMessage = "";
-      
+
       switch (user?.acceptenceState) {
         case "pending":
           errorMessage = "حسابك قيد المراجعة، لا يمكن إعادة تعيين كلمة المرور في الوقت الحالي";
@@ -93,11 +93,11 @@ const ForgotPassword = () => {
   // Handle action data from server
   React.useEffect(() => {
     if (actionData) {
-      if (!actionData.canReset && actionData.error) {
+      if (!actionData.canReset && 'error' in actionData && actionData.error) {
         // Show error modal for validation failures
         setErrorModalMessage(actionData.error);
         setShowErrorModal(true);
-      } else if (actionData.canReset && actionData.email) {
+      } else if (actionData.canReset && 'email' in actionData && actionData.email) {
         // User is approved, proceed with password reset
         handlePasswordReset(actionData.email);
       }

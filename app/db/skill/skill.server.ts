@@ -58,8 +58,8 @@ async function getSkill(id: string, dbUrl?: string): Promise<{ success: boolean;
     const skill = await db.skill.findUnique({
       where: { id }
     });
-    
-    return { success: true, data: skill };
+
+    return { success: true, data: skill ?? undefined };
   } catch (error: any) {
     console.error("Error fetching skill:", error);
     return { success: false, error: error.message };

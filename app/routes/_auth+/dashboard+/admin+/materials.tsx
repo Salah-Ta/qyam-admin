@@ -80,8 +80,11 @@ export async function action({
             return undefined;
           }
 
-          if (!fileType.includes("pdf")) {
-            throw new Error("نوع الملف غير مدعوم");
+          // Accept PDF and Word files
+          const isPdf = fileType.includes("pdf");
+          const isWord = fileType.includes("msword") || fileType.includes("wordprocessingml");
+          if (!isPdf && !isWord) {
+            throw new Error("نوع الملف غير مدعوم - يرجى رفع ملفات PDF أو Word فقط");
           }
 
           const extension = filename.split(".").pop();

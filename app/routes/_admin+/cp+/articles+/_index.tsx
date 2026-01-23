@@ -1,5 +1,5 @@
 import { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/cloudflare";
-import { Article, StatusResponse } from "~/types/types";
+import { Article, StatusResponse, QUser } from "~/types/types";
 import articleDB from "~/db/articles/articles.server";
 import { useFetcher, useLoaderData } from "@remix-run/react";
 import { requireSpecialCase } from "~/lib/get-authenticated.server";
@@ -10,7 +10,7 @@ import { Button } from "~/components/ui/button";
 import { createToastHeaders } from "~/lib/toast.server";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-  await requireSpecialCase(request, context, (user) => user?.role === "admin");
+  await requireSpecialCase(request, context, (user) => (user as unknown as QUser)?.role === "ADMIN");
   return articleDB
     .getAllArticles(context.cloudflare.env.DATABASE_URL)
     .then((res) => {

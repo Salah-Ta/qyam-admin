@@ -451,7 +451,7 @@ const transformedData = data.map((el:any)=>({
       }),
       columnHelper.accessor("acceptenceState", {
         header: "حالة التسجيل ",
-        cell: (info) => <AcceptectStatus status={info.getValue()} />,
+        cell: (info) => <AcceptectStatus status={(info.getValue() || "pending") as AcceptenceState} />,
       }),
       columnHelper.accessor("cvKey", {
         header: ()=><span className="text-nowrap">السيرة الذاتية</span>,
@@ -461,7 +461,7 @@ const transformedData = data.map((el:any)=>({
           if (!value) {
             return <span className="text-gray-400">لا يوجد ملف</span>;
           }
-          const extention = info.getValue().split(".")[1]
+          const extention = value.split(".")[1]
          return  <button className="button hover:bg-gray-100 rounded-lg transition-all text-nowrap p-2">
             {" "}
             <Link
@@ -555,7 +555,7 @@ const transformedData = data.map((el:any)=>({
     onRowSelectionChange: setRowSelection, //hoist up the row selection state to your own scope
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    getRowId: (row) => row.id,
+    getRowId: (row) => row.id || '',
     state: {
       globalFilter,
       rowSelection, //pass the row selection state back to the table instance
@@ -772,7 +772,7 @@ const transformedData = data.map((el:any)=>({
         </TableHeader>
         <TableBody>
           {table.getRowModel().rows.map((row) => (
-            <TableRow className="cursor-pointer" onClick={() => navigate(row.original.id)} key={row.id}>
+            <TableRow className="cursor-pointer" onClick={() => row.original.id && navigate(row.original.id)} key={row.id}>
               {row.getVisibleCells().map((cell) => (
                 <TableCell key={cell.id}>
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -789,11 +789,12 @@ const transformedData = data.map((el:any)=>({
           onClose={() => setSelectedUser(null)}
           onConfirm={() =>
             selectedUser &&
+            selectedUser.id &&
             editUserProgramStatus(
-              selectedUser?.id,
-              selectedUser?.email,
-              selectedUser?.name,
-              selectedUser.acceptenceState
+              selectedUser.id,
+              selectedUser.email,
+              selectedUser.name,
+              (selectedUser.acceptenceState || 'pending') as AcceptenceState
             )
           }
           user={selectedUser}
@@ -822,7 +823,7 @@ const transformedData = data.map((el:any)=>({
           isOpen={userToDelete !== null}
           onClose={() => setUserToDelete(null)}
           onConfirm={() => {
-            deleteUser(userToDelete.id);
+            if (userToDelete.id) deleteUser(userToDelete.id);
             setUserToDelete(null);
           }}
           user={userToDelete}

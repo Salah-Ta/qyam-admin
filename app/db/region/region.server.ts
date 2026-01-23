@@ -29,11 +29,7 @@ const getRegion = (id: string, dbUrl: string): Promise<StatusResponse<Region>> =
   return new Promise((resolve, reject) => {
     db.region
       .findFirstOrThrow({
-        where: { id },
-        include: {
-          users: true,
-          eduAdmins: true
-        }
+        where: { id }
       })
       .then((res) => {
         resolve({ status: "success", data: res });

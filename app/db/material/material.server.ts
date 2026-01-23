@@ -32,11 +32,15 @@ const createMaterial = (material: Material, dbUrl?: string): Promise<StatusRespo
     });
 };
 
-const getAllMaterials = (dbUrl?: string): Promise<StatusResponse<Material>> => {
+const getAllMaterials = (dbUrl?: string): Promise<StatusResponse<Material[]>> => {
     const db = initializeDatabase(dbUrl);
 
     return new Promise((resolve, reject) => {
-        db.material.findMany().then((res) => {
+        db.material.findMany({
+            orderBy: {
+                createdAt: 'asc' // Sort by oldest first (ascending order)
+            }
+        }).then((res) => {
             resolve({ status: "success", data: res })
         }).catch((error: any) => {
             // console.log("ERROR [getAllMaterials]: ", error);

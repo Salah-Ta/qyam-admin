@@ -1,16 +1,11 @@
-import {
-  useNavigate,
-  useActionData,
-  useNavigation,
-  useLoaderData,
-} from "@remix-run/react";
-import { useEffect, useState } from "react";
+import { useNavigate, useNavigation } from "@remix-run/react";
+import { useState } from "react";
 import { authClient } from "../../lib/auth.client";
 import { getErrorMessage } from "../../lib/get-error-messege";
 import LoadingOverlay from "~/components/loading-overlay";
 import { toast as showToast } from "sonner";
 import glossary from "./glossary";
-import { LoaderFunctionArgs, redirect } from "@remix-run/cloudflare";
+import { LoaderFunctionArgs } from "@remix-run/cloudflare";
 import { requireSpecialCase } from "~/lib/get-authenticated.server";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
@@ -21,53 +16,13 @@ import group1 from "../../assets/images/new-design/logo-login.svg";
 import section from "../../assets/images/new-design/section.png";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-  // Test database connection and fetch sample users
-  let dbConnectionStatus = { success: false, error: null, dbUrl: "" };
-  let sampleUsers: Array<{
-    id: string;
-    email: string;
-    createdAt: Date;
-    updatedAt: Date;
-  }> = [];
-
-  try {
-    const { client } = await import("~/db/db-client.server");
-    const dbUrl = context.cloudflare.env.DATABASE_URL;
-    dbConnectionStatus.dbUrl = dbUrl;
-
-    const prisma = await client(dbUrl, context);
-    if (prisma) {
-      // Test connection
-      await prisma.$queryRaw`SELECT 1 as connected`;
-
-      // Fetch first 5 users (for debugging purposes)
-      sampleUsers = await prisma.user.findMany({
-        take: 5,
-        select: {
-          id: true,
-          email: true,
-          createdAt: true,
-          updatedAt: true,
-        },
-        orderBy: { createdAt: "desc" },
-      });
-
-      await prisma.$disconnect();
-      dbConnectionStatus.success = true;
-    }
-  } catch (error) {
-    console.error("Database connection failed:", error);
-    dbConnectionStatus.error =
-      error instanceof Error ? error.message : "Unknown error";
-  }
-
   const user = await requireSpecialCase(
     request,
     context,
     (user) => user === null
   );
 
-  return { user, dbConnectionStatus, sampleUsers };
+  return { user };
 }
 
 type ActionData = {
@@ -80,33 +35,12 @@ type ActionData = {
 
 export default function Login() {
   const navigate = useNavigate();
-  const { dbConnectionStatus, sampleUsers } = useLoaderData<typeof loader>();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
-
-  useEffect(() => {
-    // Log database connection status
-    console.group("Database Connection Status");
-    console.log("DB URL:", dbConnectionStatus.dbUrl);
-    console.log("Connection successful:", dbConnectionStatus.success);
-    if (!dbConnectionStatus.success) {
-      console.error("Connection error:", dbConnectionStatus.error);
-    }
-    // console.groupEnd();
-
-    // Log sample users from database
-    if (sampleUsers && sampleUsers.length > 0) {
-      // console.group("Sample Users from Database");
-      console.table(sampleUsers);
-      // console.groupEnd();
-    } else {
-      console.warn("No sample users found in database");
-    }
-  }, [dbConnectionStatus, sampleUsers]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -142,45 +76,20 @@ export default function Login() {
       return;
     }
 
-    // console.group("Login Attempt");
-    // console.log("Email:", email);
-    // console.log("Password length:", password);
-    // console.groupEnd();
-
     try {
       setLoading(true);
 
-      const authResponse = await authClient.signIn.email(
+      await authClient.signIn.email(
         { email, password },
         {
-          onRequest: () => {
-            console.log("Authentication request started");
-          },
-          onSuccess: (ctx) => {
-            console.group("Authentication Success");
-            console.log("User ID:", ctx.user?.id);
-            console.log("Session created:", !!ctx.session);
-            console.groupEnd();
-
+          onSuccess: () => {
             setLoading(false);
             navigate("/");
           },
           onError: (ctx) => {
-            console.group("Authentication Error");
-            console.error("Error code:", ctx.error.code);
-            console.error("Error message:", ctx.error.message);
-            console.error("Full error object:", ctx.error);
-            console.groupEnd();
-
             setLoading(false);
-
-            // Get the Arabic error message
             const arabicErrorMessage = getErrorMessage(ctx.error);
-
-            // Set the error for display
             setLoginError(arabicErrorMessage);
-
-            // Show toast notification with specific error
             showToast.error("فشل تسجيل الدخول", {
               description: arabicErrorMessage,
             });
@@ -188,16 +97,9 @@ export default function Login() {
         }
       );
     } catch (error) {
-      console.group("Unexpected Login Error");
-      console.error("Error:", error);
-      console.groupEnd();
-
       setLoading(false);
-
-      // Get Arabic error message for unexpected errors
       const arabicErrorMessage = getErrorMessage(error);
       setLoginError(arabicErrorMessage);
-
       showToast.error("فشل تسجيل الدخول", {
         description: arabicErrorMessage,
       });

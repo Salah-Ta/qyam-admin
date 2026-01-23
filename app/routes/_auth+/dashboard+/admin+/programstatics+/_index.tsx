@@ -127,8 +127,8 @@ export default function ProgramStatisticsContent(): JSX.Element {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
   const [showDeleteOrphanedConfirm, setShowDeleteOrphanedConfirm] = useState<boolean>(false);
   
-  const deleteFetcher = useFetcher();
-  const deleteOrphanedFetcher = useFetcher();
+  const deleteFetcher = useFetcher<{ status: string; message?: string }>();
+  const deleteOrphanedFetcher = useFetcher<{ status: string; message?: string }>();
 
   // Set charts as loaded after component mounts (client-side only)
   useEffect(() => {

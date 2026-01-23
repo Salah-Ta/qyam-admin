@@ -109,7 +109,7 @@ export const Trainer = () => {
   const menuItems = [
     {
       id: 0,
-      title: "تقرير إنجازاتي",
+      title: "إرسال تقرير",
       path: "/dashboard/trainer/trainerProfile",
     },
     { id: 1, title: "شهاداتي", path: "/dashboard/trainer/certificates" },

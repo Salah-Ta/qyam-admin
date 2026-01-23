@@ -95,6 +95,8 @@ export const CertificateRow: React.FC<CertificateRowProps> = ({
   });
 
   const [pdfPreview, setPdfPreview] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const formFields = [
     {
@@ -133,33 +135,49 @@ export const CertificateRow: React.FC<CertificateRowProps> = ({
            formData.hours;
   };
 
-  const handleGeneratePDF = () => {
+  const handleGeneratePDF = async () => {
     if (!isFormValid()) return;
-    
-    const certificateData: CertificateData = {
-      id,
-      fullName: formData.fullName!,
-      administration: formData.administration!,
-      school: formData.school!,
-      hours: formData.hours!,
-    };
-    
-    const pdfDataUri = generateCertificatePDF(certificateData);
-    setPdfPreview(pdfDataUri);
+
+    setIsGenerating(true);
+    try {
+      const certificateData: CertificateData = {
+        id,
+        fullName: formData.fullName!,
+        administration: formData.administration!,
+        school: formData.school!,
+        hours: formData.hours!,
+      };
+
+      const pdfDataUri = await generateCertificatePDF(certificateData);
+      setPdfPreview(pdfDataUri);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      alert("حدث خطأ أثناء توليد الشهادة");
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!isFormValid()) return;
-    
-    const certificateData: CertificateData = {
-      id,
-      fullName: formData.fullName!,
-      administration: formData.administration!,
-      school: formData.school!,
-      hours: formData.hours!,
-    };
-    
-    downloadCertificate(certificateData);
+
+    setIsDownloading(true);
+    try {
+      const certificateData: CertificateData = {
+        id,
+        fullName: formData.fullName!,
+        administration: formData.administration!,
+        school: formData.school!,
+        hours: formData.hours!,
+      };
+
+      await downloadCertificate(certificateData);
+    } catch (error) {
+      console.error("Error downloading certificate:", error);
+      alert("حدث خطأ أثناء تحميل الشهادة");
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   return (
@@ -217,19 +235,20 @@ export const CertificateRow: React.FC<CertificateRowProps> = ({
           <div className="flex gap-2">
             <Button
               onClick={handleGeneratePDF}
-              disabled={!isFormValid()}
+              disabled={!isFormValid() || isGenerating}
               className="flex items-center gap-2"
             >
-              توليد الشهادة
+              {isGenerating ? "جاري التوليد..." : "توليد الشهادة"}
             </Button>
             {pdfPreview && (
               <Button
                 onClick={handleDownload}
                 variant="outline"
+                disabled={isDownloading}
                 className="flex items-center gap-2"
               >
                 <DownloadIcon className="w-4 h-4" />
-                تحميل الشهادة
+                {isDownloading ? "جاري التحميل..." : "تحميل الشهادة"}
               </Button>
             )}
           </div>

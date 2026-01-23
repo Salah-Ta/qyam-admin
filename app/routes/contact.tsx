@@ -23,6 +23,8 @@ export async function action({ request, context }: ActionFunctionArgs) {
       {
         to: context.cloudflare.env.ADMIN_EMAIL,
         subject: "رسالة جديدة من نموذج التواصل",
+        template: "contact",
+        props: { name, email, message },
         text: `
         الاسم: ${name}
         البريد الإلكتروني: ${email}

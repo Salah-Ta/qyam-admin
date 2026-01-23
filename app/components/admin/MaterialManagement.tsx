@@ -4,6 +4,7 @@ import { useDropzone } from "react-dropzone";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import pdf01 from "../../assets/icons/pdf.svg";
+import wordIcon from "../../assets/icons/file-type-blue.svg";
 import featuredIcon from "../../assets/icons/feature-2.svg";
 import deleteIcon from "../../assets/icons/delete.svg";
 import UploadCloudIcon from "../../assets/icons/upload-cloud.svg";
@@ -11,6 +12,25 @@ import { Icon } from "~/components/icon";
 import { Button } from "~/components/ui/button";
 import { sanitizeArabicFilenames } from "~/utils/santize-arabic.filenames";
 import type { Material } from "~/types/types";
+
+// Sort options
+type SortOption = "name-asc" | "name-desc" | "date-asc" | "date-desc";
+
+const SORT_OPTIONS: { value: SortOption; label: string }[] = [
+  { value: "name-asc", label: "الاسم (أ-ي)" },
+  { value: "name-desc", label: "الاسم (ي-أ)" },
+  { value: "date-desc", label: "الأحدث أولاً" },
+  { value: "date-asc", label: "الأقدم أولاً" },
+];
+
+// Helper to determine file type from filename
+const getFileType = (filename: string): "pdf" | "word" => {
+  const extension = filename?.toLowerCase().split(".").pop();
+  if (extension === "doc" || extension === "docx") {
+    return "word";
+  }
+  return "pdf";
+};
 
 // Utility function for class names
 function cn(...inputs: ClassValue[]) {
@@ -45,13 +65,17 @@ const INITIAL_DELETE_CONFIRMATION: DeleteConfirmation = {
 const useFileUpload = (selectedCategory: string, onSuccess: () => void) => {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const fetcher = useFetcher<ActionData>();
-  const successHandledRef = useRef<string | null>(null);
+  const successHandledRef = useRef<number | null>(null);
 
   const { getRootProps, getInputProps } = useDropzone({
     onDrop: useCallback((acceptedFiles: File[]) => {
       setSelectedFiles((prev) => [...prev, ...acceptedFiles]);
     }, []),
-    accept: { "application/pdf": [".pdf"] },
+    accept: {
+      "application/pdf": [".pdf"],
+      "application/msword": [".doc"],
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
+    },
     maxSize: 4 * 1024 * 1024, // 4MB
   });
 
@@ -76,19 +100,28 @@ const useFileUpload = (selectedCategory: string, onSuccess: () => void) => {
     });
   }, [selectedFiles, selectedCategory, fetcher]);
 
+  // Track submission count for deduplication
+  const submissionCountRef = useRef(0);
+
   // Reset files after successful upload (only once per submission)
   useEffect(() => {
-    const submissionKey = fetcher.key;
+    if (fetcher.state === "submitting") {
+      submissionCountRef.current += 1;
+    }
+  }, [fetcher.state]);
+
+  useEffect(() => {
+    const currentCount = submissionCountRef.current;
     if (
-      fetcher.data?.success && 
-      fetcher.state === "idle" && 
-      submissionKey !== successHandledRef.current
+      fetcher.data?.success &&
+      fetcher.state === "idle" &&
+      currentCount !== successHandledRef.current
     ) {
       setSelectedFiles([]);
       onSuccess();
-      successHandledRef.current = submissionKey;
+      successHandledRef.current = currentCount;
     }
-  }, [fetcher.data?.success, fetcher.state, fetcher.key, onSuccess]);
+  }, [fetcher.data?.success, fetcher.state, onSuccess]);
 
   return {
     selectedFiles,
@@ -216,34 +249,70 @@ function StatusBadge({
   );
 }
 
-interface MaterialCardProps {
+interface MaterialListItemProps {
   material: Material;
   onDelete: (id: string, title: string) => void;
+  index: number;
 }
 
-const MaterialCard = React.memo(({ material, onDelete }: MaterialCardProps) => (
-  <Card className="w-full md:flex-1 flex items-center justify-center gap-[13.75px] px-[13.75px] py-[11px] bg-white rounded-[11px] border-[2.38px] border-dashed border-[#cfd4dc] shadow-[0px_1.38px_2.75px_#1018280d]">
-    <button
-      onClick={() => onDelete(material.id, material.title)}
-      className="w-[16.5px] h-[16.5px] hover:opacity-70 transition-opacity"
-      aria-label={`حذف ${material.title}`}
-    >
-      <img src={deleteIcon} alt="Delete" />
-    </button>
-    <div className="font-normal text-black text-[13.8px] leading-[27.5px] whitespace-nowrap tracking-[0] [direction:rtl]">
-      {material.title || "ملف غير محدد"}
+const MaterialListItem = React.memo(({ material, onDelete, index }: MaterialListItemProps) => {
+  const fileType = getFileType(material.title);
+  const isPdf = fileType === "pdf";
+
+  return (
+    <div className="flex items-center gap-4 p-4 bg-white rounded-xl border border-[#e4e7ec] shadow-sm hover:shadow-md transition-shadow [direction:rtl]">
+      {/* Row Number */}
+      <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-gray-100 rounded-full text-sm font-medium text-gray-600">
+        {index + 1}
+      </div>
+
+      {/* File Icon - PDF (red) or Word (blue) */}
+      <a
+        className={cn(
+          "flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-lg transition-colors",
+          isPdf ? "bg-red-50 hover:bg-red-100" : "bg-blue-50 hover:bg-blue-100"
+        )}
+        href={`/download/${material.storageKey}`}
+        download={sanitizeArabicFilenames(material.title)}
+        aria-label={`تحميل ${material.title}`}
+      >
+        <img className="w-6 h-6" alt={isPdf ? "PDF" : "Word"} src={isPdf ? pdf01 : wordIcon} />
+      </a>
+
+    {/* File Name */}
+    <div className="flex-1 min-w-0">
+      <p className="font-medium text-gray-900 text-sm truncate">
+        {material.title || "ملف غير محدد"}
+      </p>
+      {material.createdAt && (
+        <p className="text-xs text-gray-500 mt-1">
+          {new Date(material.createdAt).toLocaleDateString("ar-SA")}
+        </p>
+      )}
     </div>
-    <a
-      className="w-[33px] h-[33px] flex items-center hover:opacity-70 transition-opacity"
-      href={`/download/${material.storageKey}`}
-      download={sanitizeArabicFilenames(material.title)}
-      aria-label={`تحميل ${material.title}`}
-    >
-      <img className="w-[33px] h-[33px]" alt="PDF" src={pdf01} />
-    </a>
-  </Card>
-));
-MaterialCard.displayName = "MaterialCard";
+
+    {/* Actions */}
+    <div className="flex items-center gap-2 flex-shrink-0">
+      <a
+        className="p-2 text-[#8bc53f] hover:bg-green-50 rounded-lg transition-colors"
+        href={`/download/${material.storageKey}`}
+        download={sanitizeArabicFilenames(material.title)}
+        aria-label={`تحميل ${material.title}`}
+      >
+        <Icon name="download" size="sm" />
+      </a>
+      <button
+        onClick={() => material.id && onDelete(material.id, material.title)}
+        className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+        aria-label={`حذف ${material.title}`}
+      >
+        <img src={deleteIcon} alt="Delete" className="w-4 h-4" />
+      </button>
+    </div>
+  </div>
+  );
+});
+MaterialListItem.displayName = "MaterialListItem";
 
 interface MaterialManagementProps {
   materials: Material[];
@@ -258,6 +327,9 @@ export const MaterialManagement: React.FC<MaterialManagementProps> = ({
   isLoading,
   onSuccess,
 }) => {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortOption, setSortOption] = useState<SortOption>("date-asc");
+
   const {
     selectedFiles,
     uploadFiles,
@@ -275,11 +347,37 @@ export const MaterialManagement: React.FC<MaterialManagementProps> = ({
     cancelDelete,
   } = useDeleteMaterial();
 
-  const filteredMaterials = useMemo(
-    () =>
-      materials.filter((material) => material?.categoryId === selectedCategory),
-    [materials, selectedCategory]
-  );
+  // Filter by category, then by search query, then sort
+  const filteredAndSortedMaterials = useMemo(() => {
+    let result = materials.filter(
+      (material) => material?.categoryId === selectedCategory
+    );
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.trim().toLowerCase();
+      result = result.filter((material) =>
+        material.title?.toLowerCase().includes(query)
+      );
+    }
+
+    // Apply sorting
+    result.sort((a, b) => {
+      switch (sortOption) {
+        case "name-asc":
+          return (a.title || "").localeCompare(b.title || "", "ar");
+        case "name-desc":
+          return (b.title || "").localeCompare(a.title || "", "ar");
+        case "date-asc":
+          return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+        case "date-desc":
+        default:
+          return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+      }
+    });
+
+    return result;
+  }, [materials, selectedCategory, searchQuery, sortOption]);
 
   return (
     <Card className="w-full h-full rounded-2xl border border-[#d0d5dd]">
@@ -305,7 +403,7 @@ export const MaterialManagement: React.FC<MaterialManagementProps> = ({
               </div>
             </div>
             <div className="text-gray-600 text-xs text-center leading-[18px] font-normal tracking-[0]">
-              PDF فقط (max.4.00 MB)
+              PDF و Word فقط (max.4.00 MB)
             </div>
           </div>
         </div>
@@ -346,35 +444,80 @@ export const MaterialManagement: React.FC<MaterialManagementProps> = ({
           </div>
         )}
 
-        {/* Uploaded Items Label */}
-        <div className="flex items-center gap-[5px] self-end mt-16">
-          <div className="w-[18px] h-[18px] bg-success-100 rounded-[9px] flex items-center justify-center">
-            <img src={featuredIcon} alt="" className="w-[9px] h-[9px]" />
+        {/* Uploaded Items Section */}
+        <div className="mt-8 [direction:rtl]">
+          {/* Header with Label */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-5 h-5 bg-success-100 rounded-full flex items-center justify-center">
+                <img src={featuredIcon} alt="" className="w-3 h-3" />
+              </div>
+              <span className="font-medium text-[#039754] text-base">
+                الملفات المرفوعة
+              </span>
+              <span className="text-gray-400 text-sm">
+                ({filteredAndSortedMaterials.length})
+              </span>
+            </div>
           </div>
-          <div className="font-medium text-[#039754] text-sm text-center tracking-[0] leading-[18px] whitespace-nowrap [direction:rtl]">
-            الملفات المرفوعة
-          </div>
-        </div>
 
-        {/* Uploaded Files List */}
-        <div className="flex flex-col md:flex-row gap-6 w-full mt-2 flex-wrap">
-          {isLoading ? (
-            <div className="w-full text-center text-gray-400 py-8">
-              جاري التحميل...
-            </div>
-          ) : filteredMaterials.length > 0 ? (
-            filteredMaterials.map((material) => (
-              <MaterialCard
-                key={material.id}
-                material={material}
-                onDelete={confirmDelete}
+          {/* Search and Sort Controls */}
+          <div className="flex flex-col sm:flex-row gap-3 mb-4">
+            {/* Search Input */}
+            <div className="relative flex-1">
+              <input
+                type="text"
+                placeholder="ابحث عن ملف..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full px-4 py-2.5 pr-10 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#8bc53f] focus:border-transparent"
               />
-            ))
-          ) : (
-            <div className="w-full text-center text-gray-400 py-8">
-              لا توجد ملفات مرفوعة
+              <Icon
+                name="search"
+                size="sm"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+              />
             </div>
-          )}
+
+            {/* Sort Dropdown */}
+            <select
+              value={sortOption}
+              onChange={(e) => setSortOption(e.target.value as SortOption)}
+              className="px-4 py-2.5 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#8bc53f] focus:border-transparent cursor-pointer min-w-[150px]"
+            >
+              {SORT_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Files List */}
+          <div className="flex flex-col gap-3 w-full">
+            {isLoading ? (
+              <div className="w-full text-center text-gray-400 py-8">
+                جاري التحميل...
+              </div>
+            ) : filteredAndSortedMaterials.length > 0 ? (
+              filteredAndSortedMaterials.map((material, index) => (
+                <MaterialListItem
+                  key={material.id}
+                  material={material}
+                  onDelete={confirmDelete}
+                  index={index}
+                />
+              ))
+            ) : searchQuery ? (
+              <div className="w-full text-center text-gray-400 py-8 bg-gray-50 rounded-lg">
+                لا توجد نتائج للبحث "{searchQuery}"
+              </div>
+            ) : (
+              <div className="w-full text-center text-gray-400 py-8 bg-gray-50 rounded-lg">
+                لا توجد ملفات مرفوعة
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Status Messages */}

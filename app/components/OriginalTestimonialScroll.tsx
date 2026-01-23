@@ -16,83 +16,18 @@ const OriginalTestimonialScroll: React.FC<OriginalTestimonialScrollProps> = ({ t
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isAnimating, setIsAnimating] = useState(true);
 
-  // Sample testimonial data if none exist
-  const sampleTestimonials = [
-    {
-      id: '1',
-      name: 'فاطمة أحمد',
-      comment: 'كانت تجربة رائعة ومفيدة جداً، تعلمت مهارات جديدة وطورت قدراتي بشكل كبير',
-      rating: 5,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    },
-    {
-      id: '2',
-      name: 'نورا محمد',
-      comment: 'البرنامج ممتاز والمدربات محترفات، أنصح كل فتاة بالمشاركة في هذا البرنامج',
-      rating: 5,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    },
-    {
-      id: '3',
-      name: 'سارة علي',
-      comment: 'تجربة مميزة ساعدتني في اكتشاف مواهبي وتطوير مهاراتي المهنية',
-      rating: 5,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    },
-    {
-      id: '4',
-      name: 'مريم خالد',
-      comment: 'شكراً لكم على هذا البرنامج الرائع، استفدت كثيراً وحققت أهدافي',
-      rating: 5,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    },
-    {
-      id: '5',
-      name: 'عائشة سالم',
-      comment: 'برنامج متميز بكل ما تحمله الكلمة من معنى، ننتظر المزيد من البرامج المفيدة',
-      rating: 5,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    },
-    {
-      id: '6',
-      name: 'هند عبدالله',
-      comment: 'تجربة لا تُنسى، تعلمت الكثير وكونت صداقات جميلة مع المتدربات',
-      rating: 5,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    },
-    {
-      id: '7',
-      name: 'رقية محمود',
-      comment: 'أفضل برنامج تدريبي شاركت فيه، المحتوى ممتاز والتنظيم رائع',
-      rating: 5,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    },
-    {
-      id: '8',
-      name: 'أسماء حسن',
-      comment: 'شكراً جزيلاً لكم على الجهود المبذولة والبرنامج المميز',
-      rating: 5,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    },
-    {
-      id: '9',
-      name: 'زينب أحمد',
-      comment: 'برنامج رائع ومفيد، استفدت منه كثيراً في تطوير مهاراتي',
-      rating: 5,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    }
-  ];
+  // Return empty state if no testimonials exist
+  if (!testimonials || testimonials.length === 0) {
+    return (
+      <div className="w-full max-w-6xl mx-auto px-4">
+        <div className="text-center py-12 text-gray-500">
+          <p className="text-lg">لا توجد آراء حالياً</p>
+        </div>
+      </div>
+    );
+  }
 
-  const displayTestimonials = testimonials.length > 0 ? testimonials : sampleTestimonials;
+  const displayTestimonials = testimonials;
   
   // Create three columns for better distribution
   const createColumns = () => {

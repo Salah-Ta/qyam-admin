@@ -115,16 +115,23 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
   const dbUrl = context.cloudflare.env.DATABASE_URL;
   const prisma = await getPrismaClient(dbUrl, context);
   const formData = await request.formData();
+
+  // Helper to safely get form field as string
+  const getField = (name: string): string => {
+    const value = formData.get(name);
+    return typeof value === "string" ? value : "";
+  };
+
   const fields = {
-    name: formData.get("name") as string,
-    email: formData.get("email") as string,
-    phone: formData.get("phone") as string,
-    role: formData.get("role") as string,
-    region: formData.get("region") as string,
-    eduAdmin: formData.get("eduAdmin") as string,
-    school: formData.get("school") as string,
-    password: formData.get("password") as string,
-    passwordConfirmation: formData.get("passwordConfirmation") as string,
+    name: getField("name"),
+    email: getField("email"),
+    phone: getField("phone"),
+    role: getField("role"),
+    region: getField("region"),
+    eduAdmin: getField("eduAdmin"),
+    school: getField("school"),
+    password: getField("password"),
+    passwordConfirmation: getField("passwordConfirmation"),
   };
   const errors = validateSignup(fields);
   if (Object.keys(errors).length > 0) {
@@ -138,12 +145,6 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
     where: { email: fields.email },
   });
   if (existingUser) {
-    console.log(
-      "Found existing user with email:",
-      fields.email,
-      "User ID:",
-      existingUser.id
-    );
     return json({ error: "البريد الإلكتروني مسجل مسبقاً" }, { status: 400 });
   }
   try {
@@ -161,8 +162,7 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
         emailVerified: false,
         createdAt: new Date(),
         updatedAt: new Date(),
-        acceptenceState: "pending", // Always set to pending
-        cvKey: "1738215328438-l1sxndp1tiiyrxvc0hmgkqgl.uploaded-file",
+        acceptenceState: "pending",
       },
     });
 
@@ -184,10 +184,7 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
         emailConfig.resendApi,
         emailConfig.mainEmail
       );
-
-      console.log("✅ Registration email sent successfully to:", user.email);
     } catch (emailError) {
-      console.error("❌ Failed to send registration email:", emailError);
       // Don't fail the registration if email fails
     }
 
@@ -209,7 +206,6 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
       }
     );
   } catch (error) {
-    console.error("User creation failed:", error);
     return json(
       {
         error: "حدث خطأ أثناء التسجيل",

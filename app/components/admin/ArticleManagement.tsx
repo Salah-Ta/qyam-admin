@@ -115,7 +115,7 @@ const useArticleManagement = (onSuccess: () => void) => {
   );
   const [imagePreview, setImagePreview] = useState<string>("");
   const fetcher = useFetcher<ActionData>();
-  const successHandledRef = useRef<string | null>(null);
+  const successHandledRef = useRef<number | null>(null);
 
   const resetNewArticleForm = useCallback(() => {
     setNewArticleForm(INITIAL_ARTICLE_FORM);
@@ -189,19 +189,28 @@ const useArticleManagement = (onSuccess: () => void) => {
     closeEditDialog();
   }, [editDialog, editForm, fetcher, closeEditDialog]);
 
+  // Track submission count for deduplication
+  const submissionCountRef = useRef(0);
+
   // Reset form after successful creation (only once per submission)
   useEffect(() => {
-    const submissionKey = fetcher.key;
+    if (fetcher.state === "submitting") {
+      submissionCountRef.current += 1;
+    }
+  }, [fetcher.state]);
+
+  useEffect(() => {
+    const currentCount = submissionCountRef.current;
     if (
-      fetcher.data?.success && 
-      fetcher.state === "idle" && 
-      submissionKey !== successHandledRef.current
+      fetcher.data?.success &&
+      fetcher.state === "idle" &&
+      currentCount !== successHandledRef.current
     ) {
       resetNewArticleForm();
       onSuccess();
-      successHandledRef.current = submissionKey;
+      successHandledRef.current = currentCount;
     }
-  }, [fetcher.data?.success, fetcher.state, fetcher.key, resetNewArticleForm, onSuccess]);
+  }, [fetcher.data?.success, fetcher.state, resetNewArticleForm, onSuccess]);
 
   return {
     editDialog,
@@ -309,7 +318,7 @@ const ArticleCard = React.memo(
             variant="outline"
             size="sm"
             className="text-gray-600 text-xs px-3 py-1"
-            onClick={() => onDelete(article.id, article.title)}
+            onClick={() => article.id && onDelete(article.id, article.title)}
           >
             حذف
           </Button>

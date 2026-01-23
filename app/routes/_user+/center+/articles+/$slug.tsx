@@ -7,14 +7,14 @@ export async function loader({ params, context }: LoaderFunctionArgs) {
   const { slug } = params;
   try {
     const response = await articleDB.getArticleBySlug(
-      slug as string, 
+      slug as string,
       context.cloudflare.env.DATABASE_URL
-    );    
-  
+    ) as { status: string; data?: any };
+
     if (!response?.data) {
       throw new Response("Article not found", { status: 404 });
     }
-    
+
     return Response.json(response.data);
   } catch (error) {
     console.error("Article fetch error:", error);

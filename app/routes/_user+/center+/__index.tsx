@@ -17,7 +17,7 @@ export async function loader({ request, context }: LoaderContext) {
       { status: 401 }
     );
   }
-  else if (["denied", "idle"].includes((user as QUser).acceptenceState)) 
+  else if ((user as QUser).acceptenceState && ["denied", "idle"].includes((user as QUser).acceptenceState!))
   return redirect("/404");
 
 

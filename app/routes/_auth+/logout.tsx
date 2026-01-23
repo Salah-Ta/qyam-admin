@@ -16,8 +16,6 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
           description: "",
           title: "تم تسجيل الخروج بنجاح",
           type: "success",
-          position: "top-left"
-          
         }),
       });
     })

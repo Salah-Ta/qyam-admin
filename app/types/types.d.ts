@@ -4,7 +4,7 @@ export type Material = {
   id?: string;
   storageKey: string;
   title: string;
-  categoryId?: string;
+  categoryId?: string | null;
   published: boolean;
   createdAt?: Date;
   updatedAt?: Date;
@@ -22,7 +22,7 @@ export type Program = {
   link: string;
   title: string;
   description: string;
-  image?: string;
+  image?: string | null;
   createdAt?: Date;
   updatedAt?: Date;
 };
@@ -51,21 +51,29 @@ export type QUser = {
   image?: string | null;
   password?: string;
   role: string | null;
-  phone?: string | null;
-  regionId?: string | null; 
-  regionName?: string | null; // Nullable if not required
-  //userRegion?: Region; 
+  phone?: number | null;
+  acceptenceState?: string | null;
+  noStudents?: number;
+  trainingHours?: number;
+  cvKey?: string | null;
+  level?: string;
+  region?: string;
+  regionId?: string | null;
+  regionName?: string | null;
   eduAdminId?: string | null;
-  eduAdminName?: string | null; // Nullable if not required
-  //userEduAdmin?: EduAdmin; 
+  eduAdminName?: string | null;
   schoolId?: string | null;
-  schoolName?: string | null; // Nullable if not required
-  //userSchool?: School; 
-  reports?: Report[] | null; // Nullable if no reports
+  schoolName?: string | null;
+  reports?: Report[] | null;
   createdAt?: Date;
   updatedAt?: Date;
   sentMessages?: Message[];
   receivedMessages?: Message[];
+  emailVerified?: boolean;
+  banned?: boolean | null;
+  banReason?: string | null;
+  banExpires?: Date | null;
+  isChecked?: boolean;
 };
 
 export type StatusResponse<T> = {
@@ -74,12 +82,12 @@ export type StatusResponse<T> = {
   data?: T | T[];
 };
 
-type UserCertificate = {
+export type UserCertificate = {
   userId: string;
   certificateKey: string;
   size: number;
   contentType: string;
-  name: DialogTitleProps;
+  name: string;
   id?: string;
 };
 
@@ -141,7 +149,7 @@ export type SkillReport = {
 export type Skill = {
   id?: string;
   name: string;
-  description?: string;
+  description?: string | null;
   createdAt?: Date;
   updatedAt?: Date;
 };
@@ -288,30 +296,30 @@ export type ReportStatistics = {
 };
 
 export type DashStatistics = {
-  regionsTotal: number = 0;
-  regionsFiltered: number = 0;
-  eduAdminsTotal: number = 0;
-  eduAdminsFiltered: number = 0;
-  schoolsTotal: number = 0;
-  schoolsFiltered: number = 0;
-  reportsTotal: number = 0;
-  reportsFiltered: number = 0;
-  trainersTotal: number = 0; // Users who have schools
-  trainersFiltered: number = 0; // Users who have schools in the filtered region
-  volunteerHoursTotal: number = 0;
-  volunteerHoursFiltered: number = 0;
-  economicValueTotal: number = 0;
-  economicValueFiltered: number = 0;
-  volunteerOpportunitiesTotal: number = 0;
-  volunteerOpportunitiesFiltered: number = 0;
-  activitiesCountTotal: number = 0;
-  activitiesCountFiltered: number = 0;
-  volunteerCountTotal: number = 0;
-  volunteerCountFiltered: number = 0;
-  skillsEconomicValueTotal: number = 0;
-  skillsEconomicValueFiltered: number = 0;
-  skillsTrainedCountTotal: number = 0;
-  skillsTrainedCountFiltered: number = 0;
+  regionsTotal: number;
+  regionsFiltered: number;
+  eduAdminsTotal: number;
+  eduAdminsFiltered: number;
+  schoolsTotal: number;
+  schoolsFiltered: number;
+  reportsTotal: number;
+  reportsFiltered: number;
+  trainersTotal: number;
+  trainersFiltered: number;
+  volunteerHoursTotal: number;
+  volunteerHoursFiltered: number;
+  economicValueTotal: number;
+  economicValueFiltered: number;
+  volunteerOpportunitiesTotal: number;
+  volunteerOpportunitiesFiltered: number;
+  activitiesCountTotal: number;
+  activitiesCountFiltered: number;
+  volunteerCountTotal: number;
+  volunteerCountFiltered: number;
+  skillsEconomicValueTotal: number;
+  skillsEconomicValueFiltered: number;
+  skillsTrainedCountTotal: number;
+  skillsTrainedCountFiltered: number;
 };
 
 export type Message = {
@@ -347,3 +355,9 @@ export type UserStatistics = {
   skillsEconomicValue: number;
   skillsTrainedCount: number;
 };
+
+// Module declaration for tailwind-clip-path
+declare module 'tailwind-clip-path' {
+  const clipPath: { handler: () => void };
+  export default clipPath;
+}

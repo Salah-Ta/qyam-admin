@@ -2,6 +2,7 @@ import glossary from "~/lib/glossary";
 import { client } from "../db-client.server";
 import { StatusResponse, QUser, AcceptenceState } from "~/types/types";
 import { sendEmail } from "~/lib/send-email.server";
+import bcrypt from "bcryptjs";
 
 const initializeDatabase = (dbUrl?: string) => {
   const db = dbUrl ? client(dbUrl) : client();
@@ -19,136 +20,115 @@ const transformUser = (user: any) => {
   };
 };
 
-const editUserRegisteration = 
-(userId: string, status: AcceptenceState, 
-  dbUrl?: string, emailConfig?: {
-  resendApi: string;
-  mainEmail: string;
-  userEmail: string;
-}) => {
-
+const editUserRegisteration = async (
+  userId: string,
+  status: AcceptenceState,
+  dbUrl?: string,
+  emailConfig?: {
+    resendApi: string;
+    mainEmail: string;
+    userEmail: string;
+  }
+): Promise<StatusResponse<void>> => {
   const db = initializeDatabase(dbUrl);
-  // Check if emailConfig is provided, if not, set it to an empty object
-    emailConfig = emailConfig || {
-      resendApi: process.env.RESEND_API || "",
-      mainEmail: process.env.MAIN_EMAIL || "",
-      userEmail: "" // This will be set later if not provided
-    };
 
-    // Get the user email from the database if not provided
-    if (!emailConfig?.userEmail) {
-      db.user.findUnique({
-        where: { id: userId },
-        select: { email: true }
-      }).then(user => {
-        if (user) {
-          emailConfig = {
-            resendApi: emailConfig?.resendApi || "",
-            mainEmail: emailConfig?.mainEmail || "",
-            userEmail: user.email
-          };
-        }
-      }).catch(error => {
-        console.error("Error fetching user email:", error);
-      });
-    }
+  // Initialize emailConfig with defaults if not provided
+  const config = {
+    resendApi: emailConfig?.resendApi || process.env.RESEND_API || "",
+    mainEmail: emailConfig?.mainEmail || process.env.MAIN_EMAIL || "",
+    userEmail: emailConfig?.userEmail || "",
+  };
 
-  return new Promise((resolve, reject) => {
-    if (!db) {
-      reject({ status: "error", message: "Database connection failed." });
-      return;
-    }
-    // First fetch the user to get their details for the email
-    db.user.findUnique({
+  try {
+    // Fetch user details
+    const user = await db.user.findUnique({
       where: { id: userId },
-      select: { name: true, email: true }
-    }).then(async (user) => {
-      if (!user) {
-        throw new Error("User not found");
-      }
-      
-      // Update user email in emailConfig if not provided
-      if (!emailConfig?.userEmail) {
-        emailConfig = {
-          ...emailConfig,
-          userEmail: user.email
-        };
-      }
-      
-      // Update the user status
-      return db.user.update({
-        data: { acceptenceState: status },
-        where: { id: userId }
-      });
-    }).then(async (updatedUser) => {
-      // Get the user details for email
-      const userForEmail = await db.user.findUnique({
-        where: { id: userId },
-        select: { name: true, email: true }
-      });
-      // Send email notification based on status
-        if (status && emailConfig && userForEmail) {
-          // Console log the emailConfig & userEmail & status for debugging
-          console.log("Email Config:", emailConfig);
-          console.log("User Email:", emailConfig.userEmail);
-          console.log("Status:", status);
-          
-          // Send different emails based on status
-          if (status === "idle") {
-            // Send account deactivation email
-            await sendEmail({
-              to: emailConfig!.userEmail,
-              subject: glossary.email.suspension_message,
-              template: "program-status",
-              props: { status, name: userForEmail.name || "" },
-              text: '',
-            },
-              emailConfig!.resendApi,
-              emailConfig!.mainEmail);
-          } else {
-            // Send program status email for accepted/denied
-            await sendEmail({
-              to: emailConfig!.userEmail,
-              subject: glossary.email.program_status_subject,
-              template: "program-status",
-              props: { status, name: userForEmail.name || "" },
-              text: '',
-            },
-              emailConfig!.resendApi,
-              emailConfig!.mainEmail);
-          }
+      select: { name: true, email: true },
+    });
 
-          console.log("✅ Email sent successfully");
-        }
-    }).then(() => {
-      resolve({ status: "success", message: glossary.status_response.success[status === "accepted" ? "user_accepted" : "user_denied"] })
-    }).catch((error: any) => {
-      console.log("ERROR [editUserRegisteration]: ", error);
-      reject({ status: "error", message: glossary.status_response.error[status === "accepted" ? "user_accepted" : "user_denied"] })
-    })
-  });
-}
+    if (!user) {
+      return { status: "error", message: "User not found" };
+    }
 
-const bulkEditUserRegisteration = (userIds: string[], status: "accepted" | "denied", dbUrl?: string) => {
+    // Set userEmail if not provided
+    if (!config.userEmail) {
+      config.userEmail = user.email;
+    }
 
+    // Update the user status
+    await db.user.update({
+      data: { acceptenceState: status },
+      where: { id: userId },
+    });
+
+    // Send email notification based on status
+    if (config.resendApi && config.mainEmail && config.userEmail) {
+      const emailSubject =
+        status === "idle"
+          ? glossary.email.suspension_message
+          : glossary.email.program_status_subject;
+
+      await sendEmail(
+        {
+          to: config.userEmail,
+          subject: emailSubject,
+          template: "program-status",
+          props: { status, name: user.name || "" },
+          text: "",
+        },
+        config.resendApi,
+        config.mainEmail
+      );
+    }
+
+    return {
+      status: "success",
+      message:
+        glossary.status_response.success[
+          status === "accepted" ? "user_accepted" : "user_denied"
+        ],
+    };
+  } catch (error) {
+    return {
+      status: "error",
+      message:
+        glossary.status_response.error[
+          status === "accepted" ? "user_accepted" : "user_denied"
+        ],
+    };
+  }
+};
+
+const bulkEditUserRegisteration = async (
+  userIds: string[],
+  status: "accepted" | "denied",
+  dbUrl?: string
+): Promise<StatusResponse<void>> => {
   const db = initializeDatabase(dbUrl);
 
-  return new Promise((resolve, reject) => {
-    if (!db) {
-      reject({ status: "error", message: "Database connection failed." });
-      return;
-    }
-    db.user.updateMany({
+  try {
+    await db.user.updateMany({
       data: { acceptenceState: status },
-      where: { id: { in: userIds } }
-    }).then(() => {
-      resolve({ status: "success", message: glossary.status_response.success[status === "accepted" ? "user_accepted" : "user_denied"] })
-    }).catch((error: any) => {
-      console.log("ERROR [bulkEditUserRegisteration]: ", error);
-      reject({ status: "error", message: glossary.status_response.error[status === "accepted" ? "user_accepted" : "user_denied"] })
-    })
-  });
-}
+      where: { id: { in: userIds } },
+    });
+
+    return {
+      status: "success",
+      message:
+        glossary.status_response.success[
+          status === "accepted" ? "user_accepted" : "user_denied"
+        ],
+    };
+  } catch (error) {
+    return {
+      status: "error",
+      message:
+        glossary.status_response.error[
+          status === "accepted" ? "user_accepted" : "user_denied"
+        ],
+    };
+  }
+};
 
 const getAllUsers = (dbUrl?: string): Promise<StatusResponse<QUser[]>> => {
 
@@ -220,7 +200,6 @@ const getAllUsers = (dbUrl?: string): Promise<StatusResponse<QUser[]>> => {
         resolve({ status: "success", data: transformedUsers });
       })
       .catch((error: any) => {
-        console.log("ERROR [getAllUsers]: ", error);
         reject({
           status: "error",
           message: glossary.status_response.error.general,
@@ -284,7 +263,7 @@ Promise<StatusResponse<QUser>> => {
         resolve({ status: "success", data: transformedUser });
       })
       .catch((error: any) => {
-        console.log("ERROR [getUser]: ", error);
+        
         reject({
           status: "error",
           message: glossary.status_response.error.general,
@@ -309,7 +288,7 @@ const getUserByEmail = (email: string, dbUrl?: string): Promise<StatusResponse<Q
         }
       })
       .catch((error: any) => {
-        console.log("ERROR [getUserByEmail]: ", error);
+        
         reject({
           status: "error",
           message: glossary.status_response.error.general,
@@ -326,12 +305,13 @@ const createUser = (userData: {
   role: string,
   regionId?: string,
   eduAdminId?: string,
-  schoolId?: string
+  schoolId?: string,
+  acceptenceState?: string
 }, dbUrl?: string, emailConfig?: { resendApi: string, mainEmail: string }): Promise<StatusResponse<null>> => {
 
   const db = initializeDatabase(dbUrl);
 
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     if (!db) {
       reject({
         status: "error",
@@ -339,18 +319,70 @@ const createUser = (userData: {
       });
       return;
     }
-    db.user
-      .create({
-        data: userData
-      })
-      .then(async () => {
-        // Send email notification if email is provided
-        if (userData.email) {
-          // Check if emailConfig is provided, if not, set it to an empty object
-          emailConfig = emailConfig || {
-            resendApi: process.env.RESEND_API || "",
-            mainEmail: process.env.MAIN_EMAIL || "",
-          };
+
+    try {
+      // Check if user already exists
+      const existingUser = await db.user.findUnique({
+        where: { email: userData.email }
+      });
+
+      if (existingUser) {
+        reject({
+          status: "error",
+          message: "البريد الإلكتروني مسجل مسبقاً",
+        });
+        return;
+      }
+
+      // Generate required fields for Prisma
+      const now = new Date();
+      const userId = crypto.randomUUID();
+      const accountId = crypto.randomUUID();
+
+      // Hash the password
+      const hashedPassword = await bcrypt.hash(userData.password, 10);
+
+      // Create user and account in a transaction
+      await db.$transaction(async (tx) => {
+        // Create user
+        await tx.user.create({
+          data: {
+            id: userId,
+            name: userData.name,
+            email: userData.email,
+            emailVerified: false,
+            createdAt: now,
+            updatedAt: now,
+            role: userData.role,
+            phone: userData.phone ? parseInt(userData.phone, 10) : null,
+            regionId: userData.regionId,
+            eduAdminId: userData.eduAdminId,
+            schoolId: userData.schoolId,
+            acceptenceState: userData.acceptenceState || "accepted"
+          }
+        });
+
+        // Create account with password (for better-auth credential login)
+        await tx.account.create({
+          data: {
+            id: accountId,
+            accountId: userId,
+            providerId: "credential",
+            userId: userId,
+            password: hashedPassword,
+            createdAt: now,
+            updatedAt: now
+          }
+        });
+      });
+
+      // Send email notification if email is provided
+      if (userData.email) {
+        emailConfig = emailConfig || {
+          resendApi: process.env.RESEND_API || "",
+          mainEmail: process.env.MAIN_EMAIL || "",
+        };
+        try {
           await sendEmail({
             to: userData.email,
             subject: glossary.email.program_status_subject,
@@ -358,19 +390,21 @@ const createUser = (userData: {
             props: { name: userData.name },
             text: '',
           }, emailConfig.resendApi, emailConfig.mainEmail);
+        } catch (emailError) {
+          // Don't fail user creation if email fails
         }
-        resolve({
-          status: "success",
-          message: "تم إنشاء المستخدم بنجاح",
-        });
-      })
-      .catch((error: any) => {
-        console.log("ERROR [createUser]: ", error);
-        reject({
-          status: "error",
-          message: "فشل إنشاء المستخدم",
-        });
+      }
+
+      resolve({
+        status: "success",
+        message: "تم إنشاء المستخدم بنجاح",
       });
+    } catch (error: any) {
+      reject({
+        status: "error",
+        message: error.message || "فشل إنشاء المستخدم",
+      });
+    }
   });
 };
 
@@ -387,25 +421,74 @@ const updateUser = (id: string, userData: {
 
   const db = initializeDatabase(dbUrl);
 
-  return new Promise((resolve, reject) => {
-    db.user
-      .update({
-        where: { id },
-        data: userData
-      })
-      .then(() => {
-        resolve({
-          status: "success",
-          message: "تم تحديث المستخدم بنجاح",
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Separate password from other user data
+      const { password, ...userUpdateData } = userData;
+
+      // Convert phone from string to number for Prisma
+      const prismaData: any = { ...userUpdateData };
+      if (userUpdateData.phone !== undefined) {
+        prismaData.phone = userUpdateData.phone ? parseInt(userUpdateData.phone, 10) : null;
+      }
+
+      // Update user data
+      if (Object.keys(prismaData).length > 0) {
+        await db.user.update({
+          where: { id },
+          data: prismaData
         });
-      })
-      .catch((error: any) => {
-        console.log("ERROR [updateUser]: ", error);
-        reject({
-          status: "error",
-          message: "فشل تحديث المستخدم",
+      }
+
+      // Update password in Account table if provided
+      if (password) {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const now = new Date();
+
+        // Find the credential account for this user
+        const existingAccount = await db.account.findFirst({
+          where: {
+            userId: id,
+            providerId: "credential"
+          }
         });
+
+        if (existingAccount) {
+          // Update existing account password
+          await db.account.update({
+            where: { id: existingAccount.id },
+            data: {
+              password: hashedPassword,
+              updatedAt: now
+            }
+          });
+        } else {
+          // Create new credential account if doesn't exist
+          const accountId = crypto.randomUUID();
+          await db.account.create({
+            data: {
+              id: accountId,
+              accountId: id,
+              providerId: "credential",
+              userId: id,
+              password: hashedPassword,
+              createdAt: now,
+              updatedAt: now
+            }
+          });
+        }
+      }
+
+      resolve({
+        status: "success",
+        message: "تم تحديث المستخدم بنجاح",
       });
+    } catch (error: any) {
+      reject({
+        status: "error",
+        message: error.message || "فشل تحديث المستخدم",
+      });
+    }
   });
 };
 
@@ -434,36 +517,36 @@ const deleteUser = (id: string, dbUrl?: string): Promise<StatusResponse<null>> =
         return;
       }
 
-      console.log("Deleting user with ID:", id, "and email:", user.email);
-      console.log("User regionId:", user.regionId);
-      console.log("User eduAdminId:", user.eduAdminId);
-      console.log("User schoolId:", user.schoolId);
+      
+      
+      
+      
 
       // First, let's check if the referenced entities exist
       if (user.regionId) {
         try {
           const region = await db.region.findUnique({ where: { id: user.regionId } });
-          console.log("Region exists:", !!region);
+          
         } catch (error) {
-          console.log("Error checking region:", error);
+          
         }
       }
 
       if (user.eduAdminId) {
         try {
           const eduAdmin = await db.eduAdmin.findUnique({ where: { id: user.eduAdminId } });
-          console.log("EduAdmin exists:", !!eduAdmin);
+          
         } catch (error) {
-          console.log("Error checking eduAdmin:", error);
+          
         }
       }
 
       if (user.schoolId) {
         try {
           const school = await db.school.findUnique({ where: { id: user.schoolId } });
-          console.log("School exists:", !!school);
+          
         } catch (error) {
-          console.log("Error checking school:", error);
+          
         }
       }
 
@@ -471,53 +554,53 @@ const deleteUser = (id: string, dbUrl?: string): Promise<StatusResponse<null>> =
       await db.$transaction(async (tx) => {
         // Delete related records first to avoid foreign key constraint errors
         
-        console.log("Step 1a: Getting user reports to delete related records...");
+        
         const userReports = await tx.report.findMany({
           where: { userId: id },
           select: { id: true }
         });
         const reportIds = userReports.map(report => report.id);
-        console.log(`Found ${reportIds.length} reports to delete`);
+        
 
         if (reportIds.length > 0) {
-          console.log("Step 1b: Deleting skill reports...");
+          
           const skillReportDeleteResult = await tx.skillReport.deleteMany({
             where: { reportId: { in: reportIds } }
           });
-          console.log(`Deleted ${skillReportDeleteResult.count} skill reports`);
+          
 
-          console.log("Step 1c: Deleting testimonial reports...");
+          
           const testimonialReportDeleteResult = await tx.testimonialReport.deleteMany({
             where: { reportId: { in: reportIds } }
           });
-          console.log(`Deleted ${testimonialReportDeleteResult.count} testimonial reports`);
+          
         }
 
-        console.log("Step 1d: Deleting user reports...");
+        
         const reportDeleteResult = await tx.report.deleteMany({
           where: { userId: id }
         });
-        console.log(`Deleted ${reportDeleteResult.count} reports`);
         
-        console.log("Step 2: Deleting messages sent by user...");
+        
+        
         const sentMessagesResult = await tx.message.deleteMany({
           where: { fromUserId: id }
         });
-        console.log(`Deleted ${sentMessagesResult.count} sent messages`);
         
-        console.log("Step 3: Deleting messages received by user...");
+        
+        
         const receivedMessagesResult = await tx.message.deleteMany({
           where: { toUserId: id }
         });
-        console.log(`Deleted ${receivedMessagesResult.count} received messages`);
+        
 
-        console.log("Step 4: Deleting verification records...");
+        
         const verificationResult = await tx.verification.deleteMany({
           where: { identifier: user.email }
         });
-        console.log(`Deleted ${verificationResult.count} verification records`);
         
-        console.log("Step 5: Clearing foreign key references...");
+        
+        
         // Clear any foreign key references that might cause issues
         await tx.user.update({
           where: { id },
@@ -527,57 +610,57 @@ const deleteUser = (id: string, dbUrl?: string): Promise<StatusResponse<null>> =
             schoolId: null
           }
         });
-        console.log("Cleared foreign key references");
         
-        console.log("Step 6: Checking and deleting sessions and accounts...");
+        
+        
         // Check how many sessions and accounts exist for this user
         const sessionsCount = await tx.session.count({ where: { userId: id } });
         const accountsCount = await tx.account.count({ where: { userId: id } });
-        console.log(`Found ${sessionsCount} sessions and ${accountsCount} accounts for user`);
+        
 
         // Explicitly delete sessions and accounts (even though they should cascade)
         if (sessionsCount > 0) {
           const deletedSessions = await tx.session.deleteMany({ where: { userId: id } });
-          console.log(`Explicitly deleted ${deletedSessions.count} sessions`);
+          
         }
         
         if (accountsCount > 0) {
           const deletedAccounts = await tx.account.deleteMany({ where: { userId: id } });
-          console.log(`Explicitly deleted ${deletedAccounts.count} accounts`);
+          
         }
 
-        console.log("Step 7: Attempting to delete user account...");
+        
         try {
           // Finally delete the user (remaining cascades: certificates)
           await tx.user.delete({
             where: { id }
           });
-          console.log("User successfully deleted");
+          
         } catch (deleteError: any) {
-          console.error("Error during user deletion:", deleteError);
-          console.error("Delete error code:", deleteError.code);
-          console.error("Delete error message:", deleteError.message);
+          
+          
+          
           throw deleteError; // Re-throw to trigger transaction rollback
         }
       });
 
-      console.log("Successfully deleted user with email:", user.email);
+      
       
       // Verify deletion by trying to find the user
       try {
         const deletedUser = await db.user.findUnique({ where: { id } });
         if (deletedUser) {
-          console.error("WARNING: User still exists in database after deletion!");
+          
           reject({
             status: "error",
             message: "فشل في حذف المستخدم - لا يزال موجوداً في قاعدة البيانات",
           });
           return;
         } else {
-          console.log("✅ Confirmed: User has been completely removed from database");
+          
         }
       } catch (verifyError) {
-        console.log("✅ User verification failed as expected - user was deleted");
+        
       }
       
       resolve({
@@ -585,22 +668,22 @@ const deleteUser = (id: string, dbUrl?: string): Promise<StatusResponse<null>> =
         message: "تم حذف المستخدم بنجاح",
       });
     } catch (error: any) {
-      console.log("ERROR [deleteUser]: ", error);
-      console.log("Error code:", error.code);
-      console.log("Error message:", error.message);
+      
+      
+      
       
       // Provide more specific error messages based on the error type
       let errorMessage = "فشل حذف المستخدم";
       
       if (error.code === 'P2003') {
         errorMessage = "لا يمكن حذف المستخدم بسبب وجود بيانات مرتبطة به";
-        console.log("Foreign key constraint error - user has related data");
+        
       } else if (error.code === 'P2025') {
         errorMessage = "المستخدم غير موجود";
-        console.log("User not found error");
+        
       } else if (error.message && error.message.includes('timeout')) {
         errorMessage = "انتهت مهلة العملية. الرجاء المحاولة مرة أخرى";
-        console.log("Timeout error");
+        
       }
       
       reject({
@@ -630,7 +713,7 @@ const getUsersByRegion = (regionId: string, dbUrl?: string): Promise<StatusRespo
         resolve({ status: "success", data: res });
       })
       .catch((error: any) => {
-        console.log("ERROR [getUsersByRegion]: ", error);
+        
         reject({
           status: "error",
           message: glossary.status_response.error.general,
@@ -656,7 +739,7 @@ const getUsersByEduAdmin = (eduAdminId: string, dbUrl?: string): Promise<StatusR
         resolve({ status: "success", data: res });
       })
       .catch((error: any) => {
-        console.log("ERROR [getUsersByEduAdmin]: ", error);
+        
         reject({
           status: "error",
           message: glossary.status_response.error.general,
@@ -682,7 +765,7 @@ const getUsersBySchool = (schoolId: string, dbUrl?: string): Promise<StatusRespo
         resolve({ status: "success", data: res });
       })
       .catch((error: any) => {
-        console.log("ERROR [getUsersBySchool]: ", error);
+        
         reject({
           status: "error",
           message: glossary.status_response.error.general,
@@ -720,7 +803,7 @@ const getUserWithCertificates = (userId: string, dbUrl?: string): Promise<Status
         });
       })
       .catch((error) => {
-        console.log("ERROR [getUserWithCertificates]: ", error);
+        
         reject({
           status: "error",
           message: "فشل في الحصول على بيانات المستخدم",
@@ -761,7 +844,7 @@ const addCertificateToUser = (
         });
       })
       .catch((error) => {
-        console.log("ERROR [addCertificateToUser]: ", error);
+        
         reject({
           status: "error",
           message: "فشل إضافة الشهادة للمستخدم",

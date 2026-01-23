@@ -29,7 +29,7 @@ import {
 } from "~/components/ui/dropdown-menu";
 import { REGIONS } from "~/lib/constants";
 import { QUser } from "~/types/types";
-import { NewRegister } from "./new-design/register";
+// import { NewRegister } from "./new-design/register";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -333,9 +333,22 @@ export default function Signup() {
   };
   const location = useLocation();
 
+  // Determine "حسابي" link based on user role
+  const getAccountLink = () => {
+    const role = user?.role?.toUpperCase();
+    if (role === "ADMIN") {
+      return "/dashboard/admin/settings";
+    } else if (role === "SUPERVISOR" || role === "مشرف") {
+      return "/supervisor/allTrainers";
+    } else {
+      // Default for trainers/users
+      return "/dashboard/trainer/myachievements";
+    }
+  };
+
   const breadcrumbItems = [
     { label: "مركز المعرفة ", href: "/dashboard/infoCenter" },
-    { label: "حسابي", href: "/dashboard/admin/users" },
+    { label: "حسابي", href: getAccountLink() },
     { label: "الرئيسة", href: "/" },
   ];
 

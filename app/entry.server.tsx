@@ -26,7 +26,7 @@ export default async function handleRequest(
 
   const body = await renderToReadableStream(
     <RemixServer
-      context={remixContext}
+      context={remixContext as any}
       url={request.url}
       abortDelay={ABORT_DELAY}
     />,

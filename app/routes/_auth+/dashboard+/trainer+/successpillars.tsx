@@ -4,7 +4,8 @@ import {
   unstable_parseMultipartFormData,
 } from "@remix-run/cloudflare";
 import materialDB from "~/db/material/material.server";
-import { Link, useFetcher, useLoaderData } from "@remix-run/react";
+import userDB from "~/db/user/user.server";
+import { Link, useFetcher, useLoaderData, useRouteLoaderData } from "@remix-run/react";
 import { Material } from "~/types/types";
 import { useCallback, useState } from "react";
 import { Icon } from "~/components/icon";
@@ -31,15 +32,27 @@ import region from "../../../../assets/icons/region.svg";
 
 import profile from "../../../../assets/icons/profile.svg";
 import Group30476 from "../../../../assets/images/new-design/aboutLogo.svg";
+import { getAuthenticated } from "~/lib/get-authenticated.server";
+
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
-  return materialDB
-    .getAllMaterials(context.cloudflare.env.DATABASE_URL)
-    .then((res: any) => {
-      return Response.json(res.data);
-    })
-    .catch(() => {
-      return null;
-    });
+  const DBurl = context.cloudflare.env.DATABASE_URL;
+
+  // Get authenticated user
+  const currentUser = await getAuthenticated({ request, context });
+
+  let fullUserData = null;
+  if (currentUser?.id) {
+    try {
+      const userResult = await userDB.getUser(currentUser.id, DBurl);
+      if (userResult.status === "success") {
+        fullUserData = userResult.data;
+      }
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+    }
+  }
+
+  return Response.json({ userData: fullUserData });
 }
 
 function cn(...inputs: ClassValue[]) {
@@ -100,30 +113,36 @@ const programPillars = [
 ];
 
 const achievements = () => {
-  // User data for feedback section
-  const userData = [
+  // Get user data from loader
+  const { userData: user } = useLoaderData<{ userData: any }>();
+
+  // Build user data for display
+  const userDisplayData = [
     {
       id: 1,
-      label: "الاسم : نورة علي",
+      label: `الاسم : ${user?.name || "غير محدد"}`,
       icon: profile,
-      
     },
     {
       id: 2,
-      label: "الجوال : 123456789",
+      label: `الجوال : ${user?.phone || "غير محدد"}`,
       icon: phone,
     },
     {
       id: 3,
-      label: "الايميل : kmsalms@gmail.com",
+      label: `الايميل : ${user?.email || "غير محدد"}`,
       icon: mail,
     },
     {
       id: 4,
-      label: "المنطقة : الرياض",
+      label: `المنطقة : ${user?.regionName || user?.region || "غير محدد"}`,
       icon: region,
     },
-    { id: 5, label: "الإدارة : تعليم الزلفي", icon: null },
+    {
+      id: 5,
+      label: `الإدارة : ${user?.eduAdminName || "غير محدد"}`,
+      icon: null
+    },
   ];
 
   return (
@@ -144,7 +163,7 @@ const achievements = () => {
           </div>
 
           <CardContent className="flex flex-wrap items-start justify-start gap-[18px] p-0 max-md:flex-col max-md:w-full">
-            {userData.map((item) => (
+            {userDisplayData.map((item) => (
               <div
                 key={item.id}
                 className="inline-flex items-center justify-start gap-3 p-2.5 bg-white rounded-[8px] border border-solid border-[#d0d5dd] max-md:w-full"
@@ -166,7 +185,7 @@ const achievements = () => {
                     <div className="w-2 h-2 bg-[#199491] rounded-full"></div>
                   </Badge>
                   <div className="font-medium text-gray-900 text-base md:text-left  tracking-[0] leading-[normal] [direction:rtl]  ">
-                    المدرسة : خالد بن الوليد
+                    المدرسة : {user?.schoolName || "غير محدد"}
                   </div>
                 </div>
               </div>

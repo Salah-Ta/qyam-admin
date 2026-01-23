@@ -25,17 +25,22 @@ import { UserCertificate } from "~/types/types";
 
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
   const userId = params.id;
-  if (userId)
-    return userDB
-      .getUserWithCertificates(userId, context.cloudflare.env.DATABASE_URL)
-      .then((res: any) => {
-        return res.data;
-      })
-      .catch((error) => {
-        return error;
-      });
+  if (!userId) {
+    throw new Response("User ID is required", { status: 400 });
+  }
 
-  return null;
+  try {
+    const result = await userDB.getUserWithCertificates(
+      userId,
+      context.cloudflare.env.DATABASE_URL
+    );
+    if (result.status === "error" || !result.data) {
+      throw new Response("User not found", { status: 404 });
+    }
+    return result.data;
+  } catch (error) {
+    throw new Response("Failed to load user", { status: 500 });
+  }
 }
 
 export async function action({ request, context, params }: ActionFunctionArgs) {
@@ -55,30 +60,24 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         contentType,
       },
     })
-      .then(() => {
+      .then(async () => {
         const userId = params.id;
         if (userId) {
-          return userDB
-            .addCertificateToUser(
-              {
-                userId,
-                certificateKey: key,
-                size: file1.size,
-                contentType,
-                name: filename,
-              },
-              context.cloudflare.env.DATABASE_URL
-            )
-            .then((res) => {
-              return res;
-            })
-            .catch((err) => {
-              throw new Error("FAILED_ADD_USER_CERTS");
-            });
+          return userDB.addCertificateToUser(
+            {
+              userId,
+              certificateKey: key,
+              size: file1.size,
+              contentType,
+              name: filename,
+            },
+            context.cloudflare.env.DATABASE_URL
+          );
         }
+        throw new Error("User ID is required");
       })
       .catch((err) => {
-        return null; // This hides the actual error
+        throw new Error(`Upload failed: ${err instanceof Error ? err.message : "Unknown error"}`);
       });
   };
 
@@ -103,7 +102,6 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         }
       );
     } catch (error) {
-      console.error("Upload failed:", error);
       return Response.json(
         { success: false },
         {
@@ -117,11 +115,15 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
     }
   } else {
     const formData = await request.formData();
-    if (formData.get("level")) {
+    const userId = formData.get("id") as string;
+    const level = formData.get("level") as string | null;
+
+    if (level) {
+      // Update user level using updateUser
       return userDB
-        .updateUserLevel(
-          formData.get("id") as string,
-          formData.get("level") as any,
+        .updateUser(
+          userId,
+          { role: level },
           context.cloudflare.env.DATABASE_URL
         )
         .then(async () => {
@@ -149,16 +151,19 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
           );
         });
     } else {
-      return userDB
-        .updateTrainingInfo(
-          {
-            trainingHours: Number(formData.get("trainingHours")),
-            noStudents: Number(formData.get("noStudents")),
-            id: formData.get("id"),
-          },
-          context.cloudflare.env.DATABASE_URL
-        )
-        .then(async (res) => {
+      // Update training info using updateUser - note: Prisma expects numbers, not strings for these fields
+      // Since Prisma schema has trainingHours and noStudents as Int, we pass them directly
+      const trainingHours = Number(formData.get("trainingHours"));
+      const noStudents = Number(formData.get("noStudents"));
+
+      // Use raw Prisma query since updateUser doesn't support these fields yet
+      const db = (await import("~/db/db-client.server")).client(context.cloudflare.env.DATABASE_URL);
+      return db.user
+        .update({
+          where: { id: userId },
+          data: { trainingHours, noStudents }
+        })
+        .then(async () => {
           return Response.json(
             { success: true },
             {
@@ -170,7 +175,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
             }
           );
         })
-        .catch(async (error) => {
+        .catch(async () => {
           return Response.json(
             { success: false },
             {
@@ -233,14 +238,6 @@ const User = () => {
   };
 
   const onDrop = useCallback((acceptedFiles: any[]) => {
-    // Do something with the files
-    acceptedFiles.forEach((file) => {
-      const reader = new FileReader();
-      reader.onabort = () => console.log("file reading was aborted");
-      reader.onerror = () => console.log("file reading has failed");
-      reader.onload = () => {};
-      reader.readAsArrayBuffer(file);
-    });
     setSelectedFiles((prev) => [...prev, ...acceptedFiles]);
   }, []);
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop });
