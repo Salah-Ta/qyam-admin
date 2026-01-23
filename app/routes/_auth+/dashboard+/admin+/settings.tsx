@@ -1338,50 +1338,9 @@ export const ManageData = (): JSX.Element => {
                   <input type="hidden" name="entityType" value="region" />
                   <input type="hidden" name="entityId" value={region.id} />
 
-                  {/* Include all new eduAdmins for this region */}
-                  {newEduAdmins[region.id] && newEduAdmins[region.id].map((eduAdminName, index) => (
-                    eduAdminName.trim() && (
-                      <input
-                        key={index}
-                        type="hidden"
-                        name="newEduAdmins"
-                        value={JSON.stringify({ name: eduAdminName.trim(), regionId: region.id })}
-                      />
-                    )
-                  ))}
-
-                  {/* Include all new schools for existing eduAdmins in this region */}
-                  {getEduAdminsForRegion(region.id).map((eduAdmin) => (
-                    newSchools[eduAdmin.id] && newSchools[eduAdmin.id].map((schoolName, index) => (
-                      schoolName.trim() && (
-                        <input
-                          key={`${eduAdmin.id}-${index}`}
-                          type="hidden"
-                          name="newSchools"
-                          value={JSON.stringify({ name: schoolName.trim(), eduAdminId: eduAdmin.id })}
-                        />
-                      )
-                    ))
-                  ))}
-
-                  {/* Include all new schools for new eduAdmins in this region */}
-                  {newEduAdmins[region.id] && newEduAdmins[region.id].map((eduAdminName, eduAdminIndex) => (
-                    newSchools[`new-eduadmin-${region.id}-${eduAdminIndex}`] && 
-                    newSchools[`new-eduadmin-${region.id}-${eduAdminIndex}`].map((schoolName, schoolIndex) => (
-                      schoolName.trim() && (
-                        <input
-                          key={`new-${region.id}-${eduAdminIndex}-${schoolIndex}`}
-                          type="hidden"
-                          name="newSchoolsForNewEduAdmins"
-                          value={JSON.stringify({ 
-                            name: schoolName.trim(), 
-                            newEduAdminIndex: eduAdminIndex,
-                            regionId: region.id 
-                          })}
-                        />
-                      )
-                    ))
-                  ))}
+                  {/* Hidden inputs for newEduAdmins, newSchools, and newSchoolsForNewEduAdmins
+                      are injected dynamically by injectRegionHierarchyData() when save is clicked.
+                      This prevents duplicate submissions. */}
 
                   <div className="flex items-center justify-between mb-6">
                     <button
