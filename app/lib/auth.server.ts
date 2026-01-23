@@ -64,13 +64,13 @@ export const getAuth = (context: AppLoadContext) => {
             const [saltHex, hashHex] = hash.split(':');
             if (!saltHex || !hashHex) return false;
 
-            const salt = hexToBytes(saltHex);
             const expectedHash = hexToBytes(hashHex);
 
-            // Use same scrypt params as better-auth default
-            const derivedKey = scrypt(password, salt, { N: 16384, r: 8, p: 1, dkLen: 64 });
+            // Use same scrypt params as better-auth default (N:16384, r:16, p:1)
+            // IMPORTANT: better-auth normalizes password with NFKC and passes salt as hex string
+            const derivedKey = scrypt(password.normalize('NFKC'), saltHex, { N: 16384, r: 16, p: 1, dkLen: 64 });
 
-            // Compare hashes
+            // Constant-time comparison
             if (derivedKey.length !== expectedHash.length) return false;
             let result = 0;
             for (let i = 0; i < derivedKey.length; i++) {
