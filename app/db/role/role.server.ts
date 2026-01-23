@@ -67,17 +67,12 @@ const getUsersByRole = (role: string, dbUrl: string): Promise<StatusResponse<QUs
     db.user
       .findMany({
         where: { role: normalizedRole },
-        include: {
-          userRegion: true,
-          userEduAdmin: true,
-          userSchool: true
-        },
         orderBy: {
           name: 'asc'
         }
       })
       .then((res) => {
-        resolve({ status: "success", data: res });
+        resolve({ status: "success", data: res as unknown as QUser[] });
       })
       .catch((error: any) => {
         console.log("ERROR [getUsersByRole]: ", error);

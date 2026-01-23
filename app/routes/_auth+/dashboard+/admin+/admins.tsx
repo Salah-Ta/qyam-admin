@@ -362,7 +362,7 @@ export const Admins = (): JSX.Element => {
   );
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
 
-  const [checkedRows, setCheckedRows] = useState([]);
+  const [checkedRows, setCheckedRows] = useState<string[]>([]);
 
   const [search, setSearch] = useState("");
   const [acceptanceStateFilter, setAcceptanceStateFilter] = useState<
@@ -677,8 +677,8 @@ const statusTranslation = {
                         </TableCell>
                         <TableCell className="">
                           <Checkbox
-                            checked={checkedRows.includes(row.id)}
-                            onCheckedChange={() => handleCheckboxChange(row.id)}
+                            checked={row.id ? checkedRows.includes(row.id) : false}
+                            onCheckedChange={() => row.id && handleCheckboxChange(row.id)}
                             className={
                               row.isChecked
                                 ? "w-4 h-4 bg-[#0969da] rounded-[3px]"

@@ -13,59 +13,8 @@ interface OriginalColumnTestimonialsProps {
 }
 
 const OriginalColumnTestimonials: React.FC<OriginalColumnTestimonialsProps> = ({ testimonials }) => {
-  // Sample testimonial data if none exist
-  const sampleTestimonials = [
-    {
-      id: '1',
-      name: 'حنان الحربي',
-      comment: 'تعلمت من خلال العمل التطوعي كيف أشتغل ضمن فريق، وأقدر أنظم وقتي بين الدراسة والنشاط التطوعي بدون ضغط',
-      rating: 5,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    },
-    {
-      id: '2',
-      name: 'فاطمة أحمد',
-      comment: 'كانت تجربة رائعة ومفيدة جداً، تعلمت مهارات جديدة وطورت قدراتي بشكل كبير',
-      rating: 5,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    },
-    {
-      id: '3',
-      name: 'نورا محمد',
-      comment: 'البرنامج ممتاز والمدربات محترفات، أنصح كل فتاة بالمشاركة في هذا البرنامج',
-      rating: 5,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    },
-    {
-      id: '4',
-      name: 'سارة علي',
-      comment: 'تجربة مميزة ساعدتني في اكتشاف مواهبي وتطوير مهاراتي المهنية',
-      rating: 5,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    },
-    {
-      id: '5',
-      name: 'مريم خالد',
-      comment: 'شكراً لكم على هذا البرنامج الرائع، استفدت كثيراً وحققت أهدافي',
-      rating: 5,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    },
-    {
-      id: '6',
-      name: 'عائشة سالم',
-      comment: 'برنامج متميز بكل ما تحمله الكلمة من معنى، ننتظر المزيد من البرامج المفيدة',
-      rating: 5,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    }
-  ];
-
-  const displayTestimonials = testimonials?.length > 0 ? [...sampleTestimonials, ...testimonials] : sampleTestimonials;
+  // Use only real testimonials from database
+  const displayTestimonials = testimonials || [];
 
   // Create three columns for distribution
   const createColumns = () => {

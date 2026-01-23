@@ -39,13 +39,13 @@ export const sendEmail = async (
   let emailComponent = "";
   switch (template) {
     case "user-registration":
-      emailComponent = registerTemplate(props);
+      emailComponent = registerTemplate(props as { name: string });
       break;
     case "program-status":
-      emailComponent = statusTemplate(props);
+      emailComponent = statusTemplate(props as { status: string; name: string });
       break;
     case "password-reset":
-      emailComponent = resetTemplate(props.resetUrl);
+      emailComponent = resetTemplate(props.resetUrl as string);
       break;
 
     default:
@@ -71,26 +71,34 @@ export const sendBatchEmail = async (
   { to, subject, template, props = {}, text }: SendEmailProps,
   apiKey: string,
   sourceEmail: string
-) => {
+): Promise<void> => {
+  // Validate that 'to' is an array
+  if (!Array.isArray(to) || to.length === 0) {
+    throw new Error("Batch email requires a non-empty array of recipients");
+  }
+
   let emailComponent = "";
   switch (template) {
     case "program-status":
-      emailComponent = statusTemplate;
+      emailComponent = statusTemplate(props as { status: string; name: string });
       break;
     case "password-reset":
-      emailComponent = resetTemplate(props.resetUrl);
+      emailComponent = resetTemplate(props.resetUrl as string);
       break;
-
     default:
       throw new Error(`Unknown email template: ${template}`);
   }
 
-  getResendObject(apiKey).batch.send(
-    to.map((target: string) => ({
-      from: sourceEmail,
-      to: target,
-      subject,
-      html: emailComponent,
-    }))
-  );
+  try {
+    await getResendObject(apiKey).batch.send(
+      to.map((target: string) => ({
+        from: sourceEmail,
+        to: target,
+        subject,
+        html: emailComponent,
+      }))
+    );
+  } catch (error) {
+    throw new Error(`Failed to send batch email: ${error instanceof Error ? error.message : "Unknown error"}`);
+  }
 };

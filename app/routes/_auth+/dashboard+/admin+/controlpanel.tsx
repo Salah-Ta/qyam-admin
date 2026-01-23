@@ -23,9 +23,20 @@ interface Category {
   id: string;
 }
 
+// When data passes through JSON serialization, Dates become strings
+type SerializedMaterial = Omit<Material, 'createdAt' | 'updatedAt'> & {
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+type SerializedArticle = Omit<Article, 'createdAt' | 'updatedAt'> & {
+  createdAt?: string;
+  updatedAt?: string;
+};
+
 interface LoaderData {
-  materials: Material[];
-  articles: Article[];
+  materials: SerializedMaterial[];
+  articles: SerializedArticle[];
 }
 
 interface ActionData {
@@ -90,12 +101,12 @@ const useControlPanelData = () => {
   const revalidator = useRevalidator();
 
   const materials = useMemo(
-    () => (Array.isArray(loaderData?.materials) ? loaderData.materials : []),
+    () => (Array.isArray(loaderData?.materials) ? loaderData.materials : []) as any as Material[],
     [loaderData?.materials]
   );
 
   const articles = useMemo(
-    () => (Array.isArray(loaderData?.articles) ? loaderData.articles : []),
+    () => (Array.isArray(loaderData?.articles) ? loaderData.articles : []) as any as Article[],
     [loaderData?.articles]
   );
 

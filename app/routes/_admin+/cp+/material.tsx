@@ -10,14 +10,14 @@ import { createId } from "@paralleldrive/cuid2";
 import { useDropzone } from "react-dropzone";
 import { sanitizeArabicFilenames } from "~/utils/santize-arabic.filenames";
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
-  return materialDB
-    .getAllMaterials(context.cloudflare.env.DATABASE_URL)
-    .then((res: any) => {
-      return Response.json(res.data);
-    })
-    .catch(() => {
-      return null
-    });
+  try {
+    const result = await materialDB.getAllMaterials(
+      context.cloudflare.env.DATABASE_URL
+    );
+    return Response.json(result.data || []);
+  } catch (error) {
+    return Response.json([]);
+  }
 }
 
 
@@ -40,27 +40,20 @@ export async function action({ request, context }: ActionFunctionArgs) {
       },
     })
       .then(() => {
-         return materialDB
-            .createMaterial(
-              {
-                title: filename,
-                storageKey: key,
-                categoryId: "1",
-                published: true
-              },
-              context.cloudflare.env.DATABASE_URL
-            )
-            .then((res) => {
-              
-              return res
-            })
-            .catch((err) => {
-              throw new Error("FAILED_ADD_USER_CERTS");
-            });
-          }
-        )
+        return materialDB.createMaterial(
+          {
+            title: filename,
+            storageKey: key,
+            categoryId: "1",
+            published: true,
+          },
+          context.cloudflare.env.DATABASE_URL
+        );
+      })
       .catch((err) => {
-        return null
+        throw new Error(
+          `Upload failed: ${err instanceof Error ? err.message : "Unknown error"}`
+        );
       });
   };
   const contentType = request.headers.get("Content-Type") || "";
@@ -84,7 +77,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
         }
       );
     } catch (error) {
-      console.error("Upload failed:", error);
       return Response.json(
         { success: false },
         {
@@ -152,14 +144,6 @@ const Materials = () => {
 
 
   const onDrop = useCallback((acceptedFiles: any[]) => {
-    // Do something with the files
-    acceptedFiles.forEach((file) => {
-      const reader = new FileReader();
-      reader.onabort = () => console.log("file reading was aborted");
-      reader.onerror = () => console.log("file reading has failed");
-      reader.onload = () => {};
-      reader.readAsArrayBuffer(file);
-    });
     setSelectedFiles((prev) => [...prev, ...acceptedFiles]);
   }, []);
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop, accept:{'application/pdf':['.pdf']} });

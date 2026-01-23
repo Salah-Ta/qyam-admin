@@ -14,6 +14,11 @@ import {
   UserIcon,
 } from "lucide-react";
 import { twMerge } from "tailwind-merge";
+import { useLoaderData } from "@remix-run/react";
+import { LoaderFunctionArgs } from "@remix-run/cloudflare";
+import userDB from "~/db/user/user.server";
+import { QUser } from "~/types/types";
+import { getAuthenticated } from "~/lib/get-authenticated.server";
 
 // Utility function
 const cn = (...inputs: ClassValue[]) => {
@@ -299,65 +304,167 @@ const TableCell = React.forwardRef<
 ));
 TableCell.displayName = "TableCell";
 
-// Data for the metrics cards
-const metricsData = [
-  {
+// Loader for Remix - fetch real users data
+export async function loader({ request, context }: LoaderFunctionArgs) {
+  const DBurl = context.cloudflare.env.DATABASE_URL;
+
+  try {
+    // Check authentication and get supervisor's region
+    const user = await getAuthenticated({ request, context }) as any;
+    if (!user) {
+      return Response.json([]);
+    }
+
+    // Get supervisor's regionId
+    let supervisorRegionId: string | null = null;
+    if (user?.role?.toUpperCase() === "SUPERVISOR" || user?.role === "مشرف") {
+      try {
+        const fullUserResult = await userDB.getUser(user.id, DBurl) as any;
+        if (fullUserResult?.status === "success" && fullUserResult.data) {
+          const fullUser = Array.isArray(fullUserResult.data) ? fullUserResult.data[0] : fullUserResult.data;
+          supervisorRegionId = fullUser?.regionId || null;
+        }
+      } catch (error) {
+        console.error("Error fetching supervisor region:", error);
+      }
+    }
+
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Database operation timeout')), 15000)
+    );
+
+    const dataPromise = userDB.getAllUsers(DBurl);
+    const res = await Promise.race([dataPromise, timeoutPromise]);
+    let users = (res as any).data || [];
+
+    // Filter users by supervisor's region (if supervisor has a region assigned)
+    if (supervisorRegionId) {
+      users = users.filter((u: any) => u.regionId === supervisorRegionId);
+    }
+
+    return Response.json(users);
+  } catch (error) {
+    console.error("Loader error:", error);
+    return Response.json([]);
+  }
+}
+
+// Data for the metrics cards - will be calculated from real data
+const metricsDataTemplate = {
+  students: {
     id: 1,
     title: "عدد المتدربات",
-    value: "5000",
+    value: "0",
     icon: <UserIcon className="h-5 w-5" />,
   },
-  {
+  supervisors: {
     id: 2,
     title: "عدد المشرفين",
-    value: "4",
+    value: "0",
     icon: <UserIcon className="h-5 w-5" />,
   },
-  {
+  teachers: {
     id: 3,
     title: "عدد المدربين",
-    value: "200",
+    value: "0",
     icon: <UserIcon className="h-5 w-5" />,
   },
-];
+};
 
 export const Users = (): JSX.Element => {
+  // Get real data from loader
+  const users = useLoaderData<QUser[]>() || [];
+
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // Data for table rows
-  const allTableData = Array(100)
-    .fill(null)
-    .map((_, index) => ({
-      name: `محمد منصور ${index + 1}`,
-      mobile: "96655186620",
-      email: `Hasf${index + 1}@gmail.com`,
-      account: "مشرف",
-      region: "الرياض",
-      department: "الزلفي",
-      school: "خالد بن الوليد",
-      status: "مقبول",
-      isChecked: index === 0,
-    }));
+  // Search and filter state
+  const [search, setSearch] = useState("");
+  const [acceptanceStateFilter, setAcceptanceStateFilter] = useState<string | null>(null);
 
-  const totalPages = Math.ceil(allTableData.length / itemsPerPage);
+  // Calculate metrics from real data
+  const trainers = users.filter((user) => user.role === "user");
+  const supervisors = users.filter((user) => user.role && ["مشرف", "supervisor", "SUPERVISOR"].includes(user.role));
+  const totalStudents = trainers.reduce((acc, user) => acc + (user.noStudents || 0), 0);
+
+  const metricsData = [
+    { ...metricsDataTemplate.students, value: totalStudents.toString() },
+    { ...metricsDataTemplate.supervisors, value: supervisors.length.toString() },
+    { ...metricsDataTemplate.teachers, value: trainers.length.toString() },
+  ];
+
+  // Filter data based on search and acceptance state
+  const filteredData = users.filter((row) => {
+    const matchesSearch =
+      !search ||
+      row.name?.toLowerCase().includes(search.toLowerCase()) ||
+      row.phone?.toString().includes(search) ||
+      row.email?.toLowerCase().includes(search.toLowerCase());
+
+    // Map acceptance state filter to actual values
+    const acceptanceMap: { [key: string]: string } = {
+      "مقبول": "accepted",
+      "مرفوض": "denied",
+      "غير نشط": "pending",
+    };
+    const filterValue = acceptanceStateFilter ? acceptanceMap[acceptanceStateFilter] : null;
+    const matchesAcceptance = !filterValue || row.acceptenceState === filterValue;
+
+    return matchesSearch && matchesAcceptance;
+  });
+
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
 
   // Get current page data
   const getCurrentPageData = () => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
-    return allTableData.slice(startIndex, endIndex);
+    return filteredData.slice(startIndex, endIndex);
   };
 
-  // Action badges data
+  // Action badges data with values for filtering
   const actionBadges = [
-    { label: "مقبول", color: "#1a7f37", borderColor: "#1a7f37" },
-    { label: "مرفوض", color: "#bc4c00", borderColor: "#bc4c00" },
-    { label: "غير نشط", color: "#9a6700", borderColor: "#bf8700" },
+    { label: "مقبول", color: "#1a7f37", borderColor: "#1a7f37", value: "accepted" },
+    { label: "مرفوض", color: "#bc4c00", borderColor: "#bc4c00", value: "denied" },
+    { label: "غير نشط", color: "#9a6700", borderColor: "#bf8700", value: "pending" },
   ];
 
-  // SearchIcon tags data
-  const searchTags = Array(3).fill({ label: 'label' });
+  // Badge click handler
+  const handleBadgeClick = (label: string) => {
+    setAcceptanceStateFilter((prev) => (prev === label ? null : label));
+    setCurrentPage(1); // Reset to first page when filter changes
+  };
+
+  // Badge styles
+  const selectedBadgeStyle = {
+    background: "#22c55e",
+    color: "#fff",
+    border: "1px solid #22c55e",
+    cursor: "pointer",
+  };
+  const unselectedBadgeStyle = {
+    background: "#fff",
+    color: "#22c55e",
+    border: "1px solid #22c55e",
+    cursor: "pointer",
+  };
+
+  // Status translations
+  const statusTranslation: { [key: string]: string } = {
+    accepted: "مقبول",
+    denied: "مرفوض",
+    pending: "غير نشط",
+  };
+
+  // Role translations
+  const roleTranslation: { [key: string]: string } = {
+    user: "مدربة",
+    supervisor: "مشرف",
+    SUPERVISOR: "مشرف",
+    مشرف: "مشرف",
+    teacher: "مدربة",
+    admin: "مدير",
+  };
 
   return (
     <div className="w-full max-w-[1216px] mx-auto py-6">
@@ -428,25 +535,56 @@ export const Users = (): JSX.Element => {
                 <div className="w-full max-w-[544px]">
                   <div className="flex flex-col w-full gap-1.5">
                     <div className="flex items-center gap-2 px-3.5 py-2.5 bg-white rounded-lg border border-solid border-[#cfd4dc] shadow-shadow-xs">
-                      <div className="flex items-center  gap-2 flex-1">
-                        <SearchIcon className="w-5 h-5 text-[#475467] " />
-                        <span className="text-gray-500 text-base  ">
-                        بحث 
-                        </span>
+                      <div className="flex items-center gap-2 flex-1">
+                        <SearchIcon className="w-5 h-5 text-[#475467]" />
+                        <input
+                          type="text"
+                          placeholder="بحث بالاسم أو الجوال أو البريد..."
+                          value={search}
+                          onChange={(e) => {
+                            setSearch(e.target.value);
+                            setCurrentPage(1); // Reset to first page on search
+                          }}
+                          className="flex-1 bg-transparent border-none outline-none text-gray-700 text-sm placeholder:text-gray-400"
+                          style={{ direction: 'rtl' }}
+                        />
                       </div>
 
                       <div className="flex gap-2">
                         {actionBadges.map((tag, index) => (
                           <Badge
                             key={index}
-                            variant="outline"
-                            className="px-2.5 py-[3px] rounded-lg border border-solid border-[#e5e7ea] font-body-small-bold text-[#475467]"
+                            style={
+                              acceptanceStateFilter === tag.label
+                                ? selectedBadgeStyle
+                                : unselectedBadgeStyle
+                            }
+                            className="px-2.5 py-[3px] rounded-lg font-body-small-bold cursor-pointer hover:opacity-80 transition-opacity"
+                            onClick={() => handleBadgeClick(tag.label)}
                           >
                             {tag.label}
                           </Badge>
                         ))}
                       </div>
                     </div>
+                    {/* Show active filters */}
+                    {(search || acceptanceStateFilter) && (
+                      <div className="flex items-center gap-2 text-xs text-gray-500 [direction:rtl]">
+                        <span>نتائج البحث: {filteredData.length} من {users.length}</span>
+                        {(search || acceptanceStateFilter) && (
+                          <button
+                            onClick={() => {
+                              setSearch("");
+                              setAcceptanceStateFilter(null);
+                              setCurrentPage(1);
+                            }}
+                            className="text-red-500 hover:text-red-700 underline"
+                          >
+                            مسح الفلاتر
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -498,68 +636,60 @@ export const Users = (): JSX.Element => {
                   <TableBody>
                     {getCurrentPageData().map((row, index) => (
                       <TableRow
-                        key={index}
-                        className="border-b border-[#e4e7ec] "
+                        key={row.id || index}
+                        className="border-b border-[#e4e7ec]"
                       >
-                
                         <TableCell className="py-1 px-2 mt-4">
-                          <div className="flex items-center gap-3.5">
-                            {actionBadges.map((badge, badgeIndex) => (
-                              <Badge
-                                key={badgeIndex}
-                                className={`px-2.5 py-[3px] rounded-[100px] border border-solid bg-transparent`}
-                                style={{ borderColor: badge.borderColor }}
-                              >
-                                <span
-                                  className=" font-bold text-xs [direction:rtl]"
-                                  style={{ color: badge.color }}
-                                >
-                                  {badge.label}
-                                </span>
-                              </Badge>
-                            ))}
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-xs px-2 py-1 text-[#12b669] border-[#12b669] hover:bg-[#12b669] hover:text-white"
+                            >
+                              عرض
+                            </Button>
                           </div>
                         </TableCell>
                         <TableCell className="py-1 px-2 text-right">
                           <Badge className="px-2.5 py-[3px] rounded-[100px] border border-solid border-[#1a7f37] bg-transparent">
-                            <span className=" font-bold text-[#1a7f37] text-xs [direction:rtl]">
-                              {row.status}
+                            <span className="font-bold text-[#1a7f37] text-xs [direction:rtl]">
+                              {statusTranslation[row.acceptenceState as string] || row.acceptenceState || "-"}
                             </span>
                           </Badge>
                         </TableCell>
                         <TableCell className="py-1 px-2 text-right">
-                          <span className=" font-medium text-[#027163] text-base [direction:rtl]">
-                            {row.school}
+                          <span className="font-medium text-[#027163] text-base [direction:rtl]">
+                            {row.schoolName || row.schoolId || "-"}
                           </span>
                         </TableCell>
                         <TableCell className="py-1 px-2 text-right">
-                          <span className=" font-medium text-[#027163] text-base [direction:rtl]">
-                            {row.department}
+                          <span className="font-medium text-[#027163] text-base [direction:rtl]">
+                            {row.eduAdminName || row.eduAdminId || "-"}
                           </span>
                         </TableCell>
                         <TableCell className="py-1 px-2 text-right">
-                          <span className=" font-medium text-[#027163] text-base [direction:rtl]">
-                            {row.region}
+                          <span className="font-medium text-[#027163] text-base [direction:rtl]">
+                            {row.regionName || row.region || "-"}
                           </span>
                         </TableCell>
                         <TableCell className="py-1 px-2 text-right">
-                          <span className=" font-medium text-[#027163] text-base [direction:rtl]">
-                            {row.account}
-                          </span>
-                        </TableCell>
-                        <TableCell className="py-1 px-2 text-right">
-                          <span className="font-medium text-[#027163] text-base">
-                            {row.email}
+                          <span className="font-medium text-[#027163] text-base [direction:rtl]">
+                            {roleTranslation[row.role as string] || row.role || "-"}
                           </span>
                         </TableCell>
                         <TableCell className="py-1 px-2 text-right">
                           <span className="font-medium text-[#027163] text-base">
-                            {row.mobile}
+                            {row.email || "-"}
                           </span>
                         </TableCell>
                         <TableCell className="py-1 px-2 text-right">
-                          <span className=" font-medium text-[#027163] text-base [direction:rtl]">
-                            {row.name}
+                          <span className="font-medium text-[#027163] text-base">
+                            {row.phone || "-"}
+                          </span>
+                        </TableCell>
+                        <TableCell className="py-1 px-2 text-right">
+                          <span className="font-medium text-[#027163] text-base [direction:rtl]">
+                            {row.name || "-"}
                           </span>
                         </TableCell>
                         <TableCell className="py-1 px-2">

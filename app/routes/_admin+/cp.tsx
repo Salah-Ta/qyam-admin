@@ -13,7 +13,7 @@ import ProfileImage from "~/assets/images/profile.png";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
   const user = await getAuthenticated({ request, context });
-  if (user && (user as QUser).role === "admin") return Response.json(user);
+  if (user && (user as unknown as QUser).role === "ADMIN") return Response.json(user);
   return redirect("/");
 }
 

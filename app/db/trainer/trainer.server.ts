@@ -29,21 +29,16 @@ const getAllTrainers = (dbUrl: string, currentUser: QUser | null): Promise<Statu
   return new Promise((resolve, reject) => {
     db.user
       .findMany({
-        where: { 
+        where: {
           role: "USER",
-          acceptenceState: "accepted" 
-        },
-        include: {
-          userRegion: true,
-          userEduAdmin: true,
-          userSchool: true
+          acceptenceState: "accepted"
         },
         orderBy: {
           name: 'asc'
         }
       })
       .then((res) => {
-        resolve({ status: "success", data: res });
+        resolve({ status: "success", data: res as unknown as QUser[] });
       })
       .catch((error: any) => {
         console.log("ERROR [getAllTrainers]: ", error);
@@ -63,18 +58,13 @@ const getTrainerById = (trainerId: string, dbUrl: string): Promise<StatusRespons
   return new Promise((resolve, reject) => {
     db.user
       .findFirstOrThrow({
-        where: { 
+        where: {
           id: trainerId,
-          role: "USER" 
-        },
-        include: {
-          userRegion: true,
-          userEduAdmin: true,
-          userSchool: true
+          role: "USER"
         }
       })
       .then((res) => {
-        resolve({ status: "success", data: res });
+        resolve({ status: "success", data: res as unknown as QUser });
       })
       .catch((error: any) => {
         console.log("ERROR [getTrainerById]: ", error);
@@ -94,21 +84,16 @@ const getTrainersBySchool = (schoolId: string, dbUrl: string): Promise<StatusRes
   return new Promise((resolve, reject) => {
     db.user
       .findMany({
-        where: { 
+        where: {
           schoolId,
-          role: "USER" 
-        },
-        include: {
-          userRegion: true,
-          userEduAdmin: true,
-          userSchool: true
+          role: "USER"
         },
         orderBy: {
           name: 'asc'
         }
       })
       .then((res) => {
-        resolve({ status: "success", data: res });
+        resolve({ status: "success", data: res as unknown as QUser[] });
       })
       .catch((error: any) => {
         console.log("ERROR [getTrainersBySchool]: ", error);
@@ -124,7 +109,7 @@ const getTrainersBySchool = (schoolId: string, dbUrl: string): Promise<StatusRes
  * Update trainer's profile information
  */
 const updateTrainerProfile = (
-  trainerId: string, 
+  trainerId: string,
   profileData: {
     name?: string,
     email?: string,
@@ -136,14 +121,21 @@ const updateTrainerProfile = (
   dbUrl: string
 ): Promise<StatusResponse<null>> => {
   const db = client(dbUrl);
+
+  // Convert phone from string to number for Prisma
+  const prismaData: any = { ...profileData };
+  if (profileData.phone !== undefined) {
+    prismaData.phone = profileData.phone ? parseInt(profileData.phone, 10) : null;
+  }
+
   return new Promise((resolve, reject) => {
     db.user
       .update({
-        where: { 
+        where: {
           id: trainerId,
           role: "USER"
         },
-        data: profileData
+        data: prismaData
       })
       .then(() => {
         resolve({

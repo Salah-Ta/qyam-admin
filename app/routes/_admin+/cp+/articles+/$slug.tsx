@@ -1,19 +1,20 @@
 import { LoaderFunctionArgs } from "@remix-run/cloudflare";
 import { useLoaderData } from "@remix-run/react";
 import articleDB from "~/db/articles/articles.server";
+import type { Article as ArticleType } from "~/types/types";
 
 export async function loader({ params, context }: LoaderFunctionArgs) {
   const { slug } = params;
   try {
     const response = await articleDB.getArticleBySlug(
-      slug as string, 
+      slug as string,
       context.cloudflare.env.DATABASE_URL
-    );
-    
+    ) as { data?: ArticleType };
+
     if (!response?.data) {
       throw new Response("Article not found", { status: 404 });
     }
-    
+
     return Response.json(response.data);
   } catch (error) {
     console.error("Article fetch error:", error);
@@ -22,7 +23,7 @@ export async function loader({ params, context }: LoaderFunctionArgs) {
 }
 
 export default function Article() {
-  const article = useLoaderData<Article>();
+  const article = useLoaderData<ArticleType>();
 
   return (
     <div className="max-w-4xl mx-auto py-8 px-4">

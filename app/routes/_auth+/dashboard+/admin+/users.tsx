@@ -10,10 +10,13 @@ import {
   MoreHorizontalIcon,
   SearchIcon,
   UserIcon,
+  LockIcon,
+  PlusIcon,
 } from "lucide-react";
 import { twMerge } from "tailwind-merge";
-import { LoaderFunctionArgs } from "@remix-run/cloudflare";
+import { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/cloudflare";
 import userDB from "~/db/user/user.server";
+import regionDB from "~/db/region/region.server";
 import {
   useLoaderData,
   useRouteLoaderData,
@@ -21,6 +24,14 @@ import {
 } from "@remix-run/react";
 import { QUser } from "~/types/types";
 import { Link } from "@remix-run/react";
+import { Input } from "~/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui/select";
 
 // Utility function
 const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
@@ -420,17 +431,22 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
       setTimeout(() => reject(new Error("Database operation timeout")), 15000)
     );
 
-    const dataPromise = userDB.getAllUsers(DBurl);
+    const [usersRes, regionsRes] = await Promise.all([
+      Promise.race([userDB.getAllUsers(DBurl), timeoutPromise]),
+      Promise.race([regionDB.getAllRegions(DBurl), timeoutPromise]),
+    ]);
 
-    const res = await Promise.race([dataPromise, timeoutPromise]);
-    return Response.json((res as any).data);
+    return Response.json({
+      users: (usersRes as any).data || [],
+      regions: (regionsRes as any).data || [],
+    });
   } catch (error) {
     console.error("Loader error:", error);
-    return Response.json([]);
+    return Response.json({ users: [], regions: [] });
   }
 }
 
-export async function action({ request, context }: any) {
+export async function action({ request, context }: ActionFunctionArgs) {
   const formData = await request.formData();
   const actionType = formData.get("actionType");
   const userId = formData.get("id");
@@ -439,6 +455,83 @@ export async function action({ request, context }: any) {
   const DBurl = context.cloudflare.env.DATABASE_URL;
 
   try {
+    // Handle create user
+    if (actionType === "createUser") {
+      const name = formData.get("name") as string;
+      const email = formData.get("email") as string;
+      const password = formData.get("password") as string;
+      const phone = formData.get("phone") as string;
+      const role = formData.get("role") as string;
+      const regionId = formData.get("regionId") as string;
+
+      if (!name || !email || !password) {
+        return new Response(
+          JSON.stringify({ success: false, message: "يرجى ملء جميع الحقول المطلوبة" }),
+          { status: 400 }
+        );
+      }
+
+      if (password.length < 8) {
+        return new Response(
+          JSON.stringify({ success: false, message: "كلمة المرور يجب أن تكون 8 أحرف على الأقل" }),
+          { status: 400 }
+        );
+      }
+
+      await userDB.createUser(
+        {
+          name,
+          email,
+          password,
+          phone: phone || undefined,
+          role: role || "user",
+          regionId: regionId || undefined,
+          acceptenceState: "accepted",
+        },
+        DBurl,
+        {
+          resendApi: context.cloudflare.env.RESEND_API,
+          mainEmail: context.cloudflare.env.MAIN_EMAIL,
+        }
+      );
+
+      return new Response(
+        JSON.stringify({ success: true, message: "تم إنشاء المستخدم بنجاح" }),
+        { status: 200 }
+      );
+    }
+
+    // Handle reset password
+    if (actionType === "resetPassword") {
+      const targetUserId = formData.get("userId") as string;
+      const newPassword = formData.get("newPassword") as string;
+
+      if (!targetUserId || !newPassword) {
+        return new Response(
+          JSON.stringify({ success: false, message: "يرجى إدخال كلمة المرور الجديدة" }),
+          { status: 400 }
+        );
+      }
+
+      if (newPassword.length < 8) {
+        return new Response(
+          JSON.stringify({ success: false, message: "كلمة المرور يجب أن تكون 8 أحرف على الأقل" }),
+          { status: 400 }
+        );
+      }
+
+      await userDB.updateUser(
+        targetUserId,
+        { password: newPassword },
+        DBurl
+      );
+
+      return new Response(
+        JSON.stringify({ success: true, message: "تم إعادة تعيين كلمة المرور بنجاح" }),
+        { status: 200 }
+      );
+    }
+
     if (actionType === "delete") {
       if (!userId) {
         return new Response(
@@ -446,7 +539,7 @@ export async function action({ request, context }: any) {
           { status: 400 }
         );
       }
-      await userDB.deleteUser(userId, DBurl);
+      await userDB.deleteUser(userId as string, DBurl);
       return new Response(
         JSON.stringify({ success: true, message: "تم حذف المستخدم بنجاح" }),
         { status: 200 }
@@ -458,17 +551,17 @@ export async function action({ request, context }: any) {
           { status: 400 }
         );
       }
-      const status = formData.get("status");
-      const email = formData.get("email");
-      
+      const status = formData.get("status") as string;
+      const email = formData.get("email") as string;
+
       // Email configuration for sending deactivation emails
       const emailConfig = {
         resendApi: context.cloudflare.env.RESEND_API || "",
         mainEmail: context.cloudflare.env.MAIN_EMAIL || "",
         userEmail: email || ""
       };
-      
-      await userDB.editUserRegisteration(userId, status, DBurl, emailConfig);
+
+      await userDB.editUserRegisteration(userId as string, status as any, DBurl, emailConfig);
       return new Response(
         JSON.stringify({
           success: true,
@@ -535,9 +628,24 @@ export const Users = (): React.JSX.Element => {
   // State and data
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
-  const rawUsers = useLoaderData<QUser[]>();
-  const users = Array.isArray(rawUsers) ? rawUsers : [];
-  console.log("Users data:", users);
+  const loaderData = useLoaderData<{ users: QUser[]; regions: any[] }>();
+  const users = Array.isArray(loaderData?.users) ? loaderData.users : (Array.isArray(loaderData) ? loaderData : []);
+  const regions = loaderData?.regions || [];
+
+  // Create User Dialog state
+  const [isCreateUserDialogOpen, setIsCreateUserDialogOpen] = useState(false);
+  const [createUserForm, setCreateUserForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+    phone: "",
+    role: "user",
+    regionId: "",
+  });
+
+  // Reset Password Dialog state
+  const [resetPasswordUser, setResetPasswordUser] = useState<QUser | null>(null);
+  const [newPassword, setNewPassword] = useState("");
 
   // Metrics calculation
   metricsData.students.value = users
@@ -684,7 +792,7 @@ export const Users = (): React.JSX.Element => {
   const currentUserRole = rootData?.user?.role || "supervisor"; // <-- Replace with real logic
 
   // Action handlers for admin actions (accept, deny, disable/reactivate, delete)
-  const fetcher = useFetcher();
+  const fetcher = useFetcher<{ success: boolean; message?: string }>();
 
   const handleAdminAction = (
     action: "accepted" | "denied" | "idle",
@@ -825,6 +933,54 @@ export const Users = (): React.JSX.Element => {
     });
   };
 
+  // Create User handler
+  const handleCreateUser = () => {
+    fetcher.submit(
+      {
+        actionType: "createUser",
+        name: createUserForm.name,
+        email: createUserForm.email,
+        password: createUserForm.password,
+        phone: createUserForm.phone,
+        role: createUserForm.role,
+        regionId: createUserForm.regionId,
+      },
+      { method: "POST" }
+    );
+    setIsCreateUserDialogOpen(false);
+    setCreateUserForm({
+      name: "",
+      email: "",
+      password: "",
+      phone: "",
+      role: "user",
+      regionId: "",
+    });
+  };
+
+  // Reset Password handler
+  const handleResetPassword = () => {
+    if (resetPasswordUser?.id) {
+      fetcher.submit(
+        {
+          actionType: "resetPassword",
+          userId: resetPasswordUser.id,
+          newPassword: newPassword,
+        },
+        { method: "POST" }
+      );
+      setResetPasswordUser(null);
+      setNewPassword("");
+    }
+  };
+
+  // Open Reset Password dialog
+  const handleResetPasswordClick = (user: QUser, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setResetPasswordUser(user);
+  };
+
   return (
     <div className="w-full mx-auto py-6">
       {/* Confirmation Modal */}
@@ -943,6 +1099,15 @@ export const Users = (): React.JSX.Element => {
               {/* Top controls */}
               <div className="flex flex-col md:flex-row justify-between items-center mb-6 [direction:rtl] gap-4">
                 <div className="flex flex-col sm:flex-row items-center gap-4 ml-4 [direction:rtl] w-full md:w-auto">
+                  {currentUserRole === "admin" && (
+                    <Button
+                      onClick={() => setIsCreateUserDialogOpen(true)}
+                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm flex items-center gap-2"
+                    >
+                      <PlusIcon className="w-4 h-4" />
+                      إضافة مستخدم
+                    </Button>
+                  )}
                   <div className="text-gray-700 text-sm font-bold whitespace-nowrap">
                     تم تحديد : {selectedRows}
                   </div>
@@ -1137,6 +1302,13 @@ export const Users = (): React.JSX.Element => {
                                     تعطيل
                                   </button>
                                   <button
+                                    onClick={(e) => handleResetPasswordClick(row, e)}
+                                    className="button p-2 rounded-lg text-blue-600 border border-blue-600 flex gap-1 hover:opacity-80 hover:bg-blue-600/10 transition-all"
+                                    title="إعادة تعيين كلمة المرور"
+                                  >
+                                    <LockIcon className="w-5 h-5" />
+                                  </button>
+                                  <button
                                     onClick={(e) => handleDeleteUser(row, e)}
                                     className="button p-2 rounded-lg text-red-600 border border-red-600 flex gap-1 hover:opacity-80 hover:bg-red-600/10 transition-all"
                                   >
@@ -1323,6 +1495,164 @@ export const Users = (): React.JSX.Element => {
           </section>
         </div>
       </Card>
+
+      {/* Create User Dialog */}
+      {isCreateUserDialogOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={() => setIsCreateUserDialogOpen(false)}
+        >
+          <div
+            className="bg-white rounded-lg p-6 max-w-md w-full mx-4 [direction:rtl]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">إضافة مستخدم جديد</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">الاسم *</label>
+                <Input
+                  value={createUserForm.name}
+                  onChange={(e) => setCreateUserForm({ ...createUserForm, name: e.target.value })}
+                  placeholder="أدخل الاسم الكامل"
+                  className="text-right"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">البريد الإلكتروني *</label>
+                <Input
+                  type="email"
+                  value={createUserForm.email}
+                  onChange={(e) => setCreateUserForm({ ...createUserForm, email: e.target.value })}
+                  placeholder="example@email.com"
+                  dir="ltr"
+                  className="text-left"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">كلمة المرور *</label>
+                <Input
+                  type="password"
+                  value={createUserForm.password}
+                  onChange={(e) => setCreateUserForm({ ...createUserForm, password: e.target.value })}
+                  placeholder="8 أحرف على الأقل"
+                  dir="ltr"
+                />
+                {createUserForm.password && createUserForm.password.length < 8 && (
+                  <p className="text-red-500 text-sm mt-1">كلمة المرور يجب أن تكون 8 أحرف على الأقل</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">رقم الجوال</label>
+                <Input
+                  value={createUserForm.phone}
+                  onChange={(e) => setCreateUserForm({ ...createUserForm, phone: e.target.value })}
+                  placeholder="05xxxxxxxx"
+                  dir="ltr"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">الدور</label>
+                <Select
+                  value={createUserForm.role}
+                  onValueChange={(value) => setCreateUserForm({ ...createUserForm, role: value })}
+                >
+                  <SelectTrigger className="text-right">
+                    <SelectValue placeholder="اختر الدور" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="user">مدرب</SelectItem>
+                    <SelectItem value="supervisor">مشرف</SelectItem>
+                    <SelectItem value="admin">مدير</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">المنطقة</label>
+                <Select
+                  value={createUserForm.regionId}
+                  onValueChange={(value) => setCreateUserForm({ ...createUserForm, regionId: value })}
+                >
+                  <SelectTrigger className="text-right">
+                    <SelectValue placeholder="اختر المنطقة" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {regions.map((region: any) => (
+                      <SelectItem key={region.id} value={region.id}>
+                        {region.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end mt-6">
+              <Button
+                variant="outline"
+                onClick={() => setIsCreateUserDialogOpen(false)}
+                className="px-4 py-2"
+              >
+                إلغاء
+              </Button>
+              <Button
+                onClick={handleCreateUser}
+                disabled={!createUserForm.name || !createUserForm.email || !createUserForm.password || createUserForm.password.length < 8}
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white"
+              >
+                إضافة
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reset Password Dialog */}
+      {resetPasswordUser && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={() => { setResetPasswordUser(null); setNewPassword(""); }}
+        >
+          <div
+            className="bg-white rounded-lg p-6 max-w-md w-full mx-4 [direction:rtl]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">إعادة تعيين كلمة المرور</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              إعادة تعيين كلمة المرور للمستخدم: <strong>{resetPasswordUser?.name}</strong>
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">كلمة المرور الجديدة *</label>
+                <Input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="8 أحرف على الأقل"
+                  dir="ltr"
+                />
+                {newPassword && newPassword.length < 8 && (
+                  <p className="text-red-500 text-sm mt-1">كلمة المرور يجب أن تكون 8 أحرف على الأقل</p>
+                )}
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end mt-6">
+              <Button
+                variant="outline"
+                onClick={() => { setResetPasswordUser(null); setNewPassword(""); }}
+                className="px-4 py-2"
+              >
+                إلغاء
+              </Button>
+              <Button
+                onClick={handleResetPassword}
+                disabled={!newPassword || newPassword.length < 8}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                تعيين كلمة المرور
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -18,6 +18,7 @@ import { useNavigate, useNavigation, useLoaderData, useRouteLoaderData, useLocat
 import { LoaderFunctionArgs } from "@remix-run/cloudflare";
 import userDB from "~/db/user/user.server";
 import { QUser } from "~/types/types";
+import { getAuthenticated } from "~/lib/get-authenticated.server";
 import squareArrow from "../../../assets/icons/square-arrow-right.svg";
 // Utility function
 const cn = (...inputs: ClassValue[]) => {
@@ -308,17 +309,44 @@ const metricsData = {
 // Loader for Remix
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
   const DBurl = context.cloudflare.env.DATABASE_URL;
-  
+
   try {
+    // Check authentication and get supervisor's region
+    const user = await getAuthenticated({ request, context }) as any;
+    if (!user) {
+      return Response.json([]);
+    }
+
+    // Get supervisor's regionId
+    let supervisorRegionId: string | null = null;
+    if (user?.role?.toUpperCase() === "SUPERVISOR" || user?.role === "مشرف") {
+      try {
+        const fullUserResult = await userDB.getUser(user.id, DBurl) as any;
+        if (fullUserResult?.status === "success" && fullUserResult.data) {
+          const fullUser = Array.isArray(fullUserResult.data) ? fullUserResult.data[0] : fullUserResult.data;
+          supervisorRegionId = fullUser?.regionId || null;
+        }
+      } catch (error) {
+        console.error("Error fetching supervisor region:", error);
+      }
+    }
+
     // Add timeout to prevent worker from hanging
-    const timeoutPromise = new Promise((_, reject) => 
+    const timeoutPromise = new Promise((_, reject) =>
       setTimeout(() => reject(new Error('Database operation timeout')), 15000)
     );
-    
+
     const dataPromise = userDB.getAllUsers(DBurl);
-    
+
     const res = await Promise.race([dataPromise, timeoutPromise]);
-    return Response.json((res as any).data);
+    let users = (res as any).data || [];
+
+    // Filter users by supervisor's region (if supervisor has a region assigned)
+    if (supervisorRegionId) {
+      users = users.filter((u: any) => u.regionId === supervisorRegionId);
+    }
+
+    return Response.json(users);
   } catch (error) {
     console.error("Loader error:", error);
     return Response.json([]);
@@ -352,7 +380,7 @@ export const AllTrainers = (): JSX.Element => {
     .toString();
   metricsData.teachers.value = trainers.length.toString();
   metricsData.supervisors.value = users
-    .filter((user) => ["مشرف", "supervisor", "SUPERVISOR"].includes(user.role))
+    .filter((user) => user.role && ["مشرف", "supervisor", "SUPERVISOR"].includes(user.role))
     .length.toString();
 
   // Filtering
@@ -644,7 +672,7 @@ export const AllTrainers = (): JSX.Element => {
                         <TableRow
                           key={index}
                           className="border-b border-[#e4e7ec] cursor-pointer hover:bg-gray-50 transition-colors"
-                          onClick={() => window.location.href = `/supervisor/skills/${row.id}`}
+                          onClick={() => navigate(`/supervisor/supervisorStatics/${row.id}`)}
                         >
                           <TableCell className="py-1 px-2 mt-4">
                             <div className="flex justify-center gap-3.5" onClick={(e) => e.stopPropagation()}>

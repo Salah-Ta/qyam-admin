@@ -80,20 +80,11 @@ export async function action({
             return undefined;
           }
 
-          // Category 4 (بنك الفرص التطوعية) allows Word files for editing
-          const isWordFile = fileType.includes("msword") || fileType.includes("wordprocessingml");
-          const isPdfFile = fileType.includes("pdf");
-
-          if (categoryId === "4") {
-            // Allow both PDF and Word files for volunteer opportunities
-            if (!isPdfFile && !isWordFile) {
-              throw new Error("نوع الملف غير مدعوم - يُسمح فقط بملفات PDF و Word");
-            }
-          } else {
-            // Other categories only allow PDF
-            if (!isPdfFile) {
-              throw new Error("نوع الملف غير مدعوم - يُسمح فقط بملفات PDF");
-            }
+          // Accept PDF and Word files
+          const isPdf = fileType.includes("pdf");
+          const isWord = fileType.includes("msword") || fileType.includes("wordprocessingml");
+          if (!isPdf && !isWord) {
+            throw new Error("نوع الملف غير مدعوم - يرجى رفع ملفات PDF أو Word فقط");
           }
 
           const extension = filename.split(".").pop();

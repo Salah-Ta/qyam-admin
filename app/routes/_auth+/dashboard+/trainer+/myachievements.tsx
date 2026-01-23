@@ -110,23 +110,43 @@ if (typeof window !== 'undefined') {
 
 // Add loader function to get the current user data and statistics
 export async function loader({ request, context }: LoaderFunctionArgs) {
-  // Get current authenticated user
+  // Get current authenticated user (session user)
   const currentUser = await getAuthenticated({ request, context });
-  
+
   if (!currentUser) {
     throw new Response("User not authenticated", { status: 401 });
   }
-  
+
+  // Use the authenticated user's ID
+  const userIdToFetch = currentUser.id;
+
   try {
     // Import database functions with safe fallback
     const statisticsDB = (await import("~/db/statistics/statistics.server")).default;
     const messageDB = (await import("~/db/message/message.server")).default;
-    
+    const userDB = (await import("~/db/user/user.server")).default;
+
     // Get user data with timeout protection
-    const timeoutPromise = new Promise((_, reject) => 
+    const timeoutPromise = new Promise((_, reject) =>
       setTimeout(() => reject(new Error('Database operation timeout')), 10000)
     );
-    
+
+    // Get full user data from database (includes noStudents and other custom fields)
+    let fullUserData: QUser | null = null;
+    try {
+      const userResult = await Promise.race([
+        userDB.getUser(userIdToFetch, context?.cloudflare?.env?.DATABASE_URL),
+        timeoutPromise
+      ]) as any;
+
+      if (userResult?.status === "success" && userResult.data) {
+        fullUserData = Array.isArray(userResult.data) ? userResult.data[0] : userResult.data;
+      }
+    } catch (error) {
+      console.error("Error fetching full user data:", error);
+      // Fall back to session user
+    }
+
     // Get user statistics using the new getUserStatisticsById function
     let finalStatistics: UserStatistics = {
       reportsCount: 0,
@@ -138,18 +158,18 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
       skillsEconomicValue: 0,
       skillsTrainedCount: 0
     };
-    
+
     // Get last received message
     let lastReceivedMessage: Message | null = null;
-    
+
     try {
       // Get user statistics from the statistics service
-      console.log('Fetching user statistics for userId:', currentUser.id);
-      const statsPromise = statisticsDB.getUserStatisticsById(currentUser.id, context?.cloudflare?.env?.DATABASE_URL);
+      console.log('Fetching user statistics for userId:', userIdToFetch);
+      const statsPromise = statisticsDB.getUserStatisticsById(userIdToFetch, context?.cloudflare?.env?.DATABASE_URL);
       const statsResult = await Promise.race([statsPromise, timeoutPromise]) as UserStatistics;
-      
+
       console.log('User stats result:', statsResult);
-      
+
       if (statsResult) {
         finalStatistics = statsResult;
       }
@@ -157,15 +177,15 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
       console.error("Error fetching user statistics:", error);
       // Continue with default statistics
     }
-    
+
     try {
-      // Get incoming messages for the user
+      // Get incoming messages for the user (keep using currentUser.id for messages)
       console.log('Fetching incoming messages for userId:', currentUser.id);
       const messagesPromise = messageDB.getIncomingMessages(currentUser.id, context?.cloudflare?.env?.DATABASE_URL);
       const messagesResult = await Promise.race([messagesPromise, timeoutPromise]) as any;
-      
+
       console.log('Messages result:', messagesResult);
-      
+
       if (messagesResult?.status === "success" && messagesResult.data && messagesResult.data.length > 0) {
         // Get the most recent message (first one since they're ordered by sentAt desc)
         lastReceivedMessage = messagesResult.data[0];
@@ -174,16 +194,35 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
       console.error("Error fetching incoming messages:", error);
       // Continue with no message
     }
-    
+
+    // Get regional statistics for the regions chart
+    let regionalStats: Array<{
+      id: string;
+      name: string;
+      volunteerCount: number;
+      volunteerHours: number;
+      trainersCount: number;
+    }> = [];
+    try {
+      console.log('Fetching regional statistics');
+      const regionalPromise = statisticsDB.getRegionalBreakdown(context?.cloudflare?.env?.DATABASE_URL);
+      regionalStats = await Promise.race([regionalPromise, timeoutPromise]) as any;
+      console.log('Regional stats result:', regionalStats);
+    } catch (error) {
+      console.error("Error fetching regional statistics:", error);
+      // Continue with empty regional stats
+    }
+
     return Response.json({
-      user: currentUser,
+      user: fullUserData || currentUser, // Use full user data if available, otherwise session user
       statistics: finalStatistics,
       lastMessage: lastReceivedMessage,
+      regionalStats,
       reports: [] // We don't need individual reports anymore since we have aggregated stats
     });
   } catch (error) {
     console.error("Error loading my achievements data:", error);
-    
+
     // Return a safe fallback instead of throwing
     return Response.json({
       user: currentUser,
@@ -198,6 +237,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         skillsTrainedCount: 0
       },
       lastMessage: null,
+      regionalStats: [],
       reports: [],
       error: "Failed to load achievements data"
     }, { status: 200 }); // Return 200 with error info instead of 500
@@ -310,10 +350,12 @@ export const MyAchievements = (): JSX.Element => {
   };
   const reports = Array.isArray(loaderData?.reports) ? loaderData.reports : [];
   const lastMessage = loaderData?.lastMessage as Message | null;
+  const regionalStats = Array.isArray(loaderData?.regionalStats) ? loaderData.regionalStats : [];
   
   // Debug logging to verify getUserStatisticsById integration
   console.log('MyAchievements - Loaded data:', {
     userName: userData?.name,
+    noStudents: userData?.noStudents, // DEBUG: Check if noStudents is loaded
     hasStatistics: !!statistics,
     statisticsData: statistics,
     hasLastMessage: !!lastMessage,
@@ -376,6 +418,10 @@ export const MyAchievements = (): JSX.Element => {
   );
 
   // Data for metric cards using real statistics from getUserStatisticsById
+  // DEBUG: Log statistics right before metricCards
+  console.log('DEBUG metricCards - statistics object:', statistics);
+  console.log('DEBUG metricCards - volunteerCount value:', statistics?.volunteerCount);
+
   const metricCards = [
     {
       label: "مهارة",
@@ -435,28 +481,51 @@ export const MyAchievements = (): JSX.Element => {
     },
   ];
 
-  // Data for the regions chart - enhanced with real user data
-  const userRegionValue = statistics ? Math.min(100, Math.max(10, 
-    (statistics.activitiesCount || 0) * 8 + 
-    (statistics.volunteerHours || 0) / 20 + 
-    (statistics.reportsCount || 0) * 5 +
-    (statistics.skillsTrainedCount || 0) * 3
-  )) : 40;
-  
-  const regions = [
-    { 
-      name: userData?.regionName || "المنطقة الحالية", 
-      value: userRegionValue,
-      isUserRegion: true
-    },
-    { name: "الرياض", value: 45, isUserRegion: false },
-    { name: "جدة", value: 53, isUserRegion: false },
-    { name: "الدمام", value: 25, isUserRegion: false },
-    { name: "المدينة", value: 54, isUserRegion: false },
-    { name: "مكة", value: 43, isUserRegion: false },
-    { name: "القصيم", value: 12, isUserRegion: false },
-    { name: "الشرقية", value: 50, isUserRegion: false },
-  ];
+  // Type for region data in chart
+  interface RegionChartData {
+    name: string;
+    value: number;
+    isUserRegion: boolean;
+    volunteerCount: number;
+    trainersCount: number;
+    volunteerHours: number;
+  }
+
+  // Data for the regions chart - using real regional statistics
+  // Find the max volunteer count to normalize values to 0-100 scale
+  const maxVolunteerCount = Math.max(
+    ...regionalStats.map((r: { volunteerCount?: number }) => r.volunteerCount || 0),
+    1 // Prevent division by zero
+  );
+
+  // Build regions array from real data
+  const regions: RegionChartData[] = regionalStats.map((region: { id: string; name: string; volunteerCount?: number; trainersCount?: number; volunteerHours?: number }) => {
+    // Calculate percentage based on volunteer count relative to max
+    const normalizedValue = Math.max(5, Math.min(100,
+      ((region.volunteerCount || 0) / maxVolunteerCount) * 100
+    ));
+
+    // Check if this is the user's region
+    const isUserRegion = userData?.regionId === region.id ||
+                         userData?.regionName === region.name;
+
+    return {
+      name: region.name,
+      value: Math.round(normalizedValue),
+      isUserRegion,
+      // Include raw data for tooltip/display if needed
+      volunteerCount: region.volunteerCount || 0,
+      trainersCount: region.trainersCount || 0,
+      volunteerHours: region.volunteerHours || 0
+    };
+  });
+
+  // Sort regions so user's region appears first
+  regions.sort((a: RegionChartData, b: RegionChartData) => {
+    if (a.isUserRegion && !b.isUserRegion) return -1;
+    if (!a.isUserRegion && b.isUserRegion) return 1;
+    return b.value - a.value; // Sort rest by value descending
+  });
 
   const createDoughnutData = (value: any, color: string) => ({
     datasets: [
@@ -753,7 +822,7 @@ export const MyAchievements = (): JSX.Element => {
                       <div className="flex flex-col items-start gap-2 relative self-stretch w-full flex-[0_0_auto]">
                         <div className="flex items-end gap-4 relative self-stretch w-full flex-[0_0_auto]">
                           <div className="relative flex-1 mt-[-1.00px] font-bold text-[#181d27] text-5xl tracking-[0] leading-[38px] [direction:rtl]">
-                            {userData?.noStudents || 0}
+                            {statistics?.volunteerCount || 0}
                           </div>
                           {/* Show data freshness indicator */}
                           {statistics && statistics.reportsCount > 0 && (
@@ -777,7 +846,7 @@ export const MyAchievements = (): JSX.Element => {
                       >
                         <Doughnut
                           data={createCircleChartData(
-                            statistics ? Math.min(100, Math.max(5, (userData?.noStudents || 0) * 2)) : 25
+                            statistics ? Math.min(100, Math.max(5, (statistics?.volunteerCount || 0) * 2)) : 25
                           )}
                           options={circleChartOptions}
                         />

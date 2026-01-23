@@ -1,17 +1,33 @@
 {
-  "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "permissions": {
     "allow": [
-      "Bash(npx prisma:*)",
-      "Bash(npm run typecheck:*)",
-      "Bash(npx tsc:*)",
-      "Bash(grep:*)",
-      "Bash(sed:*)",
-      "Bash(rm:*)",
+      "Bash(npx wrangler pages deployment tail:*)",
+      "Bash(npx wrangler:*)",
+      "WebFetch(domain:ed4f437c.qyam-cus.pages.dev)",
+      "Bash(npx dotenv -e .dev.vars -- npx prisma studio)",
+      "Bash(set:*)",
+      "Bash(npx prisma studio:*)",
+      "Bash(echo:*)",
+      "Bash(npm run deploy:*)",
+      "WebFetch(domain:55d2a2c.qyam-cus.pages.dev)",
+      "WebFetch(domain:55d2a2fc.qyam-cus.pages.dev)",
+      "WebFetch(domain:c3d2c216.qyam-cus.pages.dev)",
+      "Bash(git checkout:*)",
       "Bash(npm run build:*)",
-      "Bash(cat:*)",
-      "Bash(git checkout:*)"
-    ],
-    "deny": []
+      "WebFetch(domain:qyam-cus.pages.dev)",
+      "WebFetch(domain:yaneah.com)",
+      "Bash(find:*)",
+      "Bash(findstr:*)",
+      "WebFetch(domain:6f96e231.qyam-cus.pages.dev)",
+      "Bash(powershell -Command:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(npx tsc:*)",
+      "Bash(npx remix vite:build)",
+      "Bash(copy \"مشاكل موقع يانعة \\(1\\).docx\" temp_doc.docx)",
+      "Bash(powershell:*)",
+      "Bash(ls -la \"C:\\\\Users\\\\aminj\\\\OneDrive\\\\Documents\\\\GitHub\\\\qyam-admin\\\\temp_docx\\\\word\\\\media\"\" 2>/dev/null || dir \"C:UsersaminjOneDriveDocumentsGitHubqyam-admintemp_docxwordmedia \")",
+      "Bash(copy:*)",
+      "Bash(cmd /c copy \"c:\\\\Users\\\\aminj\\\\OneDrive\\\\Documents\\\\GitHub\\\\qyam-admin\\\\updated certificate.pdf\" \"c:\\\\Users\\\\aminj\\\\OneDrive\\\\Documents\\\\GitHub\\\\qyam-admin\\\\app\\\\assets\\\\certificate-template.pdf\")"
+    ]
   }
 }

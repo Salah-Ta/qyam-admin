@@ -62,15 +62,15 @@ export async function loader({
   );
 
   // Fetch incoming messages for the current user
-  let latestMessage = null;
+  let allMessages: any[] = [];
   try {
     const messagesResult = await messageDB.getIncomingMessages(
       currentUser.id,
       context.cloudflare.env.DATABASE_URL
     );
-    
+
     if (messagesResult.status === "success" && messagesResult.data && messagesResult.data.length > 0) {
-      latestMessage = messagesResult.data[0]; // Get the latest message
+      allMessages = messagesResult.data; // Get all messages
     }
   } catch (error) {
     console.error("Error fetching messages:", error);
@@ -82,7 +82,8 @@ export async function loader({
     DBurl,
     reports: reports.data,
     skills: skills.data,
-    latestMessage,
+    allMessages,
+    latestMessage: allMessages.length > 0 ? allMessages[0] : null, // Keep for backward compatibility
   });
 }
 
@@ -154,13 +155,17 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
 export const TrainerProfile = () => {
   const { user } = useRouteLoaderData<any>("root");
-  const { materials, DBurl, reports, skills, latestMessage } = useLoaderData<any>();
+  const { materials, DBurl, reports, skills, latestMessage, allMessages = [] } = useLoaderData<any>();
   const actionData = useActionData<any>();
   const navigation = useNavigation();
+
+  // State for showing all messages
+  const [showAllMessages, setShowAllMessages] = useState(false);
 
   console.log(user, materials, reports);
   console.log("All Skills:", skills);
   console.log("Latest Message:", latestMessage);
+  console.log("All Messages:", allMessages);
 
   // Show toast if present
 
@@ -383,15 +388,27 @@ export const TrainerProfile = () => {
     const now = new Date();
     const messageDate = new Date(date);
     const diffInMinutes = Math.floor((now.getTime() - messageDate.getTime()) / (1000 * 60));
-    
+
     if (diffInMinutes < 1) return "الآن";
     if (diffInMinutes < 60) return `منذ ${diffInMinutes} دقيقة`;
-    
+
     const diffInHours = Math.floor(diffInMinutes / 60);
     if (diffInHours < 24) return `منذ ${diffInHours} ساعة`;
-    
+
     const diffInDays = Math.floor(diffInHours / 24);
     return `منذ ${diffInDays} يوم`;
+  };
+
+  // Helper function to format full date
+  const formatFullDate = (date: Date | string) => {
+    const messageDate = new Date(date);
+    return messageDate.toLocaleDateString('ar-SA', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   // Message data for navigation section - now dynamic
@@ -691,64 +708,94 @@ export const TrainerProfile = () => {
         onSubmit={handleSendReport}
         className="flex flex-col w-full max-w-full overflow-hidden"
       >
-      {/* Navigation Section - Only show if there's a message */}
-      {latestMessage && (
+      {/* Messages Section - Show all messages with expand/collapse */}
+      {allMessages && allMessages.length > 0 && (
         <div className="w-full rounded-xl mb-4 [direction:rtl]">
           <Card className="relative w-full border-[1px] border-[#004E5C] shadow-shadows-shadow-xs rounded-xl p-4 flex flex-col gap-4 [direction:rtl]">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute top-5 right-5 h-9 w-9 p-2 bg-neutral-50 rounded-lg"
-            >
-              <XIcon className="h-5 w-5" />
-            </Button>
-            <CardContent className="p-0 flex flex-col gap-3">
-              <div className="flex items-start gap-3 w-full">
-                <div className="relative w-10 h-10">
-                  <Avatar className="w-10 h-10 border-[0.75px] border-solid border-[#00000014]">
-                    <AvatarImage src={messageData.avatarUrl} alt="User avatar" />
-                    <AvatarFallback>MS</AvatarFallback>
-                  </Avatar>
-                  <img
-                    className="absolute w-3.5 h-3.5 bottom-0 right-0"
-                    alt="Verified tick"
-                    src={messageData.verifiedIconUrl}
-                  />
-                </div>
-                
-                {/* Mark as seen button */}
-                {latestMessage && !messageData.isRead && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 p-1 bg-blue-50 hover:bg-blue-100 rounded-full"
-                    onClick={() => handleMarkAsRead(messageData.id)}
-                    title="تحديد كمقروءة"
-                  >
-                    <CheckIcon className="h-4 w-4 text-blue-600" />
-                  </Button>
-                )}
+            {/* Header with message count and toggle */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-sm text-[#181d27]">
+                  الرسائل الواردة
+                </span>
+                <span className="text-xs bg-[#004E5C] text-white px-2 py-0.5 rounded-full">
+                  {allMessages.length}
+                </span>
               </div>
-              
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-2">
-                  <span className={`font-bold text-sm ${!messageData.isRead ? 'text-[#181d27]' : 'text-[#717680]'}`}>
-                    {messageData.author}
-                  </span>
-                  <span className="text-sm text-[#717680] ">
-                    {messageData.timeAgo}
-                  </span>
-                  {/* Unread indicator */}
-                  {latestMessage && !messageData.isRead && (
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                  )}
+              {allMessages.length > 1 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-[#004E5C] hover:bg-[#004E5C]/10"
+                  onClick={() => setShowAllMessages(!showAllMessages)}
+                >
+                  {showAllMessages ? "إخفاء الرسائل القديمة" : `عرض جميع الرسائل (${allMessages.length})`}
+                </Button>
+              )}
+            </div>
+
+            {/* Messages list */}
+            <div className="flex flex-col gap-3">
+              {(showAllMessages ? allMessages : [allMessages[0]]).map((message: any, index: number) => (
+                <div
+                  key={message.id}
+                  className={`p-3 rounded-lg ${index === 0 && !showAllMessages ? '' : 'bg-gray-50'} ${!message.isRead ? 'border-r-4 border-r-blue-500' : ''}`}
+                >
+                  <CardContent className="p-0 flex flex-col gap-3">
+                    <div className="flex items-start gap-3 w-full">
+                      <div className="relative w-10 h-10 flex-shrink-0">
+                        <Avatar className="w-10 h-10 border-[0.75px] border-solid border-[#00000014]">
+                          <AvatarImage src={avatar} alt="User avatar" />
+                          <AvatarFallback>MS</AvatarFallback>
+                        </Avatar>
+                        <img
+                          className="absolute w-3.5 h-3.5 bottom-0 right-0"
+                          alt="Verified tick"
+                          src={verifiedTick}
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-1 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={`font-bold text-sm ${!message.isRead ? 'text-[#181d27]' : 'text-[#717680]'}`}>
+                            {message.fromUser?.name || "مشرف تربوي"}
+                          </span>
+                          <span className="text-xs text-[#717680]">
+                            {formatTimeAgo(message.sentAt || new Date())}
+                          </span>
+                          {/* Full date */}
+                          <span className="text-xs text-[#a0a5ad]">
+                            ({formatFullDate(message.sentAt || new Date())})
+                          </span>
+                          {/* Unread indicator */}
+                          {!message.isRead && (
+                            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                          )}
+                        </div>
+                        <p className={`text-sm ${!message.isRead ? 'text-[#414651] font-medium' : 'text-[#717680]'}`}>
+                          {message.content}
+                        </p>
+                      </div>
+
+                      {/* Mark as seen button */}
+                      {!message.isRead && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 p-1 bg-blue-50 hover:bg-blue-100 rounded-full flex-shrink-0"
+                          onClick={() => handleMarkAsRead(message.id)}
+                          title="تحديد كمقروءة"
+                        >
+                          <CheckIcon className="h-4 w-4 text-blue-600" />
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
                 </div>
-                <p className={`text-sm ${!messageData.isRead ? 'text-[#414651] font-medium' : 'text-[#717680]'}`}>
-                  {messageData.content}
-                </p>
-              </div>
-            </CardContent>
+              ))}
+            </div>
           </Card>
         </div>
       )}

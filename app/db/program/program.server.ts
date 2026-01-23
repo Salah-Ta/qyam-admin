@@ -28,7 +28,7 @@ const createProgram = (
   });
 };
 
-const getAllPrograms = (dbUrl: string): Promise<StatusResponse<Program>> => {
+const getAllPrograms = (dbUrl: string): Promise<StatusResponse<Program[]>> => {
   const db = client(dbUrl);
   return new Promise((resolve, reject) => {
     db.program

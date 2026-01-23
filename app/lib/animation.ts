@@ -13,10 +13,10 @@ scrollers.forEach((scroller)=>{
     const scrollerContent = Array.from(scrollerInner?.children||[]);
 
     scrollerContent.forEach((item)=>{
-        
-        const duplicatedItem = item.cloneNode(true)
-        duplicatedItem.setAttribute("aria-hidden","true") as Element
-        scrollerInner?.appendChild(duplicatedItem)
+
+        const duplicatedItem = item.cloneNode(true) as Element;
+        duplicatedItem.setAttribute("aria-hidden","true");
+        scrollerInner?.appendChild(duplicatedItem);
 
     })
 

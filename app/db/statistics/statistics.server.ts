@@ -1,5 +1,6 @@
 import {
-    DashStatistics
+    DashStatistics,
+    UserStatistics
 } from "~/types/types";
 import { client } from "../db-client.server";
 import { PrismaClient } from "@prisma/client";
@@ -367,7 +368,7 @@ async function getRegionalBreakdown(dbUrl?: string) {
         ORDER BY r.name
     `;
 
-    return regionalStats.map((stat: any) => ({
+    return (regionalStats as any[]).map((stat: any) => ({
         id: stat.id,
         name: stat.name,
         schoolsCount: Number(stat.schoolsCount),
@@ -410,7 +411,7 @@ async function getEduAdminBreakdown(dbUrl?: string) {
         ORDER BY ea.name
     `;
 
-    return eduAdminStats.map((stat: any) => ({
+    return (eduAdminStats as any[]).map((stat: any) => ({
         id: stat.id,
         name: stat.name,
         regionId: stat.regionId,
@@ -470,14 +471,14 @@ Promise<UserStatistics> {
 
     // Convert BigInt results to Number before returning
     return {
-        reportsCount: (userStatsResult.reports_count),
-        volunteerHours: (userStatsResult.volunteer_hours),
-        economicValue: (userStatsResult.economic_value),
-        volunteerOpportunities: (userStatsResult.volunteer_opportunities),
-        activitiesCount: (userStatsResult.activities_count),
-        volunteerCount: (userStatsResult.volunteer_count),
-        skillsEconomicValue: (userStatsResult.skills_economic_value),
-        skillsTrainedCount: (userStatsResult.skills_trained_count),
+        reportsCount: Number(userStatsResult.reports_count),
+        volunteerHours: Number(userStatsResult.volunteer_hours),
+        economicValue: Number(userStatsResult.economic_value),
+        volunteerOpportunities: Number(userStatsResult.volunteer_opportunities),
+        activitiesCount: Number(userStatsResult.activities_count),
+        volunteerCount: Number(userStatsResult.volunteer_count),
+        skillsEconomicValue: Number(userStatsResult.skills_economic_value),
+        skillsTrainedCount: Number(userStatsResult.skills_trained_count),
     };
 }
 
