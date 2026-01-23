@@ -2,7 +2,7 @@
 
 ## Important Instructions
 - **Update footer version** (`app/components/dashboardFooter.tsx` line 111) each time code changes are made
-- Current version: **v1.1.0**
+- Current version: **v1.1.6**
 
 ---
 

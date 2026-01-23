@@ -179,22 +179,34 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
       skillsTrainedCount: 0,
     };
 
+    // Get regional statistics for the chart
+    let regionalStats: any[] = [];
+
     try {
       // Get user statistics from the statistics service
       console.log("Fetching user statistics for userId:", userId);
-      const statsPromise = statisticsDB.getUserStatisticsById(
-        userId,
-        context?.cloudflare?.env?.DATABASE_URL
-      );
-      const statsResult = (await Promise.race([
-        statsPromise,
-        timeoutPromise,
-      ])) as UserStatistics;
+      const [statsResult, regionalResult] = await Promise.all([
+        Promise.race([
+          statisticsDB.getUserStatisticsById(
+            userId,
+            context?.cloudflare?.env?.DATABASE_URL
+          ),
+          timeoutPromise,
+        ]) as Promise<UserStatistics>,
+        Promise.race([
+          statisticsDB.getRegionalBreakdown(context?.cloudflare?.env?.DATABASE_URL),
+          timeoutPromise,
+        ]) as Promise<any>,
+      ]);
 
       console.log("User stats result:", statsResult);
 
       if (statsResult) {
         finalStatistics = statsResult;
+      }
+
+      if (regionalResult && Array.isArray(regionalResult)) {
+        regionalStats = regionalResult;
       }
     } catch (error) {
       console.error("Error fetching user statistics:", error);
@@ -215,6 +227,7 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
       statistics: finalStatistics,
       reports: [], // We don't need individual reports anymore since we have aggregated stats
       canSendMessage, // Add this flag to indicate if messaging is allowed
+      regionalStats, // Regional statistics for the chart
     });
   } catch (error) {
     console.error("Error loading user data:", error);
@@ -235,6 +248,7 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
         },
         reports: [],
         canSendMessage: false,
+        regionalStats: [],
         error: "Failed to load user data",
       },
       { status: 200 }
@@ -523,6 +537,7 @@ export const SupervisorStatistics = (): JSX.Element => {
   };
   const reports = Array.isArray(loaderData?.reports) ? loaderData.reports : [];
   const canSendMessage = loaderData?.canSendMessage || false;
+  const regionalStats = Array.isArray(loaderData?.regionalStats) ? loaderData.regionalStats : [];
   const userId = params?.id;
 
   // Debug logging to verify getUserTotalStats integration
@@ -674,34 +689,14 @@ export const SupervisorStatistics = (): JSX.Element => {
     },
   ];
 
-  // Data for the regions chart - enhanced with real user data
-  const userRegionValue = statistics
-    ? Math.min(
-        100,
-        Math.max(
-          10,
-          (statistics.activitiesCount || 0) * 8 +
-            (statistics.volunteerHours || 0) / 20 +
-            (statistics.reportsCount || 0) * 5 +
-            (statistics.skillsTrainedCount || 0) * 3
-        )
-      )
-    : 40;
-
-  const regions = [
-    {
-      name: userData?.regionName || "المنطقة الحالية",
-      value: userRegionValue,
-      isUserRegion: true,
-    },
-    { name: "الرياض", value: 45, isUserRegion: false },
-    { name: "جدة", value: 53, isUserRegion: false },
-    { name: "الدمام", value: 25, isUserRegion: false },
-    { name: "المدينة", value: 54, isUserRegion: false },
-    { name: "مكة", value: 43, isUserRegion: false },
-    { name: "القصيم", value: 12, isUserRegion: false },
-    { name: "الشرقية", value: 50, isUserRegion: false },
-  ];
+  // Data for the regions chart - from database
+  const regions = regionalStats.length > 0
+    ? regionalStats.map((stat: any) => ({
+        name: stat.regionName || "غير محدد",
+        value: Math.round(stat.volunteerHoursPercentage || 0),
+        isUserRegion: stat.regionName === userData?.regionName,
+      }))
+    : [{ name: "لا توجد بيانات", value: 0, isUserRegion: false }];
 
   const createDoughnutData = (value: any, color: string) => ({
     datasets: [

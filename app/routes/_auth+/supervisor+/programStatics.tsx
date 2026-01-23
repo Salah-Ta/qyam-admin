@@ -1,4 +1,6 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { LoaderFunctionArgs } from "@remix-run/cloudflare";
+import { useLoaderData, useNavigate } from "@remix-run/react";
 import { MoreVerticalIcon } from "lucide-react";
 import {
   Chart as ChartJS,
@@ -14,9 +16,76 @@ import { Doughnut, Bar } from "react-chartjs-2";
 import arrowDown from "../../../assets/icons/arrow-down-gray.svg";
 import School from "../../../assets/icons/schools.svg";
 import students from "../../../assets/icons/students.svg";
-
 import teacher from "../../../assets/icons/teachers.svg";
-import { useNavigate } from "react-router-dom"; // Import useNavigate
+import regionDB from "~/db/region/region.server";
+import schoolDB from "~/db/school/school.server";
+import userDB from "~/db/user/user.server";
+import eduAdminDB from "~/db/eduAdmin/eduAdmin.server";
+import statisticsService from "~/db/statistics/statistics.server";
+import { getAuthenticated } from "~/lib/get-authenticated.server";
+import { ReportStatistics } from "~/types/types";
+
+export async function loader({ request, context }: LoaderFunctionArgs) {
+  try {
+    // Check authentication
+    const user = await getAuthenticated({ request, context });
+    if (!user) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const dbUrl = context.cloudflare.env.DATABASE_URL;
+
+    // Get full user data to access regionId for supervisors
+    const userWithRole = user as any;
+    let supervisorRegionId: string | null = null;
+    if (userWithRole?.role?.toUpperCase() === "SUPERVISOR" || userWithRole?.role === "مشرف") {
+      try {
+        const fullUserResult = await userDB.getUser(user.id, dbUrl) as any;
+        if (fullUserResult?.status === "success" && fullUserResult.data) {
+          const fullUser = Array.isArray(fullUserResult.data) ? fullUserResult.data[0] : fullUserResult.data;
+          supervisorRegionId = fullUser?.regionId || null;
+        }
+      } catch (error) {
+        console.error("Error fetching supervisor region:", error);
+      }
+    }
+
+    // Fetch statistics and other data in parallel
+    const [statistics, regions, schools, users, eduAdmins] = await Promise.all([
+      statisticsService.getAdminDashboardDataStatistics(dbUrl),
+      regionDB.getAllRegions(dbUrl),
+      schoolDB.getAllSchools(dbUrl),
+      userDB.getAllUsers(dbUrl),
+      eduAdminDB.getAllEduAdmins(dbUrl),
+    ]);
+
+    // Filter data based on supervisor's region (if supervisor has a region assigned)
+    let filteredRegions: any[] = regions.data || [];
+    let filteredSchools: any[] = schools.data || [];
+    let filteredUsers: any[] = users.data || [];
+    let filteredEduAdmins: any[] = eduAdmins.data || [];
+
+    if (supervisorRegionId) {
+      filteredRegions = filteredRegions.filter((r) => r.id === supervisorRegionId);
+      filteredEduAdmins = filteredEduAdmins.filter((e) => e.regionId === supervisorRegionId);
+      const supervisorEduAdminIds = filteredEduAdmins.map((e) => e.id);
+      filteredSchools = filteredSchools.filter((s) => supervisorEduAdminIds.includes(s.eduAdminId));
+      filteredUsers = filteredUsers.filter((u) => u.regionId === supervisorRegionId);
+    }
+
+    return Response.json({
+      statistics,
+      regions: filteredRegions,
+      schools: filteredSchools,
+      users: filteredUsers,
+      eduAdmins: filteredEduAdmins,
+      supervisorRegionId,
+    });
+  } catch (error) {
+    console.error("Error loading statistics:", error);
+    return Response.json({ error: "Failed to load data" }, { status: 500 });
+  }
+}
 
 ChartJS.register(
   ArcElement,
@@ -28,130 +97,159 @@ ChartJS.register(
   Title
 );
 
-// Stats Data
-const statsData = [
-  {
-    id: 1,
-    icon: School,
-    iconAlt: "School",
-    title: "عدد المدارس",
-    value: "52",
-    max: "100",
-    color: "#539c4a",
-    percentage: 37,
-  },
-  {
-    id: 2,
-    icon: teacher,
-    iconAlt: "Teacher",
-    title: "عدد المعلمات",
-    value: "128",
-    max: "200",
-    color: "#199491",
-    percentage: 87,
-  },
-  {
-    id: 3,
-    icon:  students ,
-    iconAlt: "Students",
-    title: "عدد الطالبات",
-    value: "4321",
-    max: "5000",
-    color: "#004E5C",
-    percentage: 27,
-  },
-];
-
-// Education departments data
-const educationDepartments = [
-  { name: "قرطبة", color: "#539C4A", value: 25 },
-  { name: "العليا", color: "#30B0C7", value: 20 },
-  { name: "طويق", color: "#FFCC00", value: 15 },
-  { name: "الملز", color: "#AF52DE", value: 12 },
-  { name: "النسيم", color: "#FF2D55", value: 10 },
-  { name: "الروضة", color: "#68C35C", value: 8 },
-  { name: "المعذر", color: "#E9EAEB", value: 6 },
-  { name: "الملقا", color: "#006173", value: 4 },
-];
-
-// Reports metrics data
-const reportMetrics = [
-  {
-    value: "87",
-    unit: "مهارة",
-    title: "المهارات المدرب عليها",
-    color: "#68C35C",
-    percentage: 47,
-  },
-  {
-    value: "240",
-    unit: "ساعة",
-    title: "الساعات التطوعية",
-    color: "#68C35C",
-    percentage: 40,
-  },
-  {
-    value: "76",
-    unit: "نشاط",
-    title: "الأنشطة المنفذة",
-    color: "#68C35C",
-    percentage: 36,
-  },
-  {
-    value: "240",
-    unit: "مهارة",
-    title: "القيمة الاقتصادية للمهارات",
-    color: "#68C35C",
-    percentage: 20,
-  },
-  {
-    value: "9832",
-    unit: "ساعة تطوعية",
-    title: "الساعات التطوعية المحققة",
-    color: "#68C35C",
-    percentage: 18,
-  },
-  {
-    value: "231",
-    unit: "قيمة",
-    title: "القيمية الاقتصادية من التطوع",
-    color: "#68C35C",
-    percentage: 37,
-  },
-  {
-    value: "42",
-    unit: "Active users",
-    title: "القيمة الاقتصادية للمهارات",
-    color: "#68C35C",
-    percentage: 42,
-  },
-];
-
-// Regions data
-const regions = [
-  { name: "الملقا", value: 40 },
-  { name: "العارض", value: 45 },
-  { name: "الملقا", value: 53 },
-  { name: "قرطبة", value: 25 },
-  { name: "النسيم", value: 54 },
-  { name: "المعذر", value: 43 },
-  { name: "طويق", value: 12 },
-  { name: "الملز", value: 50 },
-];
-
-const barColors = [
-  "#006173",
-  "#004E5C",
-  "#199491",
-  "#539C4A",
-  "#004E5C",
-  "#68C35C",
-  "#199491",
-  "#006173",
-];
-
 export const ProgramStatistics = (): JSX.Element => {
-  const navigate = useNavigate(); // Initialize navigate
+  const navigate = useNavigate();
+  const loaderData = useLoaderData<{
+    statistics: ReportStatistics;
+    regions: any[];
+    schools: any[];
+    users: any[];
+    eduAdmins: any[];
+  }>();
+
+  // State for dropdown selections
+  const [selectedRegion, setSelectedRegion] = useState<string>("");
+  const [selectedEduAdmin, setSelectedEduAdmin] = useState<string>("");
+  const [selectedSchool, setSelectedSchool] = useState<string>("");
+
+  // Handle potential error state
+  if ('error' in loaderData) {
+    return (
+      <div className="bg-[#f9f9f9] p-6">
+        <div className="text-center text-red-500">
+          فشل في تحميل البيانات. يرجى المحاولة مرة أخرى.
+        </div>
+      </div>
+    );
+  }
+
+  const { statistics, regions, schools, users, eduAdmins } = loaderData;
+
+  // Filter eduAdmins based on selected region
+  const filteredEduAdmins = selectedRegion
+    ? eduAdmins.filter(eduAdmin => eduAdmin.regionId === selectedRegion)
+    : eduAdmins;
+
+  // Filter schools based on selected eduAdmin and region
+  const filteredSchools = selectedEduAdmin
+    ? schools.filter(school => school.eduAdminId === selectedEduAdmin)
+    : selectedRegion
+      ? schools.filter(school => school.regionId === selectedRegion)
+      : [];
+
+  // Reset dependent dropdowns when parent changes
+  useEffect(() => {
+    if (selectedRegion) {
+      setSelectedEduAdmin("");
+      setSelectedSchool("");
+    }
+  }, [selectedRegion]);
+
+  useEffect(() => {
+    if (selectedEduAdmin) {
+      setSelectedSchool("");
+    }
+  }, [selectedEduAdmin]);
+
+  // Calculate stats data from real data
+  const statsData = [
+    {
+      id: 1,
+      icon: School,
+      iconAlt: "School",
+      title: "عدد المدارس",
+      value: statistics.globalTotals.schoolsCount.toString(),
+      max: "100",
+      color: "#539c4a",
+      percentage: Math.min(100, (statistics.globalTotals.schoolsCount / 100) * 100),
+    },
+    {
+      id: 2,
+      icon: teacher,
+      iconAlt: "Teacher",
+      title: "عدد المعلمات",
+      value: statistics.globalTotals.trainers.toString(),
+      max: "200",
+      color: "#199491",
+      percentage: Math.min(100, (statistics.globalTotals.trainers / 200) * 100),
+    },
+    {
+      id: 3,
+      icon: students,
+      iconAlt: "Students",
+      title: "عدد الطالبات",
+      value: users.reduce((acc, user) => acc + (user.noStudents || 0), 0).toString(),
+      max: "5000",
+      color: "#004E5C",
+      percentage: Math.min(100, (users.reduce((acc, user) => acc + (user.noStudents || 0), 0) / 5000) * 100),
+    },
+  ];
+
+  // Create education departments data from regional statistics
+  const educationDepartments = statistics.eduAdminStats.slice(0, 8).map((stat, index) => ({
+    name: stat.eduAdminName,
+    color: ["#539C4A", "#30B0C7", "#FFCC00", "#AF52DE", "#FF2D55", "#68C35C", "#E9EAEB", "#006173"][index % 8],
+    value: Math.round(stat.volunteerHoursPercentage),
+  }));
+
+  // Create reports metrics data from global totals
+  const reportMetrics = [
+    {
+      value: statistics.globalTotals.skillsTrainedCount.toString(),
+      unit: "مهارة",
+      title: "المهارات المدرب عليها",
+      color: "#68C35C",
+      percentage: Math.min(100, (statistics.globalTotals.skillsTrainedCount / 100) * 100),
+    },
+    {
+      value: Math.round(statistics.globalTotals.volunteerHours).toString(),
+      unit: "ساعة",
+      title: "الساعات التطوعية",
+      color: "#68C35C",
+      percentage: Math.min(100, (statistics.globalTotals.volunteerHours / 1000) * 100),
+    },
+    {
+      value: statistics.globalTotals.activitiesCount.toString(),
+      unit: "نشاط",
+      title: "الأنشطة المنفذة",
+      color: "#68C35C",
+      percentage: Math.min(100, (statistics.globalTotals.activitiesCount / 100) * 100),
+    },
+    {
+      value: Math.round(statistics.globalTotals.skillsEconomicValue).toString(),
+      unit: "ريال",
+      title: "القيمة الاقتصادية للمهارات",
+      color: "#68C35C",
+      percentage: Math.min(100, (statistics.globalTotals.skillsEconomicValue / 1000) * 100),
+    },
+    {
+      value: Math.round(statistics.globalTotals.volunteerHours).toString(),
+      unit: "ساعة تطوعية",
+      title: "الساعات التطوعية المحققة",
+      color: "#68C35C",
+      percentage: Math.min(100, (statistics.globalTotals.volunteerHours / 10000) * 100),
+    },
+    {
+      value: Math.round(statistics.globalTotals.economicValue).toString(),
+      unit: "ريال",
+      title: "القيمة الاقتصادية من التطوع",
+      color: "#68C35C",
+      percentage: Math.min(100, (statistics.globalTotals.economicValue / 1000) * 100),
+    },
+    {
+      value: statistics.globalTotals.trainers.toString(),
+      unit: "مدربة نشطة",
+      title: "المدربات النشطات",
+      color: "#68C35C",
+      percentage: Math.min(100, (statistics.globalTotals.trainers / 100) * 100),
+    },
+  ];
+
+  // Create regions data from regional statistics
+  const regionsData = statistics.regionStats.map((regionStat) => ({
+    name: regionStat.regionName,
+    value: Math.round(regionStat.volunteerHoursPercentage),
+  }));
 
   const getRadialChartDataTotal = (percentage: number, color: string) => ({
     datasets: [
@@ -212,11 +310,11 @@ export const ProgramStatistics = (): JSX.Element => {
   };
 
   const barChartData = {
-    labels: regions.map((region) => region.name),
+    labels: regionsData.map((region) => region.name),
     datasets: [
       {
         label: "Green Segment",
-        data: regions.map((region) => region.value),
+        data: regionsData.map((region) => region.value),
         backgroundColor: "#17b169",
         borderRadius: 16,
         borderSkipped: false,
@@ -227,7 +325,7 @@ export const ProgramStatistics = (): JSX.Element => {
       },
       {
         label: "Gray Segment",
-        data: regions.map((region) => Math.max(10, region.value - 15)),
+        data: regionsData.map((region) => Math.max(10, region.value - 15)),
         backgroundColor: "#E9EAEB",
         borderRadius: {
           topLeft: 10,
@@ -390,8 +488,17 @@ export const ProgramStatistics = (): JSX.Element => {
           <div className="flex flex-col w-1/3  max-lg:w-full ">
             <div className="mb-2 text-start text-sm text-gray-500">المنطقة</div>
             <div className="relative">
-              <select className="appearance-none bg-white border border-gray-200 text-[#717680] text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 pl-10">
-                <option className=" ">الكل</option>
+              <select
+                className="appearance-none bg-white border border-gray-200 text-[#717680] text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 pl-10"
+                value={selectedRegion}
+                onChange={(e) => setSelectedRegion(e.target.value)}
+              >
+                <option value="">الكل</option>
+                {regions.map((region) => (
+                  <option key={region.id} value={region.id}>
+                    {region.name}
+                  </option>
+                ))}
               </select>
               <img
                 src={arrowDown}
@@ -407,8 +514,20 @@ export const ProgramStatistics = (): JSX.Element => {
               إدارة التعليم
             </div>
             <div className="relative">
-              <select className="appearance-none bg-white border border-gray-200 text-[#717680] text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 pl-10">
-                <option className="">الكل</option>
+              <select
+                className={`appearance-none bg-white border border-gray-200 text-[#717680] text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 pl-10 ${
+                  !selectedRegion ? "opacity-50 cursor-not-allowed" : ""
+                }`}
+                value={selectedEduAdmin}
+                onChange={(e) => setSelectedEduAdmin(e.target.value)}
+                disabled={!selectedRegion}
+              >
+                <option value="">الكل</option>
+                {filteredEduAdmins.map((eduAdmin) => (
+                  <option key={eduAdmin.id} value={eduAdmin.id}>
+                    {eduAdmin.name}
+                  </option>
+                ))}
               </select>
               <img
                 src={arrowDown}
@@ -422,8 +541,20 @@ export const ProgramStatistics = (): JSX.Element => {
           <div className="flex flex-col w-1/3  max-lg:w-full">
             <div className="mb-2 text-start text-sm text-gray-500">المدرسة</div>
             <div className="relative">
-              <select className="appearance-none bg-white border border-gray-200 text-[#717680] text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 pl-10">
-                <option className="">الكل</option>
+              <select
+                className={`appearance-none bg-white border border-gray-200 text-[#717680] text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 pl-10 ${
+                  !selectedEduAdmin ? "opacity-50 cursor-not-allowed" : ""
+                }`}
+                value={selectedSchool}
+                onChange={(e) => setSelectedSchool(e.target.value)}
+                disabled={!selectedEduAdmin}
+              >
+                <option value="">الكل</option>
+                {filteredSchools.map((school) => (
+                  <option key={school.id} value={school.id}>
+                    {school.name}
+                  </option>
+                ))}
               </select>
               <img
                 src={arrowDown}
