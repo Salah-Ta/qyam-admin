@@ -7,6 +7,9 @@ import { client } from "~/db/db-client.server";
 import { getSession } from "../utils/session.server";
 import { redirect } from "@remix-run/cloudflare";
 import { QUser } from "~/types/types";
+import bcrypt from "bcryptjs";
+import { scrypt } from "@noble/hashes/scrypt";
+import { bytesToHex, hexToBytes } from "@noble/hashes/utils";
 
 export type Environment = {
   Variables: {
@@ -48,6 +51,37 @@ export const getAuth = (context: AppLoadContext) => {
       enabled: true,
       autoSignIn: false,
       // requireEmailVerification: true,
+      password: {
+        hash: async (password: string) => bcrypt.hash(password, 10),
+        verify: async ({ hash, password }: { hash: string; password: string }) => {
+          // Check if it's a bcrypt hash (starts with $2)
+          if (hash.startsWith('$2')) {
+            return bcrypt.compare(password, hash);
+          }
+
+          // Otherwise, it's the original scrypt format (salt:hash)
+          try {
+            const [saltHex, hashHex] = hash.split(':');
+            if (!saltHex || !hashHex) return false;
+
+            const salt = hexToBytes(saltHex);
+            const expectedHash = hexToBytes(hashHex);
+
+            // Use same scrypt params as better-auth default
+            const derivedKey = scrypt(password, salt, { N: 16384, r: 8, p: 1, dkLen: 64 });
+
+            // Compare hashes
+            if (derivedKey.length !== expectedHash.length) return false;
+            let result = 0;
+            for (let i = 0; i < derivedKey.length; i++) {
+              result |= derivedKey[i] ^ expectedHash[i];
+            }
+            return result === 0;
+          } catch {
+            return false;
+          }
+        }
+      },
       sendResetPassword: async ({ user, url, token }, request) => {
         await sendEmail(
           {
