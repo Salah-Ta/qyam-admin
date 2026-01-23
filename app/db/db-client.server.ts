@@ -19,12 +19,12 @@ export const createPrismaClient = (dbUrl?: string, context?: AppLoadContext): Pr
 
   try {
 
-      const pool = new Pool({ 
+      const pool = new Pool({
         connectionString: connectionString,
-        max: 1,
+        max: 10,                      // Allow up to 10 concurrent connections
         connectionTimeoutMillis: 10000,
         idleTimeoutMillis: 30000,
-        maxUses: 1,
+        maxUses: 100,                 // Reuse connections up to 100 times before recycling
         allowExitOnIdle: true
       });
       
