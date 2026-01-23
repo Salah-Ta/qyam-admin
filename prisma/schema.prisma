@@ -38,6 +38,11 @@ model User {
   Session          Session[]
   UserCertificate  UserCertificate[]
 
+  @@index([regionId])
+  @@index([eduAdminId])
+  @@index([schoolId])
+  @@index([acceptenceState])
+  @@index([role])
   @@map("user")
 }
 
@@ -153,6 +158,7 @@ model UserCertificate {
   name           String
   user           User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
   @@map("userCertificate")
 }
 
@@ -175,6 +181,7 @@ model EduAdmin {
   schools   School[]
   //users     User[]
 
+  @@index([regionId])
   @@map("eduAdministration")
 }
 
@@ -188,6 +195,7 @@ model School {
   eduAdmin   EduAdmin? @relation(fields: [eduAdminId], references: [id])
   //users      User[]
 
+  @@index([eduAdminId])
   @@map("school")
 }
 
@@ -208,6 +216,7 @@ model Report {
   skills                 SkillReport[]
   testimonials           TestimonialReport[]
 
+  @@index([userId])
   @@map("report")
 }
 
