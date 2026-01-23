@@ -358,7 +358,7 @@ const createUser = (userData: {
             regionId: userData.regionId,
             eduAdminId: userData.eduAdminId,
             schoolId: userData.schoolId,
-            acceptenceState: userData.acceptenceState || "accepted"
+            acceptenceState: userData.acceptenceState || "pending"
           }
         });
 
