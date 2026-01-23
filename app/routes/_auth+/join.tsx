@@ -128,8 +128,11 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
     phone: getField("phone"),
     role: getField("role"),
     region: getField("region"),
+    regionId: getField("regionId"),
     eduAdmin: getField("eduAdmin"),
+    eduAdminId: getField("eduAdminId"),
     school: getField("school"),
+    schoolId: getField("schoolId"),
     password: getField("password"),
     passwordConfirmation: getField("passwordConfirmation"),
   };
@@ -156,9 +159,12 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
         email: fields.email,
         phone: Number(fields.phone),
         role: fields.role,
-        schoolId: fields.school, // This will be the school name now
         region: fields.region,
-        eduAdminId: fields.eduAdmin, // This will be the eduAdmin name now
+        regionId: fields.regionId || null,
+        eduAdminId: fields.eduAdminId || null,
+        eduAdminName: fields.eduAdmin || null,
+        schoolId: fields.schoolId || null,
+        schoolName: fields.school || null,
         emailVerified: false,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -299,20 +305,25 @@ export default function Signup() {
       (s: any) => s.id === form.school
     );
 
-    // Set form data with names instead of IDs
+    // Set form data with names and IDs
     formData.append("name", form.name);
     formData.append("email", form.email);
     formData.append("phone", form.phone);
     formData.append("role", form.role);
     formData.append("region", selectedRegion?.name || "");
+    formData.append("regionId", selectedRegion?.id || "");
 
     // Only append eduAdmin and school if role is not supervisor
     if (form.role !== "supervisor") {
       formData.append("eduAdmin", selectedEduAdmin?.name || "");
+      formData.append("eduAdminId", selectedEduAdmin?.id || "");
       formData.append("school", selectedSchool?.name || "");
+      formData.append("schoolId", selectedSchool?.id || "");
     } else {
       formData.append("eduAdmin", "");
+      formData.append("eduAdminId", "");
       formData.append("school", "");
+      formData.append("schoolId", "");
     }
 
     formData.append("password", form.password);
