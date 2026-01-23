@@ -314,7 +314,7 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
     // Check authentication and get supervisor's region
     const user = await getAuthenticated({ request, context }) as any;
     if (!user) {
-      return Response.json([]);
+      return Response.json({ users: [], currentUser: null });
     }
 
     // Get supervisor's regionId
@@ -346,10 +346,21 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
       users = users.filter((u: any) => u.regionId === supervisorRegionId);
     }
 
-    return Response.json(users);
+    // Get full current user data for debugging
+    let currentUserData = null;
+    try {
+      const fullUserResult = await userDB.getUser(user.id, DBurl) as any;
+      if (fullUserResult?.status === "success" && fullUserResult.data) {
+        currentUserData = Array.isArray(fullUserResult.data) ? fullUserResult.data[0] : fullUserResult.data;
+      }
+    } catch (error) {
+      console.error("Error fetching current user data:", error);
+    }
+
+    return Response.json({ users, currentUser: currentUserData });
   } catch (error) {
     console.error("Loader error:", error);
-    return Response.json([]);
+    return Response.json({ users: [], currentUser: null });
   }
 }
 
@@ -368,8 +379,11 @@ export const AllTrainers = (): JSX.Element => {
   // State and data
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
-  const users = useLoaderData<QUser[]>() || [];
+  const loaderData = useLoaderData<{ users: QUser[], currentUser: any }>() || { users: [], currentUser: null };
+  const users = loaderData.users || [];
+  const currentUser = loaderData.currentUser;
   console.log("Trainers data:", users);
+  console.log("Current user data:", currentUser);
 
   // Filter only users with role "user" (trainers)
   const trainers = users.filter((user) => user.role === "user");

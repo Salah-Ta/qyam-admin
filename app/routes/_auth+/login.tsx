@@ -46,8 +46,11 @@ export default function Login() {
     e.preventDefault();
     setLoginError(null);
 
+    // Trim email to remove accidental spaces
+    const trimmedEmail = email.trim();
+
     // Basic validation
-    if (!email) {
+    if (!trimmedEmail) {
       const errorMessage = glossary.login.errors.email.required;
       setLoginError(errorMessage);
       showToast.error("خطأ في البيانات", {
@@ -58,7 +61,7 @@ export default function Login() {
 
     // Email format validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    if (!emailRegex.test(trimmedEmail)) {
       const errorMessage = glossary.login.errors.email.invalid;
       setLoginError(errorMessage);
       showToast.error("خطأ في البيانات", {
@@ -80,7 +83,7 @@ export default function Login() {
       setLoading(true);
 
       await authClient.signIn.email(
-        { email, password },
+        { email: trimmedEmail, password },
         {
           onSuccess: () => {
             setLoading(false);
