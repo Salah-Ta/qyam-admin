@@ -12,7 +12,8 @@ import {
   BarElement,
   Title,
 } from "chart.js";
-import { Doughnut, Bar } from "react-chartjs-2";
+import { Doughnut } from "react-chartjs-2";
+import { RegionsChart } from "~/components/RegionsChart";
 import arrowDown from "../../../assets//icons/arrow-down-gray.svg";
 import School from "../../../assets/icons/schools.svg";
 import students from "../../../assets/icons/students.svg";
@@ -225,45 +226,6 @@ export const RegionsStatistics = (): JSX.Element => {
     },
   ];
 
-  // Create regions data based on competition metrics:
-  // عدد الطالبات (studentsCount) + عدد الفرص التطوعية المنفذة (volunteerOpportunities)
-  const calculateRegionScore = (region: any) => {
-    return (
-      (region.studentsCount || 0) +
-      (region.volunteerOpportunities || 0)
-    );
-  };
-
-  // Calculate grand total for percentage calculation
-  const grandTotal = (regionalBreakdown || []).reduce((sum: number, r: any) => sum + calculateRegionScore(r), 0);
-
-  // Convert to array and calculate percentages
-  const regionsData = (regionalBreakdown || [])
-    .map((region: any) => ({
-      ...region,
-      totalScore: calculateRegionScore(region),
-    }))
-    .filter((r: any) => r.totalScore > 0) // Only show regions with activity
-    .sort((a: any, b: any) => b.totalScore - a.totalScore) // Sort by total descending
-    .map((region: any) => ({
-      name: region.name,
-      value: grandTotal > 0 ? Math.round((region.totalScore / grandTotal) * 100) : 0,
-      totalScore: region.totalScore,
-      studentsCount: region.studentsCount || 0,
-      volunteerOpportunities: region.volunteerOpportunities || 0,
-    }));
-
-  const barColors = [
-    "#006173",
-    "#004E5C",
-    "#199491",
-    "#539C4A",
-    "#004E5C",
-    "#68C35C",
-    "#199491",
-    "#006173",
-  ];
-
   const getRadialChartDataTotal = (percentage: number, color: string) => ({
     datasets: [
       {
@@ -320,86 +282,6 @@ export const RegionsStatistics = (): JSX.Element => {
       },
     },
     cutout: "60%",
-  };
-
-  const barChartData = {
-    labels: regionsData.map((region: any) => region.name),
-    datasets: [
-      {
-        label: "التنافس بين المناطق",
-        data: regionsData.map((region: any) => region.value),
-        backgroundColor: "#17b169",
-        borderRadius: 8,
-        borderSkipped: false,
-        barThickness:
-          typeof window !== "undefined" && window.innerWidth < 768 ? 24 : 42,
-        barPercentage: 0.9,
-        categoryPercentage: 0.8,
-      },
-    ],
-  };
-
-  const barChartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    scales: {
-      y: {
-        beginAtZero: true,
-        max: 100,
-        ticks: {
-          stepSize: 20,
-          font: {
-            size:
-              typeof window !== "undefined" && window.innerWidth < 768
-                ? 10
-                : 12,
-            family: "'Inter', sans-serif",
-          },
-          color: "#535861",
-          callback: function(value: any) {
-            return value + '%';
-          }
-        },
-        grid: { color: "#E9EAEB", drawBorder: false },
-        border: { display: false },
-      },
-      x: {
-        grid: { display: false },
-        ticks: {
-          font: {
-            size:
-              typeof window !== "undefined" && window.innerWidth < 768
-                ? 10
-                : 12,
-            family: "'Ping AR + LT', Helvetica",
-            weight: 700,
-          },
-          color: "#535861",
-        },
-        border: { display: false },
-      },
-    },
-    plugins: {
-      legend: { display: false },
-      tooltip: {
-        rtl: true,
-        titleAlign: "right" as const,
-        bodyAlign: "right" as const,
-        callbacks: {
-          label: function (context: any) {
-            const regionData = regionsData[context.dataIndex];
-            if (regionData) {
-              return [
-                `${context.parsed.y}% من إجمالي التنافس`,
-                `${regionData.studentsCount?.toLocaleString('ar-SA') || 0} طالبة`,
-                `${regionData.volunteerOpportunities?.toLocaleString('ar-SA') || 0} فرصة تطوعية`
-              ];
-            }
-            return `${context.parsed.y}%`;
-          },
-        },
-      },
-    },
   };
 
   const tabItems = [
@@ -769,9 +651,7 @@ export const RegionsStatistics = (): JSX.Element => {
           </div>
 
           <div className="border border-[#e9eaeb] rounded-xl bg-white p-6">
-            <div className="h-[228px]">
-              <Bar data={barChartData} options={barChartOptions} />
-            </div>
+            <RegionsChart regionalStats={regionalBreakdown} />
           </div>
         </section>
       </main>

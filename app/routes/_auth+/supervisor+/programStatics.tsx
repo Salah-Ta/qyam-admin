@@ -12,7 +12,8 @@ import {
   BarElement,
   Title,
 } from "chart.js";
-import { Doughnut, Bar } from "react-chartjs-2";
+import { Doughnut } from "react-chartjs-2";
+import { RegionsChart } from "~/components/RegionsChart";
 import arrowDown from "../../../assets/icons/arrow-down-gray.svg";
 import School from "../../../assets/icons/schools.svg";
 import students from "../../../assets/icons/students.svg";
@@ -217,26 +218,6 @@ export const ProgramStatistics = (): JSX.Element => {
     },
   ];
 
-  // Create regions data based on competition metrics:
-  // عدد الطالبات (studentsCount) + عدد الفرص التطوعية المنفذة (volunteerOpportunities)
-  const safeRegionalBreakdown = regionalBreakdown || [];
-
-  const calculateRegionScore = (region: any) => {
-    return (region?.studentsCount || 0) + (region?.volunteerOpportunities || 0);
-  };
-
-  const maxRegionScore = Math.max(...safeRegionalBreakdown.map((region: any) => calculateRegionScore(region)), 1);
-  const regionsData = safeRegionalBreakdown.map((regionStat: any) => {
-    const score = calculateRegionScore(regionStat);
-    return {
-      name: regionStat?.name || 'منطقة غير محددة',
-      value: score,
-      maxValue: maxRegionScore,
-      studentsCount: regionStat?.studentsCount || 0,
-      volunteerOpportunities: regionStat?.volunteerOpportunities || 0,
-    };
-  });
-
   const getRadialChartDataTotal = (percentage: number, color: string) => ({
     datasets: [
       {
@@ -293,103 +274,6 @@ export const ProgramStatistics = (): JSX.Element => {
       },
     },
     cutout: "70%",
-  };
-
-  const barChartData = {
-    labels: regionsData.map((region: any) => region.name),
-    datasets: [
-      {
-        label: "التنافس بين المناطق",
-        data: regionsData.map((region: any) => region.value),
-        backgroundColor: "#17b169",
-        borderRadius: 16,
-        borderSkipped: false,
-        barThickness:
-          typeof window !== "undefined" && window.innerWidth < 768 ? 24 : 42,
-        barPercentage: 0.9,
-        categoryPercentage: 0.8,
-      },
-      {
-        label: "Gray Segment",
-        data: regionsData.map((region: any) => Math.max(0, region.maxValue - region.value)),
-        backgroundColor: "#E9EAEB",
-        borderRadius: {
-          topLeft: 10,
-          topRight: 10,
-          bottomLeft: 0,
-          bottomRight: 0,
-        },
-        borderSkipped: false,
-        barThickness:
-          typeof window !== "undefined" && window.innerWidth < 768 ? 24 : 42,
-        barPercentage: 0.9,
-        categoryPercentage: 0.8,
-      },
-    ],
-  };
-
-  const barChartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    scales: {
-      y: {
-        beginAtZero: true,
-        max: maxRegionScore,
-        stacked: true,
-        ticks: {
-          stepSize: Math.ceil(maxRegionScore / 5),
-          font: {
-            size:
-              typeof window !== "undefined" && window.innerWidth < 768
-                ? 10
-                : 12,
-            family: "'Inter', sans-serif",
-          },
-          color: "#535861",
-        },
-        grid: { color: "#E9EAEB", drawBorder: false },
-        border: { display: false },
-      },
-      x: {
-        stacked: true,
-        grid: { display: false },
-        ticks: {
-          font: {
-            size:
-              typeof window !== "undefined" && window.innerWidth < 768
-                ? 10
-                : 12,
-            family: "'Ping AR + LT', Helvetica",
-            weight: 700,
-          },
-          color: "#535861",
-        },
-        border: { display: false },
-      },
-    },
-    plugins: {
-      legend: { display: false },
-      tooltip: {
-        rtl: true,
-        titleAlign: "right" as const,
-        bodyAlign: "right" as const,
-        callbacks: {
-          label: function (context: any) {
-            if (context.datasetIndex === 0) {
-              const regionData = regionsData[context.dataIndex];
-              if (regionData) {
-                return [
-                  `${regionData.studentsCount?.toLocaleString('ar-SA') || 0} طالبة`,
-                  `${regionData.volunteerOpportunities?.toLocaleString('ar-SA') || 0} فرصة تطوعية`
-                ];
-              }
-              return `${context.parsed.y}`;
-            }
-            return "";
-          },
-        },
-      },
-    },
   };
 
   const tabItems = [
@@ -770,9 +654,7 @@ export const ProgramStatistics = (): JSX.Element => {
           </div>
 
           <div className="border border-[#e9eaeb] rounded-xl bg-white p-6">
-            <div className="h-[228px]">
-              <Bar data={barChartData} options={barChartOptions} />
-            </div>
+            <RegionsChart regionalStats={regionalBreakdown} />
           </div>
         </section>
       </main>

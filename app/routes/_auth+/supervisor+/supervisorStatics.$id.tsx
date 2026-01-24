@@ -5,6 +5,7 @@ import React, {
   useState,
   useEffect,
 } from "react";
+import { RegionsChart } from "~/components/RegionsChart";
 
 // Error Boundary Component
 interface ErrorBoundaryProps {
@@ -90,7 +91,7 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
-import { Doughnut, Bar } from "react-chartjs-2";
+import { Doughnut } from "react-chartjs-2";
 import { cn } from "~/lib/utils";
 import { useNavigate } from "@remix-run/react";
 import { PlusIcon, ArrowLeftIcon, CheckIcon } from "lucide-react";
@@ -689,15 +690,6 @@ export const SupervisorStatistics = (): JSX.Element => {
     },
   ];
 
-  // Data for the regions chart - from database
-  const regions = regionalStats.length > 0
-    ? regionalStats.map((stat: any) => ({
-        name: stat.regionName || "غير محدد",
-        value: Math.round(stat.volunteerHoursPercentage || 0),
-        isUserRegion: stat.regionName === userData?.regionName,
-      }))
-    : [{ name: "لا توجد بيانات", value: 0, isUserRegion: false }];
-
   const createDoughnutData = (value: any, color: string) => ({
     datasets: [
       {
@@ -753,96 +745,6 @@ export const SupervisorStatistics = (): JSX.Element => {
       },
       tooltip: {
         enabled: false,
-      },
-    },
-  };
-
-  const barChartData = {
-    labels: regions.map((region) => region.name),
-    datasets: [
-      {
-        label: "Green Segment",
-        data: regions.map((region) => region.value),
-        backgroundColor: "#17b169",
-        borderRadius: 16,
-        borderSkipped: false,
-        barThickness:
-          typeof window !== "undefined" && window.innerWidth < 768 ? 24 : 42, // 24px on mobile, 42px on desktop
-        barPercentage: 0.9,
-        categoryPercentage: 0.8,
-      },
-      {
-        label: "Gray Segment",
-        data: regions.map((region) => Math.max(10, region.value - 15)),
-        backgroundColor: "#E9EAEB",
-        borderRadius: {
-          topLeft: 10,
-          topRight: 10,
-          bottomLeft: 0,
-          bottomRight: 0,
-        },
-        borderSkipped: false,
-        barThickness:
-          typeof window !== "undefined" && window.innerWidth < 768 ? 24 : 42, // 24px on mobile, 42px on desktop
-        barPercentage: 0.9,
-        categoryPercentage: 0.8,
-      },
-    ],
-  };
-
-  const barChartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    scales: {
-      y: {
-        beginAtZero: true,
-        max: 100,
-        stacked: true,
-        ticks: {
-          stepSize: 20,
-          font: {
-            size:
-              typeof window !== "undefined" && window.innerWidth < 768
-                ? 10
-                : 12,
-            family: "'Inter', sans-serif",
-          },
-          color: "#535861",
-        },
-        grid: { color: "#E9EAEB", drawBorder: false },
-        border: { display: false },
-      },
-      x: {
-        stacked: true,
-        grid: { display: false },
-        ticks: {
-          font: {
-            size:
-              typeof window !== "undefined" && window.innerWidth < 768
-                ? 10
-                : 12,
-            family: "'Ping AR + LT', Helvetica",
-            weight: 700,
-          },
-          color: "#535861",
-        },
-        border: { display: false },
-      },
-    },
-    plugins: {
-      legend: { display: false },
-      tooltip: {
-        rtl: true,
-        titleAlign: "right" as const,
-        bodyAlign: "right" as const,
-        callbacks: {
-          label: function (context: any) {
-            if (context.datasetIndex === 0) {
-              return `${context.parsed.y}%`;
-            }
-            return "";
-          },
-        },
       },
     },
   };
@@ -1156,22 +1058,7 @@ export const SupervisorStatistics = (): JSX.Element => {
               </div>
 
               <div className="border border-[#e9eaeb] rounded-xl bg-white p-6">
-                <div className="h-[228px]">
-                  <ClientOnly
-                    fallback={
-                      <div className="h-[228px] bg-gray-100 rounded-lg flex items-center justify-center">
-                        <div className="flex flex-col items-center gap-2">
-                          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                          <p className="text-gray-500 text-sm">
-                            جاري تحميل الرسم البياني...
-                          </p>
-                        </div>
-                      </div>
-                    }
-                  >
-                    <Bar data={barChartData} options={barChartOptions} />
-                  </ClientOnly>
-                </div>
+                <RegionsChart regionalStats={regionalStats} />
               </div>
             </section>
           </div>

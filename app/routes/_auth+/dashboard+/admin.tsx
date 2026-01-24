@@ -1,5 +1,6 @@
-import { LoaderFunctionArgs } from "@remix-run/cloudflare";
+import { LoaderFunctionArgs, redirect } from "@remix-run/cloudflare";
 import materialDB from "~/db/material/material.server";
+import { getAuthenticated } from "~/lib/get-authenticated.server";
 
 import { Button } from "./trainer+/assets/button";
 import { NavFeaturedCard } from "./trainer+/NavFeatureCard";
@@ -61,6 +62,12 @@ class AdminErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryStat
 }
 
 export async function loader({ request, context, params }: LoaderFunctionArgs) {
+  // Check authentication and admin role
+  const user = await getAuthenticated({ request, context });
+  if (!user || (user as any).role !== "admin") {
+    return redirect("/");
+  }
+
   return materialDB
     .getAllMaterials(context.cloudflare.env.DATABASE_URL)
     .then((res: any) => {

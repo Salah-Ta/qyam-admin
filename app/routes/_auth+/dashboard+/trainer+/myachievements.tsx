@@ -1,4 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode, useState, useEffect } from "react";
+import { RegionsChart } from "~/components/RegionsChart";
 
 // Error Boundary Component
 interface ErrorBoundaryProps {
@@ -73,7 +74,7 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
-import { Doughnut, Bar } from "react-chartjs-2";
+import { Doughnut } from "react-chartjs-2";
 import { cn } from "~/lib/utils";
 
 // Client-only wrapper component to prevent hydration issues
@@ -481,52 +482,6 @@ export const MyAchievements = (): JSX.Element => {
     },
   ];
 
-  // Type for region data in chart
-  interface RegionChartData {
-    name: string;
-    value: number;
-    isUserRegion: boolean;
-    volunteerCount: number;
-    trainersCount: number;
-    volunteerHours: number;
-  }
-
-  // Data for the regions chart - using real regional statistics
-  // Find the max volunteer count to normalize values to 0-100 scale
-  const maxVolunteerCount = Math.max(
-    ...regionalStats.map((r: { volunteerCount?: number }) => r.volunteerCount || 0),
-    1 // Prevent division by zero
-  );
-
-  // Build regions array from real data
-  const regions: RegionChartData[] = regionalStats.map((region: { id: string; name: string; volunteerCount?: number; trainersCount?: number; volunteerHours?: number }) => {
-    // Calculate percentage based on volunteer count relative to max
-    const normalizedValue = Math.max(5, Math.min(100,
-      ((region.volunteerCount || 0) / maxVolunteerCount) * 100
-    ));
-
-    // Check if this is the user's region
-    const isUserRegion = userData?.regionId === region.id ||
-                         userData?.regionName === region.name;
-
-    return {
-      name: region.name,
-      value: Math.round(normalizedValue),
-      isUserRegion,
-      // Include raw data for tooltip/display if needed
-      volunteerCount: region.volunteerCount || 0,
-      trainersCount: region.trainersCount || 0,
-      volunteerHours: region.volunteerHours || 0
-    };
-  });
-
-  // Sort regions so user's region appears first
-  regions.sort((a: RegionChartData, b: RegionChartData) => {
-    if (a.isUserRegion && !b.isUserRegion) return -1;
-    if (!a.isUserRegion && b.isUserRegion) return 1;
-    return b.value - a.value; // Sort rest by value descending
-  });
-
   const createDoughnutData = (value: any, color: string) => ({
     datasets: [
       {
@@ -582,96 +537,6 @@ export const MyAchievements = (): JSX.Element => {
       },
       tooltip: {
         enabled: false,
-      },
-    },
-  };
-
-  const barChartData = {
-    labels: regions.map((region) => region.name),
-    datasets: [
-      {
-        label: "Green Segment",
-        data: regions.map((region) => region.value),
-        backgroundColor: "#17b169",
-        borderRadius: 16,
-        borderSkipped: false,
-        barThickness:
-          typeof window !== "undefined" && window.innerWidth < 768 ? 24 : 42, // 24px on mobile, 42px on desktop
-        barPercentage: 0.9,
-        categoryPercentage: 0.8,
-      },
-      {
-        label: "Gray Segment",
-        data: regions.map((region) => Math.max(10, region.value - 15)),
-        backgroundColor: "#E9EAEB",
-        borderRadius: {
-          topLeft: 10,
-          topRight: 10,
-          bottomLeft: 0,
-          bottomRight: 0,
-        },
-        borderSkipped: false,
-        barThickness:
-          typeof window !== "undefined" && window.innerWidth < 768 ? 24 : 42, // 24px on mobile, 42px on desktop
-        barPercentage: 0.9,
-        categoryPercentage: 0.8,
-      },
-    ],
-  };
-
-  const barChartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    scales: {
-      y: {
-        beginAtZero: true,
-        max: 100,
-        stacked: true,
-        ticks: {
-          stepSize: 20,
-          font: {
-            size:
-              typeof window !== "undefined" && window.innerWidth < 768
-                ? 10
-                : 12,
-            family: "'Inter', sans-serif",
-          },
-          color: "#535861",
-        },
-        grid: { color: "#E9EAEB", drawBorder: false },
-        border: { display: false },
-      },
-      x: {
-        stacked: true,
-        grid: { display: false },
-        ticks: {
-          font: {
-            size:
-              typeof window !== "undefined" && window.innerWidth < 768
-                ? 10
-                : 12,
-            family: "'Ping AR + LT', Helvetica",
-            weight: 700,
-          },
-          color: "#535861",
-        },
-        border: { display: false },
-      },
-    },
-    plugins: {
-      legend: { display: false },
-      tooltip: {
-        rtl: true,
-        titleAlign: "right" as const,
-        bodyAlign: "right" as const,
-        callbacks: {
-          label: function (context: any) {
-            if (context.datasetIndex === 0) {
-              return `${context.parsed.y}%`;
-            }
-            return "";
-          },
-        },
       },
     },
   };
@@ -937,20 +802,7 @@ export const MyAchievements = (): JSX.Element => {
             </div>
 
             <div className="border border-[#e9eaeb] rounded-xl bg-white p-6">
-              <div className="h-[228px]">
-                <ClientOnly
-                  fallback={
-                    <div className="h-[228px] bg-gray-100 rounded-lg flex items-center justify-center">
-                      <div className="flex flex-col items-center gap-2">
-                        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                        <p className="text-gray-500 text-sm">جاري تحميل الرسم البياني...</p>
-                      </div>
-                    </div>
-                  }
-                >
-                  <Bar data={barChartData} options={barChartOptions} />
-                </ClientOnly>
-              </div>
+              <RegionsChart regionalStats={regionalStats} />
             </div>
           </section>
         </div>
