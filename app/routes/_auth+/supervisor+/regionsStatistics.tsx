@@ -37,21 +37,6 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
     const dbUrl = context.cloudflare.env.DATABASE_URL;
 
-    // Get full user data to access regionId
-    const userWithRole = user as any;
-    let supervisorRegionId: string | null = null;
-    if (userWithRole?.role?.toUpperCase() === "SUPERVISOR" || userWithRole?.role === "مشرف") {
-      try {
-        const fullUserResult = await userDB.getUser(user.id, dbUrl) as any;
-        if (fullUserResult?.status === "success" && fullUserResult.data) {
-          const fullUser = Array.isArray(fullUserResult.data) ? fullUserResult.data[0] : fullUserResult.data;
-          supervisorRegionId = fullUser?.regionId || null;
-        }
-      } catch (error) {
-        console.error("Error fetching supervisor region:", error);
-      }
-    }
-
     // Fetch statistics and other data in parallel
     const [statistics, regions, schools, users, eduAdmins, regionalBreakdown, eduAdminBreakdown] = await Promise.all([
       statisticsService.getAdminDashboardDataStatistics(dbUrl),
@@ -63,40 +48,14 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
       statisticsService.getEduAdminBreakdown(dbUrl),
     ]);
 
-    // Filter data based on supervisor's region (if supervisor has a region assigned)
-    let filteredRegions: any[] = regions.data || [];
-    let filteredSchools: any[] = schools.data || [];
-    let filteredUsers: any[] = users.data || [];
-    let filteredEduAdmins: any[] = eduAdmins.data || [];
-    let filteredRegionalBreakdown: any[] = regionalBreakdown || [];
-    let filteredEduAdminBreakdown: any[] = eduAdminBreakdown || [];
-
-    if (supervisorRegionId) {
-      // Filter to only show supervisor's region
-      filteredRegions = filteredRegions.filter((r) => r.id === supervisorRegionId);
-      // Filter eduAdmins to only those in supervisor's region
-      filteredEduAdmins = filteredEduAdmins.filter((e) => e.regionId === supervisorRegionId);
-      // Get eduAdmin IDs for filtering schools
-      const supervisorEduAdminIds = filteredEduAdmins.map((e) => e.id);
-      // Filter schools to only those under supervisor's eduAdmins
-      filteredSchools = filteredSchools.filter((s) => supervisorEduAdminIds.includes(s.eduAdminId));
-      // Filter users to only those in supervisor's region
-      filteredUsers = filteredUsers.filter((u) => u.regionId === supervisorRegionId);
-      // Filter regional breakdown to supervisor's region
-      filteredRegionalBreakdown = filteredRegionalBreakdown.filter((r: any) => r.id === supervisorRegionId);
-      // Filter eduAdmin breakdown to supervisor's region
-      filteredEduAdminBreakdown = filteredEduAdminBreakdown.filter((e: any) => e.regionId === supervisorRegionId);
-    }
-
     return Response.json({
       statistics,
-      regions: filteredRegions,
-      schools: filteredSchools,
-      users: filteredUsers,
-      eduAdmins: filteredEduAdmins,
-      regionalBreakdown: filteredRegionalBreakdown,
-      eduAdminBreakdown: filteredEduAdminBreakdown,
-      supervisorRegionId,
+      regions: regions.data || [],
+      schools: schools.data || [],
+      users: users.data || [],
+      eduAdmins: eduAdmins.data || [],
+      regionalBreakdown: regionalBreakdown || [],
+      eduAdminBreakdown: eduAdminBreakdown || [],
     });
   } catch (error) {
     console.error("Error loading statistics:", error);
