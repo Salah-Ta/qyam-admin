@@ -566,15 +566,15 @@ export const SupervisorStatistics = (): JSX.Element => {
             <button
               onClick={() => {
                 try {
-                  navigate("/dashboard/admin/users");
+                  navigate("/supervisor/allTrainers");
                 } catch (e) {
                   // Fallback navigation
-                  window.location.href = "/dashboard/admin/users";
+                  window.location.href = "/supervisor/allTrainers";
                 }
               }}
               className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
             >
-              العودة إلى قائمة المستخدمين
+              العودة إلى قائمة المدربين
             </button>
           </div>
         </div>
@@ -757,10 +757,10 @@ export const SupervisorStatistics = (): JSX.Element => {
           <button
             onClick={() => {
               try {
-                navigate("/dashboard/admin/users");
+                navigate("/supervisor/allTrainers");
               } catch (e) {
                 // Fallback navigation
-                window.location.href = "/dashboard/admin/users";
+                window.location.href = "/supervisor/allTrainers";
               }
             }}
             className="flex items-center justify-center w-10 h-10 bg-white rounded-lg border border-gray-300 shadow-sm hover:bg-gray-50 transition-colors"
