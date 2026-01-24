@@ -522,14 +522,21 @@ export default function ProgramStatisticsContent(): JSX.Element {
     },
   ];
 
-  // Create regions data from regional breakdown with max values
-  const maxVolunteerHours = Math.max(...safeRegionalBreakdown.map((region: any) => region?.volunteerHours || 0), 1);
+  // Create regions data based on competition metrics:
+  // عدد الطالبات (studentsCount) + عدد الفرص التطوعية المنفذة (volunteerOpportunities)
+  const calculateRegionScore = (region: any) => {
+    return (region?.studentsCount || 0) + (region?.volunteerOpportunities || 0);
+  };
+
+  const maxRegionScore = Math.max(...safeRegionalBreakdown.map((region: any) => calculateRegionScore(region)), 1);
   const regionsData = safeRegionalBreakdown.map((regionStat: any) => {
-    const volunteerHours = Math.round(regionStat?.volunteerHours || 0);
+    const score = calculateRegionScore(regionStat);
     return {
       name: regionStat?.name || 'منطقة غير محددة',
-      value: volunteerHours,
-      maxValue: maxVolunteerHours,
+      value: score,
+      maxValue: maxRegionScore,
+      studentsCount: regionStat?.studentsCount || 0,
+      volunteerOpportunities: regionStat?.volunteerOpportunities || 0,
     };
   });
 
@@ -643,10 +650,10 @@ export default function ProgramStatisticsContent(): JSX.Element {
     scales: {
       y: {
         beginAtZero: true,
-        max: maxVolunteerHours,
+        max: maxRegionScore,
         stacked: true,
         ticks: {
-          stepSize: Math.ceil(maxVolunteerHours / 5),
+          stepSize: Math.ceil(maxRegionScore / 5),
           font: {
             size:
               typeof window !== "undefined" && window.innerWidth < 768
@@ -685,7 +692,14 @@ export default function ProgramStatisticsContent(): JSX.Element {
         callbacks: {
           label: function (context: any) {
             if (context.datasetIndex === 0) {
-              return `${context.parsed.y} ساعة تطوعية`;
+              const regionData = regionsData[context.dataIndex];
+              if (regionData) {
+                return [
+                  `${regionData.studentsCount?.toLocaleString('ar-SA') || 0} طالبة`,
+                  `${regionData.volunteerOpportunities?.toLocaleString('ar-SA') || 0} فرصة تطوعية`
+                ];
+              }
+              return `${context.parsed.y}`;
             }
             return "";
           },

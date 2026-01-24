@@ -266,39 +266,32 @@ export const RegionsStatistics = (): JSX.Element => {
     },
   ];
 
-  // Create regions data based on number of students per region
-  // Group users by regionId and sum their noStudents
-  const studentsPerRegion: Record<string, { name: string; students: number; trainers: number }> = {};
+  // Create regions data based on competition metrics:
+  // عدد الطالبات (studentsCount) + عدد الفرص التطوعية المنفذة (volunteerOpportunities)
+  const calculateRegionScore = (region: any) => {
+    return (
+      (region.studentsCount || 0) +
+      (region.volunteerOpportunities || 0)
+    );
+  };
 
-  // Initialize with all regions (even if they have 0 students)
-  (regions || []).forEach((region: any) => {
-    studentsPerRegion[region.id] = {
-      name: region.name,
-      students: 0,
-      trainers: 0,
-    };
-  });
+  // Calculate grand total for percentage calculation
+  const grandTotal = (regionalBreakdown || []).reduce((sum: number, r: any) => sum + calculateRegionScore(r), 0);
 
-  // Sum students from users
-  (users || []).forEach((user: any) => {
-    if (user.regionId && studentsPerRegion[user.regionId]) {
-      studentsPerRegion[user.regionId].students += user.noStudents || 0;
-      studentsPerRegion[user.regionId].trainers += 1;
-    }
-  });
-
-  // Calculate total students for percentage calculation
-  const totalStudents = Object.values(studentsPerRegion).reduce((sum, r) => sum + r.students, 0);
-
-  // Convert to array and calculate percentages (Option B: Percentage of Total)
-  const regionsData = Object.values(studentsPerRegion)
-    .filter((r: any) => r.students > 0) // Only show regions with students
-    .sort((a: any, b: any) => b.students - a.students) // Sort by students descending
+  // Convert to array and calculate percentages
+  const regionsData = (regionalBreakdown || [])
+    .map((region: any) => ({
+      ...region,
+      totalScore: calculateRegionScore(region),
+    }))
+    .filter((r: any) => r.totalScore > 0) // Only show regions with activity
+    .sort((a: any, b: any) => b.totalScore - a.totalScore) // Sort by total descending
     .map((region: any) => ({
       name: region.name,
-      value: totalStudents > 0 ? Math.round((region.students / totalStudents) * 100) : 0,
-      students: region.students,
-      trainers: region.trainers,
+      value: grandTotal > 0 ? Math.round((region.totalScore / grandTotal) * 100) : 0,
+      totalScore: region.totalScore,
+      studentsCount: region.studentsCount || 0,
+      volunteerOpportunities: region.volunteerOpportunities || 0,
     }));
 
   const barColors = [
@@ -374,7 +367,7 @@ export const RegionsStatistics = (): JSX.Element => {
     labels: regionsData.map((region: any) => region.name),
     datasets: [
       {
-        label: "ساعات التطوع",
+        label: "التنافس بين المناطق",
         data: regionsData.map((region: any) => region.value),
         backgroundColor: "#17b169",
         borderRadius: 8,
@@ -438,9 +431,9 @@ export const RegionsStatistics = (): JSX.Element => {
             const regionData = regionsData[context.dataIndex];
             if (regionData) {
               return [
-                `${context.parsed.y}% من إجمالي الطالبات`,
-                `${regionData.students?.toLocaleString('ar-SA') || 0} طالبة`,
-                `${regionData.trainers || 0} مدربة`
+                `${context.parsed.y}% من إجمالي التنافس`,
+                `${regionData.studentsCount?.toLocaleString('ar-SA') || 0} طالبة`,
+                `${regionData.volunteerOpportunities?.toLocaleString('ar-SA') || 0} فرصة تطوعية`
               ];
             }
             return `${context.parsed.y}%`;

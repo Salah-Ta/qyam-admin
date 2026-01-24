@@ -1,4 +1,4 @@
-import { BellIcon, SearchIcon, SettingsIcon, LogOut } from "lucide-react";
+import { LogOut } from "lucide-react";
 import React, { memo, useCallback, useMemo } from "react";
 import { Avatar, AvatarFallback } from "./UI-dashbord/avatar";
 import {
@@ -156,23 +156,9 @@ function DashboardNav() {
     return (
       <div className="flex items-center gap-4 flex-row">
         <div className="flex items-start gap-1 [direction:rtl]">
-          <button 
-            type="button"
-            className="flex w-10 items-center justify-center p-2 rounded-md overflow-hidden hover:bg-gray-100 transition-colors"
-            aria-label="بحث"
-          >
-            <SearchIcon className="w-5 h-5" />
-          </button>
-          <button 
-            type="button"
-            className="flex w-10 items-center justify-center p-2 rounded-md overflow-hidden hover:bg-gray-100 transition-colors"
-            aria-label="إعدادات"
-          >
-            <SettingsIcon className="w-5 h-5" />
-          </button>
-          <NotificationDropdown 
-            messages={notifications} 
-            unreadCount={unreadCount} 
+          <NotificationDropdown
+            messages={notifications}
+            unreadCount={unreadCount}
           />
           <button
             type="button"

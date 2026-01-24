@@ -23,7 +23,6 @@ import userDB from "~/db/user/user.server";
 import eduAdminDB from "~/db/eduAdmin/eduAdmin.server";
 import statisticsService from "~/db/statistics/statistics.server";
 import { getAuthenticated } from "~/lib/get-authenticated.server";
-import { ReportStatistics } from "~/types/types";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
   try {
@@ -51,12 +50,13 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     }
 
     // Fetch statistics and other data in parallel
-    const [statistics, regions, schools, users, eduAdmins] = await Promise.all([
+    const [statistics, regions, schools, users, eduAdmins, regionalBreakdown] = await Promise.all([
       statisticsService.getAdminDashboardDataStatistics(dbUrl),
       regionDB.getAllRegions(dbUrl),
       schoolDB.getAllSchools(dbUrl),
       userDB.getAllUsers(dbUrl),
       eduAdminDB.getAllEduAdmins(dbUrl),
+      statisticsService.getRegionalBreakdown(dbUrl),
     ]);
 
     // Filter data based on supervisor's region (if supervisor has a region assigned)
@@ -80,6 +80,9 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
       users: filteredUsers,
       eduAdmins: filteredEduAdmins,
       supervisorRegionId,
+      regionalBreakdown: supervisorRegionId
+        ? regionalBreakdown.filter((r: any) => r.id === supervisorRegionId)
+        : regionalBreakdown,
     });
   } catch (error) {
     console.error("Error loading statistics:", error);
@@ -100,11 +103,12 @@ ChartJS.register(
 export const ProgramStatistics = (): JSX.Element => {
   const navigate = useNavigate();
   const loaderData = useLoaderData<{
-    statistics: ReportStatistics;
+    statistics: any;
     regions: any[];
     schools: any[];
     users: any[];
     eduAdmins: any[];
+    regionalBreakdown: any[];
   }>();
 
   // State for dropdown selections
@@ -123,7 +127,7 @@ export const ProgramStatistics = (): JSX.Element => {
     );
   }
 
-  const { statistics, regions, schools, users, eduAdmins } = loaderData;
+  const { statistics, regions, schools, users, eduAdmins, regionalBreakdown } = loaderData;
 
   // Filter eduAdmins based on selected region
   const filteredEduAdmins = selectedRegion
@@ -245,11 +249,25 @@ export const ProgramStatistics = (): JSX.Element => {
     },
   ];
 
-  // Create regions data from regional statistics
-  const regionsData = statistics.regionStats.map((regionStat) => ({
-    name: regionStat.regionName,
-    value: Math.round(regionStat.volunteerHoursPercentage),
-  }));
+  // Create regions data based on competition metrics:
+  // عدد الطالبات (studentsCount) + عدد الفرص التطوعية المنفذة (volunteerOpportunities)
+  const safeRegionalBreakdown = regionalBreakdown || [];
+
+  const calculateRegionScore = (region: any) => {
+    return (region?.studentsCount || 0) + (region?.volunteerOpportunities || 0);
+  };
+
+  const maxRegionScore = Math.max(...safeRegionalBreakdown.map((region: any) => calculateRegionScore(region)), 1);
+  const regionsData = safeRegionalBreakdown.map((regionStat: any) => {
+    const score = calculateRegionScore(regionStat);
+    return {
+      name: regionStat?.name || 'منطقة غير محددة',
+      value: score,
+      maxValue: maxRegionScore,
+      studentsCount: regionStat?.studentsCount || 0,
+      volunteerOpportunities: regionStat?.volunteerOpportunities || 0,
+    };
+  });
 
   const getRadialChartDataTotal = (percentage: number, color: string) => ({
     datasets: [
@@ -310,22 +328,22 @@ export const ProgramStatistics = (): JSX.Element => {
   };
 
   const barChartData = {
-    labels: regionsData.map((region) => region.name),
+    labels: regionsData.map((region: any) => region.name),
     datasets: [
       {
-        label: "Green Segment",
-        data: regionsData.map((region) => region.value),
+        label: "التنافس بين المناطق",
+        data: regionsData.map((region: any) => region.value),
         backgroundColor: "#17b169",
         borderRadius: 16,
         borderSkipped: false,
         barThickness:
-          typeof window !== "undefined" && window.innerWidth < 768 ? 24 : 42, // 24px on mobile, 42px on desktop
+          typeof window !== "undefined" && window.innerWidth < 768 ? 24 : 42,
         barPercentage: 0.9,
         categoryPercentage: 0.8,
       },
       {
         label: "Gray Segment",
-        data: regionsData.map((region) => Math.max(10, region.value - 15)),
+        data: regionsData.map((region: any) => Math.max(0, region.maxValue - region.value)),
         backgroundColor: "#E9EAEB",
         borderRadius: {
           topLeft: 10,
@@ -335,7 +353,7 @@ export const ProgramStatistics = (): JSX.Element => {
         },
         borderSkipped: false,
         barThickness:
-          typeof window !== "undefined" && window.innerWidth < 768 ? 24 : 42, // 24px on mobile, 42px on desktop
+          typeof window !== "undefined" && window.innerWidth < 768 ? 24 : 42,
         barPercentage: 0.9,
         categoryPercentage: 0.8,
       },
@@ -348,10 +366,10 @@ export const ProgramStatistics = (): JSX.Element => {
     scales: {
       y: {
         beginAtZero: true,
-        max: 100,
+        max: maxRegionScore,
         stacked: true,
         ticks: {
-          stepSize: 20,
+          stepSize: Math.ceil(maxRegionScore / 5),
           font: {
             size:
               typeof window !== "undefined" && window.innerWidth < 768
@@ -390,7 +408,14 @@ export const ProgramStatistics = (): JSX.Element => {
         callbacks: {
           label: function (context: any) {
             if (context.datasetIndex === 0) {
-              return `${context.parsed.y}%`;
+              const regionData = regionsData[context.dataIndex];
+              if (regionData) {
+                return [
+                  `${regionData.studentsCount?.toLocaleString('ar-SA') || 0} طالبة`,
+                  `${regionData.volunteerOpportunities?.toLocaleString('ar-SA') || 0} فرصة تطوعية`
+                ];
+              }
+              return `${context.parsed.y}`;
             }
             return "";
           },

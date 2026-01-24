@@ -97,6 +97,7 @@ export const CertificateRow: React.FC<CertificateRowProps> = ({
   const [pdfPreview, setPdfPreview] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [useBoldFont, setUseBoldFont] = useState(true);
 
   const formFields = [
     {
@@ -146,9 +147,12 @@ export const CertificateRow: React.FC<CertificateRowProps> = ({
         administration: formData.administration!,
         school: formData.school!,
         hours: formData.hours!,
+        useBoldFont,
       };
 
-      const pdfDataUri = await generateCertificatePDF(certificateData);
+      const pdfBlob = await generateCertificatePDF(certificateData);
+      // Convert Blob to data URL for preview
+      const pdfDataUri = URL.createObjectURL(pdfBlob);
       setPdfPreview(pdfDataUri);
     } catch (error) {
       console.error("Error generating PDF:", error);
@@ -169,6 +173,7 @@ export const CertificateRow: React.FC<CertificateRowProps> = ({
         administration: formData.administration!,
         school: formData.school!,
         hours: formData.hours!,
+        useBoldFont,
       };
 
       await downloadCertificate(certificateData);
@@ -232,6 +237,35 @@ export const CertificateRow: React.FC<CertificateRowProps> = ({
 
       {showPDF && (
         <div className="flex flex-col gap-4 mt-4">
+          {/* Bold/Thin Toggle */}
+          <div className="flex items-center gap-3">
+            <Label className="text-sm text-[#414651]">نوع الخط:</Label>
+            <div className="inline-flex rounded-md border border-[#d5d6d9] overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setUseBoldFont(true)}
+                className={`px-4 py-1.5 text-sm font-medium transition-colors ${
+                  useBoldFont
+                    ? "bg-[#1c81ac] text-white"
+                    : "bg-white text-[#414651] hover:bg-gray-50"
+                }`}
+              >
+                عريض
+              </button>
+              <button
+                type="button"
+                onClick={() => setUseBoldFont(false)}
+                className={`px-4 py-1.5 text-sm font-medium transition-colors border-r border-[#d5d6d9] ${
+                  !useBoldFont
+                    ? "bg-[#1c81ac] text-white"
+                    : "bg-white text-[#414651] hover:bg-gray-50"
+                }`}
+              >
+                رفيع
+              </button>
+            </div>
+          </div>
+
           <div className="flex gap-2">
             <Button
               onClick={handleGeneratePDF}
