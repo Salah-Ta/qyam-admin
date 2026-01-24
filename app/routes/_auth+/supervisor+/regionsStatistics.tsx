@@ -53,12 +53,14 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     }
 
     // Fetch statistics and other data in parallel
-    const [statistics, regions, schools, users, eduAdmins] = await Promise.all([
+    const [statistics, regions, schools, users, eduAdmins, regionalBreakdown, eduAdminBreakdown] = await Promise.all([
       statisticsService.getAdminDashboardDataStatistics(dbUrl),
       regionDB.getAllRegions(dbUrl),
       schoolDB.getAllSchools(dbUrl),
       userDB.getAllUsers(dbUrl),
       eduAdminDB.getAllEduAdmins(dbUrl),
+      statisticsService.getRegionalBreakdown(dbUrl),
+      statisticsService.getEduAdminBreakdown(dbUrl),
     ]);
 
     // Filter data based on supervisor's region (if supervisor has a region assigned)
@@ -66,6 +68,8 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     let filteredSchools: any[] = schools.data || [];
     let filteredUsers: any[] = users.data || [];
     let filteredEduAdmins: any[] = eduAdmins.data || [];
+    let filteredRegionalBreakdown: any[] = regionalBreakdown || [];
+    let filteredEduAdminBreakdown: any[] = eduAdminBreakdown || [];
 
     if (supervisorRegionId) {
       // Filter to only show supervisor's region
@@ -78,6 +82,10 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
       filteredSchools = filteredSchools.filter((s) => supervisorEduAdminIds.includes(s.eduAdminId));
       // Filter users to only those in supervisor's region
       filteredUsers = filteredUsers.filter((u) => u.regionId === supervisorRegionId);
+      // Filter regional breakdown to supervisor's region
+      filteredRegionalBreakdown = filteredRegionalBreakdown.filter((r: any) => r.id === supervisorRegionId);
+      // Filter eduAdmin breakdown to supervisor's region
+      filteredEduAdminBreakdown = filteredEduAdminBreakdown.filter((e: any) => e.regionId === supervisorRegionId);
     }
 
     return Response.json({
@@ -86,7 +94,9 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
       schools: filteredSchools,
       users: filteredUsers,
       eduAdmins: filteredEduAdmins,
-      supervisorRegionId, // Pass this for reference
+      regionalBreakdown: filteredRegionalBreakdown,
+      eduAdminBreakdown: filteredEduAdminBreakdown,
+      supervisorRegionId,
     });
   } catch (error) {
     console.error("Error loading statistics:", error);
@@ -107,11 +117,13 @@ ChartJS.register(
 export const RegionsStatistics = (): JSX.Element => {
   const navigate = useNavigate();
   const loaderData = useLoaderData<{
-    statistics: ReportStatistics;
+    statistics: any;
     regions: any[];
     schools: any[];
     users: any[];
     eduAdmins: any[];
+    regionalBreakdown: any[];
+    eduAdminBreakdown: any[];
   }>();
 
   // State for dropdown selections
@@ -130,7 +142,7 @@ export const RegionsStatistics = (): JSX.Element => {
     );
   }
 
-  const { statistics, regions, schools, users, eduAdmins } = loaderData;
+  const { statistics, regions, schools, users, eduAdmins, regionalBreakdown, eduAdminBreakdown } = loaderData;
 
   // Filter eduAdmins based on selected region
   const filteredEduAdmins = selectedRegion 
@@ -158,27 +170,27 @@ export const RegionsStatistics = (): JSX.Element => {
     }
   }, [selectedEduAdmin]);
 
-  // Calculate stats data from real data
+  // Calculate stats data from real data (using DashStatistics type)
   const statsData = [
     {
       id: 1,
       icon: School,
       iconAlt: "School",
       title: "عدد المدارس",
-      value: statistics.globalTotals.schoolsCount.toString(),
+      value: (statistics?.schoolsTotal || 0).toString(),
       max: "100",
       color: "#539c4a",
-      percentage: Math.min(100, (statistics.globalTotals.schoolsCount / 100) * 100),
+      percentage: Math.min(100, ((statistics?.schoolsTotal || 0) / 100) * 100),
     },
     {
       id: 2,
       icon: teacher,
       iconAlt: "Teacher",
       title: "عدد المعلمات",
-      value: statistics.globalTotals.trainers.toString(),
+      value: (statistics?.trainersTotal || 0).toString(),
       max: "200",
       color: "#199491",
-      percentage: Math.min(100, (statistics.globalTotals.trainers / 200) * 100),
+      percentage: Math.min(100, ((statistics?.trainersTotal || 0) / 200) * 100),
     },
     {
       id: 3,
@@ -192,71 +204,102 @@ export const RegionsStatistics = (): JSX.Element => {
     },
   ];
 
-  // Create education departments data from regional statistics
-  const educationDepartments = statistics.eduAdminStats.slice(0, 8).map((stat, index) => ({
-    name: stat.eduAdminName,
+  // Create education departments data from eduAdmin breakdown
+  // Calculate total volunteer hours for percentage calculation
+  const totalEduAdminHours = (eduAdminBreakdown || []).reduce((sum: number, e: any) => sum + (e.volunteerHours || 0), 0);
+  const educationDepartments = (eduAdminBreakdown || []).slice(0, 8).map((stat: any, index: number) => ({
+    name: stat.name,
     color: ["#539C4A", "#30B0C7", "#FFCC00", "#AF52DE", "#FF2D55", "#68C35C", "#E9EAEB", "#006173"][index % 8],
-    value: Math.round(stat.volunteerHoursPercentage),
+    value: totalEduAdminHours > 0 ? Math.round((stat.volunteerHours / totalEduAdminHours) * 100) : 0,
   }));
 
-  // Create reports metrics data from global totals
+  // Create reports metrics data from statistics totals
   const reportMetrics = [
     {
-      value: statistics.globalTotals.skillsTrainedCount.toString(),
+      value: (statistics?.skillsTrainedCountTotal || 0).toString(),
       unit: "مهارة",
       title: "المهارات المدرب عليها",
       color: "#68C35C",
-      percentage: Math.min(100, (statistics.globalTotals.skillsTrainedCount / 100) * 100),
+      percentage: Math.min(100, ((statistics?.skillsTrainedCountTotal || 0) / 100) * 100),
     },
     {
-      value: Math.round(statistics.globalTotals.volunteerHours).toString(),
+      value: Math.round(statistics?.volunteerHoursTotal || 0).toString(),
       unit: "ساعة",
       title: "الساعات التطوعية",
       color: "#68C35C",
-      percentage: Math.min(100, (statistics.globalTotals.volunteerHours / 1000) * 100),
+      percentage: Math.min(100, ((statistics?.volunteerHoursTotal || 0) / 1000) * 100),
     },
     {
-      value: statistics.globalTotals.activitiesCount.toString(),
+      value: (statistics?.activitiesCountTotal || 0).toString(),
       unit: "نشاط",
       title: "الأنشطة المنفذة",
       color: "#68C35C",
-      percentage: Math.min(100, (statistics.globalTotals.activitiesCount / 100) * 100),
+      percentage: Math.min(100, ((statistics?.activitiesCountTotal || 0) / 100) * 100),
     },
     {
-      value: Math.round(statistics.globalTotals.skillsEconomicValue).toString(),
+      value: Math.round(statistics?.skillsEconomicValueTotal || 0).toString(),
       unit: "مهارة",
       title: "القيمة الاقتصادية للمهارات",
       color: "#68C35C",
-      percentage: Math.min(100, (statistics.globalTotals.skillsEconomicValue / 1000) * 100),
+      percentage: Math.min(100, ((statistics?.skillsEconomicValueTotal || 0) / 1000) * 100),
     },
     {
-      value: Math.round(statistics.globalTotals.volunteerHours).toString(),
+      value: Math.round(statistics?.volunteerHoursTotal || 0).toString(),
       unit: "ساعة تطوعية",
       title: "الساعات التطوعية المحققة",
       color: "#68C35C",
-      percentage: Math.min(100, (statistics.globalTotals.volunteerHours / 10000) * 100),
+      percentage: Math.min(100, ((statistics?.volunteerHoursTotal || 0) / 10000) * 100),
     },
     {
-      value: Math.round(statistics.globalTotals.economicValue).toString(),
+      value: Math.round(statistics?.economicValueTotal || 0).toString(),
       unit: "قيمة",
       title: "القيمية الاقتصادية من التطوع",
       color: "#68C35C",
-      percentage: Math.min(100, (statistics.globalTotals.economicValue / 1000) * 100),
+      percentage: Math.min(100, ((statistics?.economicValueTotal || 0) / 1000) * 100),
     },
     {
-      value: statistics.globalTotals.trainers.toString(),
+      value: (statistics?.trainersTotal || 0).toString(),
       unit: "مدربة نشطة",
       title: "المدربات النشطات",
       color: "#68C35C",
-      percentage: Math.min(100, (statistics.globalTotals.trainers / 100) * 100),
+      percentage: Math.min(100, ((statistics?.trainersTotal || 0) / 100) * 100),
     },
   ];
 
-  // Create regions data from regional statistics
-  const regionsData = statistics.regionStats.map((regionStat) => ({
-    name: regionStat.regionName,
-    value: Math.round(regionStat.volunteerHoursPercentage),
-  }));
+  // Create regions data based on number of students per region
+  // Group users by regionId and sum their noStudents
+  const studentsPerRegion: Record<string, { name: string; students: number; trainers: number }> = {};
+
+  // Initialize with all regions (even if they have 0 students)
+  (regions || []).forEach((region: any) => {
+    studentsPerRegion[region.id] = {
+      name: region.name,
+      students: 0,
+      trainers: 0,
+    };
+  });
+
+  // Sum students from users
+  (users || []).forEach((user: any) => {
+    if (user.regionId && studentsPerRegion[user.regionId]) {
+      studentsPerRegion[user.regionId].students += user.noStudents || 0;
+      studentsPerRegion[user.regionId].trainers += 1;
+    }
+  });
+
+  // Calculate total students for percentage calculation
+  const totalStudents = Object.values(studentsPerRegion).reduce((sum, r) => sum + r.students, 0);
+
+  // Convert to array and calculate percentages (Option B: Percentage of Total)
+  const regionsData = Object.values(studentsPerRegion)
+    .filter((r: any) => r.students > 0) // Only show regions with students
+    .sort((a: any, b: any) => b.students - a.students) // Sort by students descending
+    .map((region: any) => ({
+      name: region.name,
+      value: totalStudents > 0 ? Math.round((region.students / totalStudents) * 100) : 0,
+      students: region.students,
+      trainers: region.trainers,
+    }));
 
   const barColors = [
     "#006173",
@@ -328,32 +371,16 @@ export const RegionsStatistics = (): JSX.Element => {
   };
 
   const barChartData = {
-    labels: regionsData.map((region) => region.name),
+    labels: regionsData.map((region: any) => region.name),
     datasets: [
       {
-        label: "Green Segment",
-        data: regionsData.map((region) => region.value),
+        label: "ساعات التطوع",
+        data: regionsData.map((region: any) => region.value),
         backgroundColor: "#17b169",
-        borderRadius: 16,
+        borderRadius: 8,
         borderSkipped: false,
         barThickness:
-          typeof window !== "undefined" && window.innerWidth < 768 ? 24 : 42, // 24px on mobile, 42px on desktop
-        barPercentage: 0.9,
-        categoryPercentage: 0.8,
-      },
-      {
-        label: "Gray Segment",
-        data: regionsData.map((region) => Math.max(10, region.value - 15)),
-        backgroundColor: "#E9EAEB",
-        borderRadius: {
-          topLeft: 10,
-          topRight: 10,
-          bottomLeft: 0,
-          bottomRight: 0,
-        },
-        borderSkipped: false,
-        barThickness:
-          typeof window !== "undefined" && window.innerWidth < 768 ? 24 : 42, // 24px on mobile, 42px on desktop
+          typeof window !== "undefined" && window.innerWidth < 768 ? 24 : 42,
         barPercentage: 0.9,
         categoryPercentage: 0.8,
       },
@@ -367,7 +394,6 @@ export const RegionsStatistics = (): JSX.Element => {
       y: {
         beginAtZero: true,
         max: 100,
-        stacked: true,
         ticks: {
           stepSize: 20,
           font: {
@@ -378,12 +404,14 @@ export const RegionsStatistics = (): JSX.Element => {
             family: "'Inter', sans-serif",
           },
           color: "#535861",
+          callback: function(value: any) {
+            return value + '%';
+          }
         },
         grid: { color: "#E9EAEB", drawBorder: false },
         border: { display: false },
       },
       x: {
-        stacked: true,
         grid: { display: false },
         ticks: {
           font: {
@@ -407,10 +435,15 @@ export const RegionsStatistics = (): JSX.Element => {
         bodyAlign: "right" as const,
         callbacks: {
           label: function (context: any) {
-            if (context.datasetIndex === 0) {
-              return `${context.parsed.y}%`;
+            const regionData = regionsData[context.dataIndex];
+            if (regionData) {
+              return [
+                `${context.parsed.y}% من إجمالي الطالبات`,
+                `${regionData.students?.toLocaleString('ar-SA') || 0} طالبة`,
+                `${regionData.trainers || 0} مدربة`
+              ];
             }
-            return "";
+            return `${context.parsed.y}%`;
           },
         },
       },
