@@ -33,6 +33,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "~/components/ui/dialog";
 
 // Utility function
 const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
@@ -1517,17 +1525,17 @@ export const Users = (): React.JSX.Element => {
                         </TableCell>
                         <TableCell className="py-1 px-2 text-right max-md:hidden ">
                           <span className=" font-medium text-[#027163] text-base [direction:rtl]">
-                            {row?.schoolId || "-"}
+                            {row?.schoolName || row?.schoolId || "-"}
                           </span>
                         </TableCell>
                         <TableCell className="py-1 px-2 text-right max-md:hidden ">
                           <span className=" font-medium text-[#027163] text-base [direction:rtl]">
-                            {row?.eduAdminId || "-"}
+                            {row?.eduAdminName || row?.eduAdminId || "-"}
                           </span>
                         </TableCell>
                         <TableCell className="py-1 px-2 text-right max-md:hidden ">
                           <span className=" font-medium text-[#027163] text-base [direction:rtl]">
-                            {row?.region || "-"}
+                            {row?.regionName || row?.region || "-"}
                           </span>
                         </TableCell>
                         <TableCell className="py-1 px-2 text-right max-md:hidden ">
@@ -1648,163 +1656,195 @@ export const Users = (): React.JSX.Element => {
       </Card>
 
       {/* Create User Dialog */}
-      {isCreateUserDialogOpen && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-          onClick={() => setIsCreateUserDialogOpen(false)}
-        >
-          <div
-            className="bg-white rounded-lg p-6 max-w-md w-full mx-4 [direction:rtl]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">إضافة مستخدم جديد</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">الاسم *</label>
-                <Input
-                  value={createUserForm.name}
-                  onChange={(e) => setCreateUserForm({ ...createUserForm, name: e.target.value })}
-                  placeholder="أدخل الاسم الكامل"
-                  className="text-right"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">البريد الإلكتروني *</label>
-                <Input
-                  type="email"
-                  value={createUserForm.email}
-                  onChange={(e) => setCreateUserForm({ ...createUserForm, email: e.target.value })}
-                  placeholder="example@email.com"
-                  dir="ltr"
-                  className="text-left"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">كلمة المرور *</label>
-                <Input
-                  type="password"
-                  value={createUserForm.password}
-                  onChange={(e) => setCreateUserForm({ ...createUserForm, password: e.target.value })}
-                  placeholder="8 أحرف على الأقل"
-                  dir="ltr"
-                />
-                {createUserForm.password && createUserForm.password.length < 8 && (
-                  <p className="text-red-500 text-sm mt-1">كلمة المرور يجب أن تكون 8 أحرف على الأقل</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">رقم الجوال</label>
-                <Input
-                  value={createUserForm.phone}
-                  onChange={(e) => setCreateUserForm({ ...createUserForm, phone: e.target.value })}
-                  placeholder="05xxxxxxxx"
-                  dir="ltr"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">الدور</label>
-                <Select
-                  value={createUserForm.role}
-                  onValueChange={(value) => setCreateUserForm({ ...createUserForm, role: value })}
-                >
-                  <SelectTrigger className="text-right">
-                    <SelectValue placeholder="اختر الدور" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="user">مدرب</SelectItem>
-                    <SelectItem value="supervisor">مشرف</SelectItem>
-                    <SelectItem value="admin">مدير</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">المنطقة</label>
-                <Select
-                  value={createUserForm.regionId}
-                  onValueChange={(value) => setCreateUserForm({ ...createUserForm, regionId: value })}
-                >
-                  <SelectTrigger className="text-right">
-                    <SelectValue placeholder="اختر المنطقة" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {regions.map((region: any) => (
-                      <SelectItem key={region.id} value={region.id}>
-                        {region.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">الإدارة التعليمية</label>
-                <Select
-                  value={createUserForm.eduAdminId}
-                  onValueChange={(value) => setCreateUserForm({ ...createUserForm, eduAdminId: value })}
-                  disabled={!createUserForm.regionId || eduAdminsFetcher.state === "loading"}
-                >
-                  <SelectTrigger className="text-right">
-                    <SelectValue placeholder={
-                      !createUserForm.regionId
-                        ? "اختر المنطقة أولاً"
-                        : eduAdminsFetcher.state === "loading"
-                          ? "جاري التحميل..."
-                          : "اختر الإدارة التعليمية"
-                    } />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {eduAdmins.map((eduAdmin) => (
-                      <SelectItem key={eduAdmin.id} value={eduAdmin.id}>
-                        {eduAdmin.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">المدرسة</label>
-                <Select
-                  value={createUserForm.schoolId}
-                  onValueChange={(value) => setCreateUserForm({ ...createUserForm, schoolId: value })}
-                  disabled={!createUserForm.eduAdminId || schoolsFetcher.state === "loading"}
-                >
-                  <SelectTrigger className="text-right">
-                    <SelectValue placeholder={
-                      !createUserForm.eduAdminId
-                        ? "اختر الإدارة التعليمية أولاً"
-                        : schoolsFetcher.state === "loading"
-                          ? "جاري التحميل..."
-                          : "اختر المدرسة"
-                    } />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {schools.map((school) => (
-                      <SelectItem key={school.id} value={school.id}>
-                        {school.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+      <Dialog open={isCreateUserDialogOpen} onOpenChange={setIsCreateUserDialogOpen}>
+        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto [direction:rtl]">
+          <DialogHeader className="text-right pb-4">
+            <DialogTitle className="text-xl font-bold text-gray-900">إضافة مستخدم جديد</DialogTitle>
+            <DialogDescription className="text-gray-500">
+              أدخل بيانات المستخدم الجديد للنظام
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-5">
+            {/* Name */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                الاسم الكامل <span className="text-red-500">*</span>
+              </label>
+              <Input
+                value={createUserForm.name}
+                onChange={(e) => setCreateUserForm({ ...createUserForm, name: e.target.value })}
+                placeholder="أدخل الاسم الكامل"
+                className="w-full h-11 text-right"
+              />
             </div>
-            <div className="flex gap-3 justify-end mt-6">
-              <Button
-                variant="outline"
-                onClick={() => setIsCreateUserDialogOpen(false)}
-                className="px-4 py-2"
+
+            {/* Email */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                البريد الإلكتروني <span className="text-red-500">*</span>
+              </label>
+              <Input
+                type="email"
+                value={createUserForm.email}
+                onChange={(e) => setCreateUserForm({ ...createUserForm, email: e.target.value })}
+                placeholder="example@email.com"
+                dir="ltr"
+                className="w-full h-11 text-left"
+              />
+            </div>
+
+            {/* Password */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                كلمة المرور <span className="text-red-500">*</span>
+              </label>
+              <Input
+                type="password"
+                value={createUserForm.password}
+                onChange={(e) => setCreateUserForm({ ...createUserForm, password: e.target.value })}
+                placeholder="8 أحرف على الأقل"
+                dir="ltr"
+                className="w-full h-11 text-left"
+              />
+              {createUserForm.password && createUserForm.password.length < 8 && (
+                <p className="text-red-500 text-xs mt-1">كلمة المرور يجب أن تكون 8 أحرف على الأقل</p>
+              )}
+            </div>
+
+            {/* Phone */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                رقم الجوال
+              </label>
+              <Input
+                value={createUserForm.phone}
+                onChange={(e) => setCreateUserForm({ ...createUserForm, phone: e.target.value })}
+                placeholder="05xxxxxxxx"
+                dir="ltr"
+                className="w-full h-11 text-left"
+              />
+            </div>
+
+            {/* Role */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                الدور
+              </label>
+              <Select
+                value={createUserForm.role}
+                onValueChange={(value) => setCreateUserForm({ ...createUserForm, role: value })}
               >
-                إلغاء
-              </Button>
-              <Button
-                onClick={handleCreateUser}
-                disabled={!createUserForm.name || !createUserForm.email || !createUserForm.password || createUserForm.password.length < 8}
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white"
+                <SelectTrigger className="w-full h-11 text-right">
+                  <SelectValue placeholder="اختر الدور" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="user">مدرب</SelectItem>
+                  <SelectItem value="supervisor">مشرف</SelectItem>
+                  <SelectItem value="admin">مدير</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Region */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                المنطقة
+              </label>
+              <Select
+                value={createUserForm.regionId}
+                onValueChange={(value) => setCreateUserForm({ ...createUserForm, regionId: value })}
               >
-                إضافة
-              </Button>
+                <SelectTrigger className="w-full h-11 text-right">
+                  <SelectValue placeholder="اختر المنطقة" />
+                </SelectTrigger>
+                <SelectContent>
+                  {regions.map((region: any) => (
+                    <SelectItem key={region.id} value={region.id}>
+                      {region.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* EduAdmin */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                الإدارة التعليمية
+              </label>
+              <Select
+                value={createUserForm.eduAdminId}
+                onValueChange={(value) => setCreateUserForm({ ...createUserForm, eduAdminId: value })}
+                disabled={!createUserForm.regionId || eduAdminsFetcher.state === "loading"}
+              >
+                <SelectTrigger className="w-full h-11 text-right disabled:bg-gray-100 disabled:cursor-not-allowed">
+                  <SelectValue placeholder={
+                    !createUserForm.regionId
+                      ? "اختر المنطقة أولاً"
+                      : eduAdminsFetcher.state === "loading"
+                        ? "جاري التحميل..."
+                        : "اختر الإدارة التعليمية"
+                  } />
+                </SelectTrigger>
+                <SelectContent>
+                  {eduAdmins.map((eduAdmin) => (
+                    <SelectItem key={eduAdmin.id} value={eduAdmin.id}>
+                      {eduAdmin.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* School */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                المدرسة
+              </label>
+              <Select
+                value={createUserForm.schoolId}
+                onValueChange={(value) => setCreateUserForm({ ...createUserForm, schoolId: value })}
+                disabled={!createUserForm.eduAdminId || schoolsFetcher.state === "loading"}
+              >
+                <SelectTrigger className="w-full h-11 text-right disabled:bg-gray-100 disabled:cursor-not-allowed">
+                  <SelectValue placeholder={
+                    !createUserForm.eduAdminId
+                      ? "اختر الإدارة التعليمية أولاً"
+                      : schoolsFetcher.state === "loading"
+                        ? "جاري التحميل..."
+                        : "اختر المدرسة"
+                  } />
+                </SelectTrigger>
+                <SelectContent>
+                  {schools.map((school) => (
+                    <SelectItem key={school.id} value={school.id}>
+                      {school.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
-        </div>
-      )}
+
+          <DialogFooter className="mt-6 gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setIsCreateUserDialogOpen(false)}
+              className="flex-1 h-11"
+            >
+              إلغاء
+            </Button>
+            <Button
+              onClick={handleCreateUser}
+              disabled={!createUserForm.name || !createUserForm.email || !createUserForm.password || createUserForm.password.length < 8 || fetcher.state === "submitting"}
+              className="flex-1 h-11 bg-[#006A61] hover:bg-[#005a52] text-white"
+            >
+              {fetcher.state === "submitting" ? "جاري الإضافة..." : "إضافة المستخدم"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Reset Password Dialog */}
       {resetPasswordUser && (
@@ -1855,46 +1895,70 @@ export const Users = (): React.JSX.Element => {
         </div>
       )}
 
-      {/* Edit User Dialog */}
-      {editUserDialogOpen && editUserForm && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-          onClick={() => { setEditUserDialogOpen(false); setEditUserForm(null); }}
-        >
-          <div
-            className="bg-white rounded-lg p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto [direction:rtl]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">تعديل بيانات المستخدم</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              تعديل بيانات: <strong>{editUserForm.name}</strong>
-            </p>
-            <div className="space-y-4">
+      {/* Edit User Dialog - Simplified */}
+      <Dialog open={editUserDialogOpen && !!editUserForm} onOpenChange={(open) => { if (!open) { setEditUserDialogOpen(false); setEditUserForm(null); } }}>
+        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto [direction:rtl]">
+          <DialogHeader className="text-right pb-4">
+            <DialogTitle className="text-xl font-bold text-gray-900">تعديل بيانات المستخدم</DialogTitle>
+            <DialogDescription className="text-gray-500">
+              تعديل بيانات: {editUserForm?.name}
+            </DialogDescription>
+          </DialogHeader>
+
+          {editUserForm && (
+            <div className="space-y-5">
+              {/* Name */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">الاسم</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  الاسم الكامل
+                </label>
                 <Input
                   value={editUserForm.name}
                   onChange={(e) => setEditUserForm({ ...editUserForm, name: e.target.value })}
                   placeholder="أدخل الاسم الكامل"
-                  className="text-right"
+                  className="w-full h-11 text-right"
                 />
               </div>
+
+              {/* Email (disabled) */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">رقم الجوال</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  البريد الإلكتروني
+                </label>
+                <Input
+                  type="email"
+                  value={editUserForm.email}
+                  disabled
+                  dir="ltr"
+                  className="w-full h-11 text-left bg-gray-100 text-gray-500"
+                />
+                <p className="text-xs text-gray-400 mt-1">لا يمكن تغيير البريد الإلكتروني</p>
+              </div>
+
+              {/* Phone */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  رقم الجوال
+                </label>
                 <Input
                   value={editUserForm.phone}
                   onChange={(e) => setEditUserForm({ ...editUserForm, phone: e.target.value })}
                   placeholder="05xxxxxxxx"
                   dir="ltr"
+                  className="w-full h-11 text-left"
                 />
               </div>
+
+              {/* Role */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">الدور</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  الدور
+                </label>
                 <Select
                   value={editUserForm.role}
                   onValueChange={(value) => setEditUserForm({ ...editUserForm, role: value })}
                 >
-                  <SelectTrigger className="text-right">
+                  <SelectTrigger className="w-full h-11 text-right">
                     <SelectValue placeholder="اختر الدور" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1904,13 +1968,17 @@ export const Users = (): React.JSX.Element => {
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Region */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">المنطقة</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  المنطقة
+                </label>
                 <Select
                   value={editUserForm.regionId}
                   onValueChange={(value) => setEditUserForm({ ...editUserForm, regionId: value, eduAdminId: "", schoolId: "" })}
                 >
-                  <SelectTrigger className="text-right">
+                  <SelectTrigger className="w-full h-11 text-right">
                     <SelectValue placeholder="اختر المنطقة" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1922,14 +1990,18 @@ export const Users = (): React.JSX.Element => {
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* EduAdmin */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">الإدارة التعليمية</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  الإدارة التعليمية
+                </label>
                 <Select
                   value={editUserForm.eduAdminId}
                   onValueChange={(value) => setEditUserForm({ ...editUserForm, eduAdminId: value, schoolId: "" })}
                   disabled={!editUserForm.regionId || editEduAdminsFetcher.state === "loading"}
                 >
-                  <SelectTrigger className="text-right">
+                  <SelectTrigger className="w-full h-11 text-right disabled:bg-gray-100 disabled:cursor-not-allowed">
                     <SelectValue placeholder={
                       !editUserForm.regionId
                         ? "اختر المنطقة أولاً"
@@ -1947,14 +2019,18 @@ export const Users = (): React.JSX.Element => {
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* School */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">المدرسة</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  المدرسة
+                </label>
                 <Select
                   value={editUserForm.schoolId}
                   onValueChange={(value) => setEditUserForm({ ...editUserForm, schoolId: value })}
                   disabled={!editUserForm.eduAdminId || editSchoolsFetcher.state === "loading"}
                 >
-                  <SelectTrigger className="text-right">
+                  <SelectTrigger className="w-full h-11 text-right disabled:bg-gray-100 disabled:cursor-not-allowed">
                     <SelectValue placeholder={
                       !editUserForm.eduAdminId
                         ? "اختر الإدارة التعليمية أولاً"
@@ -1973,24 +2049,26 @@ export const Users = (): React.JSX.Element => {
                 </Select>
               </div>
             </div>
-            <div className="flex gap-3 justify-end mt-6">
-              <Button
-                variant="outline"
-                onClick={() => { setEditUserDialogOpen(false); setEditUserForm(null); }}
-                className="px-4 py-2"
-              >
-                إلغاء
-              </Button>
-              <Button
-                onClick={handleEditUserSubmit}
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white"
-              >
-                حفظ التغييرات
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+          )}
+
+          <DialogFooter className="mt-6 gap-3">
+            <Button
+              variant="outline"
+              onClick={() => { setEditUserDialogOpen(false); setEditUserForm(null); }}
+              className="flex-1 h-11"
+            >
+              إلغاء
+            </Button>
+            <Button
+              onClick={handleEditUserSubmit}
+              disabled={fetcher.state === "submitting"}
+              className="flex-1 h-11 bg-amber-500 hover:bg-amber-600 text-white"
+            >
+              {fetcher.state === "submitting" ? "جاري الحفظ..." : "حفظ التغييرات"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
