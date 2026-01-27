@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import * as CheckboxPrimitive from "@radix-ui/react-checkbox";
 import { Slot } from "@radix-ui/react-slot";
 import { type VariantProps, cva } from "class-variance-authority";
@@ -463,6 +463,8 @@ export async function action({ request, context }: ActionFunctionArgs) {
       const phone = formData.get("phone") as string;
       const role = formData.get("role") as string;
       const regionId = formData.get("regionId") as string;
+      const eduAdminId = formData.get("eduAdminId") as string;
+      const schoolId = formData.get("schoolId") as string;
 
       if (!name || !email || !password) {
         return new Response(
@@ -486,6 +488,8 @@ export async function action({ request, context }: ActionFunctionArgs) {
           phone: phone || undefined,
           role: role || "user",
           regionId: regionId || undefined,
+          eduAdminId: eduAdminId || undefined,
+          schoolId: schoolId || undefined,
           acceptenceState: "accepted",
         },
         DBurl,
@@ -641,7 +645,34 @@ export const Users = (): React.JSX.Element => {
     phone: "",
     role: "user",
     regionId: "",
+    eduAdminId: "",
+    schoolId: "",
   });
+
+  // Fetchers for dynamic loading of eduAdmins and schools
+  const eduAdminsFetcher = useFetcher<{ success: boolean; data: Array<{ id: string; name: string }> }>();
+  const schoolsFetcher = useFetcher<{ success: boolean; data: Array<{ id: string; name: string }> }>();
+
+  // Load eduAdmins when region changes
+  useEffect(() => {
+    if (createUserForm.regionId) {
+      eduAdminsFetcher.load(`/api/locations?type=eduAdmins&regionId=${createUserForm.regionId}`);
+      // Reset eduAdmin and school when region changes
+      setCreateUserForm(prev => ({ ...prev, eduAdminId: "", schoolId: "" }));
+    }
+  }, [createUserForm.regionId]);
+
+  // Load schools when eduAdmin changes
+  useEffect(() => {
+    if (createUserForm.eduAdminId) {
+      schoolsFetcher.load(`/api/locations?type=schools&eduAdminId=${createUserForm.eduAdminId}`);
+      // Reset school when eduAdmin changes
+      setCreateUserForm(prev => ({ ...prev, schoolId: "" }));
+    }
+  }, [createUserForm.eduAdminId]);
+
+  const eduAdmins = eduAdminsFetcher.data?.data || [];
+  const schools = schoolsFetcher.data?.data || [];
 
   // Reset Password Dialog state
   const [resetPasswordUser, setResetPasswordUser] = useState<QUser | null>(null);
@@ -944,6 +975,8 @@ export const Users = (): React.JSX.Element => {
         phone: createUserForm.phone,
         role: createUserForm.role,
         regionId: createUserForm.regionId,
+        eduAdminId: createUserForm.eduAdminId,
+        schoolId: createUserForm.schoolId,
       },
       { method: "POST" }
     );
@@ -955,6 +988,8 @@ export const Users = (): React.JSX.Element => {
       phone: "",
       role: "user",
       regionId: "",
+      eduAdminId: "",
+      schoolId: "",
     });
   };
 
@@ -1579,6 +1614,56 @@ export const Users = (): React.JSX.Element => {
                     {regions.map((region: any) => (
                       <SelectItem key={region.id} value={region.id}>
                         {region.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">الإدارة التعليمية</label>
+                <Select
+                  value={createUserForm.eduAdminId}
+                  onValueChange={(value) => setCreateUserForm({ ...createUserForm, eduAdminId: value })}
+                  disabled={!createUserForm.regionId || eduAdminsFetcher.state === "loading"}
+                >
+                  <SelectTrigger className="text-right">
+                    <SelectValue placeholder={
+                      !createUserForm.regionId
+                        ? "اختر المنطقة أولاً"
+                        : eduAdminsFetcher.state === "loading"
+                          ? "جاري التحميل..."
+                          : "اختر الإدارة التعليمية"
+                    } />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {eduAdmins.map((eduAdmin) => (
+                      <SelectItem key={eduAdmin.id} value={eduAdmin.id}>
+                        {eduAdmin.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">المدرسة</label>
+                <Select
+                  value={createUserForm.schoolId}
+                  onValueChange={(value) => setCreateUserForm({ ...createUserForm, schoolId: value })}
+                  disabled={!createUserForm.eduAdminId || schoolsFetcher.state === "loading"}
+                >
+                  <SelectTrigger className="text-right">
+                    <SelectValue placeholder={
+                      !createUserForm.eduAdminId
+                        ? "اختر الإدارة التعليمية أولاً"
+                        : schoolsFetcher.state === "loading"
+                          ? "جاري التحميل..."
+                          : "اختر المدرسة"
+                    } />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {schools.map((school) => (
+                      <SelectItem key={school.id} value={school.id}>
+                        {school.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
