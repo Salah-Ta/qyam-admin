@@ -20,7 +20,7 @@ import userDB from "~/db/user/user.server";
 import { QUser } from "~/types/types";
 import { getAuthenticated } from "~/lib/get-authenticated.server";
 import squareArrow from "../../../assets/icons/square-arrow-right.svg";
-import supervisorProfile from "../../../assets/images/new-design/supervisor-profile.png";
+import supervisorProfile from "../../../assets/icons/user.png";
 import verifiedTick from "./assets/verified-tick.svg";
 // Utility function
 const cn = (...inputs: ClassValue[]) => {

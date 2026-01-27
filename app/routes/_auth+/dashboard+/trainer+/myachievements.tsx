@@ -55,7 +55,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     return this.props.children;
   }
 }
-import content from "../../../../assets/images/new-design/supervisor-profile.png";
+import content from "../../../../assets/icons/user.png";
 import verified from "../../../../assets/icons/Verified-tick.svg";
 import students from "../../../../assets/icons/students.svg";
 import { LoaderFunctionArgs } from "@remix-run/cloudflare";

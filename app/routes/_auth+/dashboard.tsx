@@ -361,7 +361,7 @@ export default function Signup() {
     <>
       <section className="pt-12 md:pt-24  pb-36 lg:px-[112px] bg-section min-h-screen">
         <header className="w-full max-md:h-auto">
-          <div className="absolute w-full top-[72px] left-0 bg-teal-600 z-10 max-md:relative max-md:top-0 h-24">
+          <div className="absolute w-full top-[72px] h-fit left-0 bg-teal-600 z-10 max-md:relative max-md:top-0 h-24">
             {/* Header Title and Breadcrumbs */}
             <div className="relative flex justify-between  md:mx-[112px] my-[18px] [direction:rtl] max-md:flex-col max-md:w-full max-md:items-center max-md:py-6">
               {user && (

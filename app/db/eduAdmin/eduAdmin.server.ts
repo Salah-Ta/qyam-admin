@@ -11,49 +11,55 @@ const initializeDatabase = (dbUrl?: string) => {
 };
 
 const createEduAdmin =
-(name: string, dbUrl?: string, regionId?: string):
+async (name: string, dbUrl?: string, regionId?: string):
 Promise<StatusResponse<EduAdmin>> => {
 
   const db = initializeDatabase(dbUrl);
   const trimmedName = name.trim();
   const normalizedRegionId = regionId || null;
 
-  console.log("Creating/Upserting EduAdmin:", trimmedName, "with regionId:", normalizedRegionId);
+  console.log("Creating EduAdmin:", trimmedName, "with regionId:", normalizedRegionId);
 
-  return new Promise((resolve, reject) => {
-    db.eduAdmin
-      .upsert({
-        where: {
-          // Use the unique constraint for lookup
-          name_regionId: {
-            name: trimmedName,
-            regionId: normalizedRegionId
-          }
-        },
-        update: {
-          // If exists, just return it (no update needed)
-          updatedAt: new Date()
-        },
-        create: {
-          name: trimmedName,
-          regionId: normalizedRegionId
-        }
-      })
-      .then((res) => {
-        resolve({
-          status: "success",
-          data: res,
-          message: "تم إضافة الإدارة التعليمية بنجاح",
-        });
-      })
-      .catch((error: any) => {
-        console.log("ERROR [createEduAdmin]: ", error);
-        reject({
-          status: "error",
-          message: "فشل إضافة الإدارة التعليمية",
-        });
-      });
-  });
+  try {
+    // First check if eduAdmin with this name and regionId already exists
+    const existing = await db.eduAdmin.findFirst({
+      where: {
+        name: trimmedName,
+        regionId: normalizedRegionId
+      }
+    });
+
+    if (existing) {
+      // Return existing eduAdmin
+      console.log("EduAdmin already exists, returning existing:", existing.id);
+      return {
+        status: "success",
+        data: existing,
+        message: "الإدارة التعليمية موجودة مسبقاً",
+      };
+    }
+
+    // Create new eduAdmin
+    const newEduAdmin = await db.eduAdmin.create({
+      data: {
+        name: trimmedName,
+        regionId: normalizedRegionId
+      }
+    });
+
+    console.log("Created new EduAdmin:", newEduAdmin.id);
+    return {
+      status: "success",
+      data: newEduAdmin,
+      message: "تم إضافة الإدارة التعليمية بنجاح",
+    };
+  } catch (error: any) {
+    console.log("ERROR [createEduAdmin]: ", error);
+    throw {
+      status: "error",
+      message: "فشل إضافة الإدارة التعليمية",
+    };
+  }
 };
 
 const getAllEduAdmins = (dbUrl?: string): Promise<StatusResponse<EduAdmin[]>> => {

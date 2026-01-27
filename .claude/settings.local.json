@@ -27,7 +27,15 @@
       "Bash(powershell:*)",
       "Bash(ls -la \"C:\\\\Users\\\\aminj\\\\OneDrive\\\\Documents\\\\GitHub\\\\qyam-admin\\\\temp_docx\\\\word\\\\media\"\" 2>/dev/null || dir \"C:UsersaminjOneDriveDocumentsGitHubqyam-admintemp_docxwordmedia \")",
       "Bash(copy:*)",
-      "Bash(cmd /c copy \"c:\\\\Users\\\\aminj\\\\OneDrive\\\\Documents\\\\GitHub\\\\qyam-admin\\\\updated certificate.pdf\" \"c:\\\\Users\\\\aminj\\\\OneDrive\\\\Documents\\\\GitHub\\\\qyam-admin\\\\app\\\\assets\\\\certificate-template.pdf\")"
+      "Bash(cmd /c copy \"c:\\\\Users\\\\aminj\\\\OneDrive\\\\Documents\\\\GitHub\\\\qyam-admin\\\\updated certificate.pdf\" \"c:\\\\Users\\\\aminj\\\\OneDrive\\\\Documents\\\\GitHub\\\\qyam-admin\\\\app\\\\assets\\\\certificate-template.pdf\")",
+      "Bash(node check-volunteers.cjs:*)",
+      "Bash(node check-eduadmins.mjs:*)",
+      "Bash(cd:*)",
+      "Bash(git commit --amend -m \"$\\(cat <<''EOF''\nImprove certificate generation and update region statistics\n\nCertificate changes:\n- Add bold/thin font toggle for certificate text\n- Fix PDF text positioning with consistent right alignment\n- Use PingARLT font family for both bold and regular weights\n- Restore proper RTL Arabic text rendering\n\nRegion statistics:\n- Update chart calculation to students count + volunteer opportunities\n- Apply consistent calculation across all region chart sections\n\nUI fixes:\n- Remove unused search and settings icons from header\n- Fix certificate export button staying disabled\nEOF\n\\)\")",
+      "Bash(git push)",
+      "WebSearch",
+      "Skill(gsd:progress)",
+      "Bash(npm run typecheck:*)"
     ]
   }
 }

@@ -73,48 +73,60 @@ Promise<StatusResponse<School>> => {
 };
 
 const createSchool =
-(name: string, address: string, dbUrl?: string, eduAdminId?: string):
+async (name: string, address: string, dbUrl?: string, eduAdminId?: string):
 Promise<StatusResponse<School>> => {
 
   const db = initializeDatabase(dbUrl);
   const trimmedName = name.trim();
   const normalizedEduAdminId = eduAdminId || null;
 
-  return new Promise((resolve, reject) => {
-    db.school
-      .upsert({
-        where: {
-          // Use the unique constraint for lookup
-          name_eduAdminId: {
-            name: trimmedName,
-            eduAdminId: normalizedEduAdminId
-          }
-        },
-        update: {
-          // If exists, update the address
-          address
-        },
-        create: {
-          name: trimmedName,
-          address,
-          eduAdminId: normalizedEduAdminId
-        }
-      })
-      .then((res) => {
-        resolve({
-          status: "success",
-          data: res,
-          message: "تم إضافة المدرسة بنجاح",
-        });
-      })
-      .catch((error: any) => {
-        console.log("ERROR [createSchool]: ", error);
-        reject({
-          status: "error",
-          message: "فشل إضافة المدرسة",
-        });
+  console.log("Creating School:", trimmedName, "with eduAdminId:", normalizedEduAdminId);
+
+  try {
+    // First check if school with this name and eduAdminId already exists
+    const existing = await db.school.findFirst({
+      where: {
+        name: trimmedName,
+        eduAdminId: normalizedEduAdminId
+      }
+    });
+
+    if (existing) {
+      // Update address if exists and return
+      console.log("School already exists, updating address:", existing.id);
+      const updated = await db.school.update({
+        where: { id: existing.id },
+        data: { address }
       });
-  });
+      return {
+        status: "success",
+        data: updated,
+        message: "المدرسة موجودة مسبقاً - تم تحديث العنوان",
+      };
+    }
+
+    // Create new school
+    const newSchool = await db.school.create({
+      data: {
+        name: trimmedName,
+        address,
+        eduAdminId: normalizedEduAdminId
+      }
+    });
+
+    console.log("Created new School:", newSchool.id);
+    return {
+      status: "success",
+      data: newSchool,
+      message: "تم إضافة المدرسة بنجاح",
+    };
+  } catch (error: any) {
+    console.log("ERROR [createSchool]: ", error);
+    throw {
+      status: "error",
+      message: "فشل إضافة المدرسة",
+    };
+  }
 };
 
 const updateSchool = 

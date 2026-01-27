@@ -330,15 +330,17 @@ export const action = async ({ request, context }: LoaderFunctionArgs) => {
               try {
                 const parsedEduAdmin = JSON.parse(eduAdminData as string);
                 if (parsedEduAdmin.name && parsedEduAdmin.regionId) {
-                  console.log(`\n🏢 Checking if eduAdmin exists: ${parsedEduAdmin.name}`);
-                  
+                  // Use originalIndex if available (for matching with schools), otherwise fall back to i
+                  const eduAdminOriginalIndex = parsedEduAdmin.originalIndex !== undefined ? parsedEduAdmin.originalIndex : i;
+                  console.log(`\n🏢 Checking if eduAdmin exists: ${parsedEduAdmin.name} (originalIndex: ${eduAdminOriginalIndex})`);
+
                   // Check if eduAdmin already exists for this region
                   const existsResult = await eduAdminDB.checkEduAdminExists(
                     parsedEduAdmin.name,
                     parsedEduAdmin.regionId,
                     dbUrl
                   );
-                  
+
                   let newEduAdminId;
                   const existsData = existsResult.data as any;
                   if (existsResult.status === "success" && existsData && existsData.exists) {
@@ -358,13 +360,14 @@ export const action = async ({ request, context }: LoaderFunctionArgs) => {
                     newEduAdminId = (eduAdminResult.data as any)?.id;
                     console.log(`    ✅ Created eduAdmin: ${parsedEduAdmin.name} → region: ${entityId} (ID: ${newEduAdminId})`);
                   }
-                  
+
                   // Now create schools for this newly created eduAdmin
+                  // Match by originalIndex to handle cases where empty eduAdmins were skipped
                   const schoolsForThisNewEduAdmin = [];
                   for (const schoolData of newSchoolsForNewEduAdminsData) {
                     try {
                       const parsedSchool = JSON.parse(schoolData as string);
-                      if (parsedSchool.name && parsedSchool.newEduAdminIndex === i) {
+                      if (parsedSchool.name && parsedSchool.newEduAdminIndex === eduAdminOriginalIndex) {
                         schoolsForThisNewEduAdmin.push(parsedSchool);
                       }
                     } catch (error) {
@@ -983,7 +986,7 @@ export const ManageData = (): JSX.Element => {
     setDeleteConfirmation(null);
   };
 
-  // Enhanced save handler that captures all visible input data
+  // Save handler for batch operations
   const handleSaveClick = (formId: string, buttonElement: HTMLButtonElement) => {
     // Check if this form is already submitting or has an active debounce timer
     if (loadingStates[formId] || debounceTimers[formId]) {
@@ -1001,108 +1004,19 @@ export const ManageData = (): JSX.Element => {
         delete newTimers[formId];
         return newTimers;
       });
-    }, 2000); // Increased to 2 seconds for better protection
+    }, 2000);
 
     setDebounceTimers(prev => ({ ...prev, [formId]: timer }));
 
-    // Find the form and inject missing data before submission
+    // Find the form and submit it
     const form = buttonElement.closest('form');
     if (form) {
-      // Add a unique submission ID to track this specific submission
-      const submissionId = Date.now();
-      const hiddenSubmissionId = document.createElement('input');
-      hiddenSubmissionId.type = 'hidden';
-      hiddenSubmissionId.name = 'submissionId';
-      hiddenSubmissionId.value = submissionId.toString();
-      hiddenSubmissionId.setAttribute('data-dynamic', 'true');
-      form.appendChild(hiddenSubmissionId);
-      console.log(`📤 [${submissionId}] Submitting form: ${formId}`);
-      
-      // For region forms, inject all current input values as hidden fields
-      if (formId.startsWith('region-')) {
-        const regionId = formId.replace('region-', '');
-        injectRegionHierarchyData(form, regionId);
-      }
-      
-      // Let Remix handle the form submission
+      console.log(`📤 Submitting form: ${formId}`);
       form.requestSubmit();
     }
   };
 
   // Function to inject all current input values into the form
-  const injectRegionHierarchyData = (form: HTMLFormElement, regionId: string) => {
-    const timestamp = Date.now();
-    console.log(`🔄 [${timestamp}] Injecting hierarchy data for region:`, regionId);
-    
-    // Remove any existing dynamic hidden inputs to avoid duplicates
-    const existingInputs = form.querySelectorAll('input[data-dynamic="true"]');
-    console.log(`🗑️ [${timestamp}] Removing ${existingInputs.length} existing dynamic inputs`);
-    existingInputs.forEach(input => input.remove());
-
-    // Inject new eduAdmin data from visible inputs
-    const eduAdminInputs = document.querySelectorAll(`input[data-eduadmin-region="${regionId}"]`);
-    console.log(`📊 [${timestamp}] Found ${eduAdminInputs.length} eduAdmin inputs for region ${regionId}`);
-    
-    eduAdminInputs.forEach((el, index) => {
-      const input = el as HTMLInputElement;
-      if (input.value.trim()) {
-        const hiddenInput = document.createElement('input');
-        hiddenInput.type = 'hidden';
-        hiddenInput.name = 'newEduAdmins';
-        hiddenInput.value = JSON.stringify({ name: input.value.trim(), regionId: regionId });
-        hiddenInput.setAttribute('data-dynamic', 'true');
-        hiddenInput.setAttribute('data-timestamp', timestamp.toString());
-        form.appendChild(hiddenInput);
-        console.log(`➕ [${timestamp}] Injected eduAdmin ${index + 1}:`, input.value.trim());
-      }
-    });
-
-    // Inject school data from visible inputs
-    const schoolInputs = document.querySelectorAll(`input[data-school-region="${regionId}"]`);
-    console.log(`🏫 [${timestamp}] Found ${schoolInputs.length} school inputs for region ${regionId}`);
-    
-    schoolInputs.forEach((el) => {
-      const input = el as HTMLInputElement;
-      if (input.value.trim()) {
-        const eduAdminId = input.getAttribute('data-eduadmin-id');
-        const newEduAdminIndex = input.getAttribute('data-new-eduadmin-index');
-        
-        if (eduAdminId && eduAdminId !== 'null') {
-          // School for existing eduAdmin
-          const hiddenInput = document.createElement('input');
-          hiddenInput.type = 'hidden';
-          hiddenInput.name = 'newSchools';
-          hiddenInput.value = JSON.stringify({ name: input.value.trim(), eduAdminId: eduAdminId });
-          hiddenInput.setAttribute('data-dynamic', 'true');
-          hiddenInput.setAttribute('data-timestamp', timestamp.toString());
-          form.appendChild(hiddenInput);
-          console.log(`🏫 [${timestamp}] Injected school for existing eduAdmin:`, input.value.trim(), 'eduAdminId:', eduAdminId);
-        } else if (newEduAdminIndex && newEduAdminIndex !== 'null') {
-          // School for new eduAdmin
-          const hiddenInput = document.createElement('input');
-          hiddenInput.type = 'hidden';
-          hiddenInput.name = 'newSchoolsForNewEduAdmins';
-          hiddenInput.value = JSON.stringify({ 
-            name: input.value.trim(), 
-            newEduAdminIndex: parseInt(newEduAdminIndex),
-            regionId: regionId 
-          });
-          hiddenInput.setAttribute('data-dynamic', 'true');
-          hiddenInput.setAttribute('data-timestamp', timestamp.toString());
-          form.appendChild(hiddenInput);
-          console.log(`🏫 [${timestamp}] Injected school for new eduAdmin:`, input.value.trim(), 'eduAdminIndex:', newEduAdminIndex);
-        } else {
-          console.warn('School input found but no valid parent identified:', {
-            value: input.value.trim(),
-            eduAdminId: eduAdminId,
-            newEduAdminIndex: newEduAdminIndex,
-            input: input
-          });
-        }
-      }
-    });
-  };
-
   // Validation functions
   const validateName = (name: string, fieldId: string): string => {
     let error = "";
@@ -1228,17 +1142,15 @@ export const ManageData = (): JSX.Element => {
   };
 
   return (
-    <div className="h-full mb-[423px]">
+    <div className="h-full pb-20 [direction:rtl]">
       {/* Global Error Display */}
       {errors.general && (
-        <div className="w-full bg-red-50 border border-red-200 rounded-lg p-4 mb-4 [direction:rtl]">
-          <div className="flex items-center">
+        <div className="w-full bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+          <div className="flex items-center gap-3">
             <div className="flex-shrink-0">
               <XIcon className="h-5 w-5 text-red-400" />
             </div>
-            <div className="mr-3">
-              <p className="text-sm text-red-800">{errors.general}</p>
-            </div>
+            <p className="text-sm text-red-800">{errors.general}</p>
           </div>
         </div>
       )}
@@ -1253,60 +1165,52 @@ export const ManageData = (): JSX.Element => {
 
             {/* Header Section - Teal background with save button and title */}
             <div className="flex w-full h-14 items-center justify-between gap-3 p-5 bg-[#006173] rounded-xl shadow-shadows-shadow-xs">
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  disabled={loadingStates["new-region-form"] || !!validationErrors["new-region-input"]}
-                  onClick={(e) => !loadingStates["new-region-form"] && !validationErrors["new-region-input"] && handleSaveClick("new-region-form", e.currentTarget)}
-                  className="py-1.5 px-8 bg-white border border-[#D5D7DA] rounded-lg text-[#535861] font-medium hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loadingStates["new-region-form"] ? "جاري الحفظ..." : "حفظ"}
-                </button>
-              </div>
               <div className="flex items-center gap-3">
-                <div className="relative w-8 h-8 bg-white rounded-md overflow-hidden border border-solid border-[#e9e9eb] shadow-shadows-shadow-xs-skeuomorphic">
-                  <div className="absolute w-4 h-4 top-2 left-2">
-                    <img src={UserIcon} alt="" />
-                  </div>
+                <div className="relative w-8 h-8 bg-white rounded-md overflow-hidden border border-solid border-[#e9e9eb] shadow-shadows-shadow-xs-skeuomorphic flex items-center justify-center">
+                  <img src={UserIcon} alt="" className="w-4 h-4" />
                 </div>
-                <span className="font-bold text-white text-base tracking-[0] leading-6">
-                  منطقة الرياض
+                <span className="font-bold text-white text-base leading-6">
+                  إضافة منطقة جديدة
                 </span>
               </div>
+              <button
+                type="button"
+                disabled={loadingStates["new-region-form"] || !!validationErrors["new-region-input"]}
+                onClick={(e) => !loadingStates["new-region-form"] && !validationErrors["new-region-input"] && handleSaveClick("new-region-form", e.currentTarget)}
+                className="py-1.5 px-8 bg-white border border-[#D5D7DA] rounded-lg text-[#535861] font-medium hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loadingStates["new-region-form"] ? "جاري الحفظ..." : "حفظ"}
+              </button>
             </div>
 
             {/* Input Section */}
             <div className="space-y-3">
-              <div className="flex justify-end">
-                <label className="text-[#535861] font-medium text-sm">
-                  المنطقة <span className="text-red-500">*</span>
-                </label>
-              </div>
-              <div className="flex [direction:rtl]">
-                <input
-                  type="text"
-                  name="itemName"
-                  placeholder="اكتب المنطقة المراد اضافتها"
-                  className={`flex-1 px-4 py-3 bg-white border rounded-lg text-right text-[#535861] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:border-transparent ${
-                    validationErrors["new-region-input"] 
-                      ? "border-red-500 focus:ring-red-500" 
-                      : "border-[#D5D7DA] focus:ring-[#17b169]"
-                  }`}
-                  onChange={(e) => handleRegionNameChange(e.target.value, "new-region-input")}
-                  required
-                />
-              </div>
-              
+              <label className="block text-[#535861] font-medium text-sm">
+                المنطقة <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                name="itemName"
+                placeholder="اكتب المنطقة المراد اضافتها"
+                className={`w-full px-4 py-3 bg-white border rounded-lg text-[#535861] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:border-transparent ${
+                  validationErrors["new-region-input"]
+                    ? "border-red-500 focus:ring-red-500"
+                    : "border-[#D5D7DA] focus:ring-[#17b169]"
+                }`}
+                onChange={(e) => handleRegionNameChange(e.target.value, "new-region-input")}
+                required
+              />
+
               {/* Validation Error for new region input */}
               {validationErrors["new-region-input"] && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-2 [direction:rtl]">
+                <div className="bg-red-50 border border-red-200 rounded-lg p-2">
                   <p className="text-xs text-red-600">{validationErrors["new-region-input"]}</p>
                 </div>
               )}
-              
+
               {/* Error Display for new region form */}
               {errors["new-region-form"] && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3 [direction:rtl]">
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
                   <p className="text-sm text-red-800">{errors["new-region-form"]}</p>
                 </div>
               )}
@@ -1338,60 +1242,98 @@ export const ManageData = (): JSX.Element => {
                   <input type="hidden" name="entityType" value="region" />
                   <input type="hidden" name="entityId" value={region.id} />
 
-                  {/* Hidden inputs for newEduAdmins, newSchools, and newSchoolsForNewEduAdmins
-                      are injected dynamically by injectRegionHierarchyData() when save is clicked.
-                      This prevents duplicate submissions. */}
+                  {/* Hidden inputs for new eduAdmins */}
+                  {newEduAdmins[region.id]?.map((eduAdminName, index) => (
+                    eduAdminName.trim() && (
+                      <input
+                        key={`hidden-eduadmin-${index}`}
+                        type="hidden"
+                        name="newEduAdmins"
+                        value={JSON.stringify({ name: eduAdminName.trim(), regionId: region.id, originalIndex: index })}
+                      />
+                    )
+                  ))}
 
-                  <div className="flex items-center justify-between mb-6">
-                    <button
-                      type="button"
-                      disabled={loadingStates[`region-${region.id}`] || hasRegionHierarchyErrors(region.id)}
-                      onClick={(e) => !loadingStates[`region-${region.id}`] && !hasRegionHierarchyErrors(region.id) && handleSaveClick(`region-${region.id}`, e.currentTarget)}
-                      className="px-6 py-3 bg-[#F8F9FA] border border-[#D5D7DA] rounded-lg text-[#535861] font-medium hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      title={hasRegionHierarchyErrors(region.id) ? "يرجى إصلاح الأخطاء في الحقول قبل الحفظ" : "حفظ المنطقة وجميع الإدارات والمدارس"}
-                    >
-                      {loadingStates[`region-${region.id}`] ? "جاري الحفظ..." : "حفظ الكل"}
-                    </button>
-                    <div className="flex items-center gap-3">
+                  {/* Hidden inputs for schools of existing eduAdmins */}
+                  {getEduAdminsForRegion(region.id).map((eduAdmin) => (
+                    newSchools[eduAdmin.id]?.map((schoolName, index) => (
+                      schoolName.trim() && (
+                        <input
+                          key={`hidden-school-existing-${eduAdmin.id}-${index}`}
+                          type="hidden"
+                          name="newSchools"
+                          value={JSON.stringify({ name: schoolName.trim(), eduAdminId: eduAdmin.id })}
+                        />
+                      )
+                    ))
+                  ))}
+
+                  {/* Hidden inputs for schools of new eduAdmins */}
+                  {newEduAdmins[region.id]?.map((_, eduAdminIndex) => (
+                    newSchools[`new-eduadmin-${region.id}-${eduAdminIndex}`]?.map((schoolName, schoolIndex) => (
+                      schoolName.trim() && (
+                        <input
+                          key={`hidden-school-new-${eduAdminIndex}-${schoolIndex}`}
+                          type="hidden"
+                          name="newSchoolsForNewEduAdmins"
+                          value={JSON.stringify({
+                            name: schoolName.trim(),
+                            newEduAdminIndex: eduAdminIndex,
+                            regionId: region.id
+                          })}
+                        />
+                      )
+                    ))
+                  ))}
+
+                  <div className="flex items-center justify-between gap-4 mb-6">
+                    <h3 className="text-lg font-bold text-[#181d27] min-w-0 truncate">{region.name}</h3>
+                    <div className="flex items-center gap-3 shrink-0">
                       <button
                         type="button"
-                        onClick={() => handleDeleteClick("region", region.id, region.name)}
-                        className="w-8 h-8 bg-red-500 rounded-lg flex items-center justify-center hover:bg-red-600 transition-colors shadow-sm"
-                        title="حذف المنطقة"
+                        disabled={loadingStates[`region-${region.id}`] || hasRegionHierarchyErrors(region.id)}
+                        onClick={(e) => !loadingStates[`region-${region.id}`] && !hasRegionHierarchyErrors(region.id) && handleSaveClick(`region-${region.id}`, e.currentTarget)}
+                        className="px-6 py-2 bg-[#17b169] border border-[#17b169] rounded-lg text-white font-medium hover:bg-[#15a062] transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                        title={hasRegionHierarchyErrors(region.id) ? "يرجى إصلاح الأخطاء في الحقول قبل الحفظ" : "حفظ المنطقة وجميع الإدارات والمدارس"}
                       >
-                        <XIcon className="w-5 h-5 text-white" />
+                        {loadingStates[`region-${region.id}`] ? "جاري الحفظ..." : "حفظ الكل"}
                       </button>
                       <button
                         type="button"
                         onClick={() => handleAddEduAdminInput(region.id)}
-                        className="w-8 h-8 bg-[#17b169] rounded-lg flex items-center justify-center hover:bg-[#15a062] transition-colors shadow-sm"
+                        className="w-8 h-8 bg-[#17b169] rounded-lg flex items-center justify-center hover:bg-[#15a062] transition-colors shadow-sm shrink-0"
                         title="إضافة إدارة تعليم"
                       >
                         <span className="text-white text-sm font-bold">+</span>
                       </button>
-                      <h3 className="text-lg font-bold text-[#181d27]">{region.name}</h3>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteClick("region", region.id, region.name)}
+                        className="w-8 h-8 bg-red-500 rounded-lg flex items-center justify-center hover:bg-red-600 transition-colors shadow-sm shrink-0"
+                        title="حذف المنطقة"
+                      >
+                        <XIcon className="w-5 h-5 text-white" />
+                      </button>
                     </div>
                   </div>
 
-                  <div className="flex [direction:rtl]">
-                    <input
-                      type="text"
-                      name="itemName"
-                      defaultValue={region.name}
-                      placeholder="اكتب اسم المنطقة المراد اضافتها"
-                      className={`flex-1 px-4 py-3 bg-white border rounded-lg text-right text-[#535861] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:border-transparent ${
-                        validationErrors[`region-${region.id}-input`] 
-                          ? "border-red-500 focus:ring-red-500" 
-                          : "border-[#D5D7DA] focus:ring-[#17b169]"
-                      }`}
-                      onChange={(e) => handleRegionNameChange(e.target.value, `region-${region.id}-input`)}
-                      required
-                    />
-                  </div>
-                  
+                  <input
+                    type="text"
+                    name="itemName"
+                    defaultValue={region.name}
+                    placeholder="اكتب اسم المنطقة المراد اضافتها"
+                    className={`w-full px-4 py-3 bg-white border rounded-lg text-[#535861] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:border-transparent ${
+                      validationErrors[`region-${region.id}-input`]
+                        ? "border-red-500 focus:ring-red-500"
+                        : "border-[#D5D7DA] focus:ring-[#17b169]"
+                    }`}
+                    onChange={(e) => handleRegionNameChange(e.target.value, `region-${region.id}-input`)}
+                    required
+                  />
+
                   {/* Validation Error for region input */}
                   {validationErrors[`region-${region.id}-input`] && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-2 [direction:rtl]">
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-2">
                       <p className="text-xs text-red-600">{validationErrors[`region-${region.id}-input`]}</p>
                     </div>
                   )}
@@ -1408,84 +1350,87 @@ export const ManageData = (): JSX.Element => {
                       <input type="hidden" name="entityType" value="eduAdmin" />
                       <input type="hidden" name="parentId" value={region.id} />
 
-                      <div className="flex items-center justify-end mb-6">
-                        <div className="flex items-center gap-3">
-                     
-                          <div className="w-6 h-6 bg-[#17b169] rounded flex items-center justify-center">
-                            <span className="text-white text-sm font-bold">+</span>
-                          </div>
-                          <h3 className="text-lg font-bold text-[#181d27]">إدارة جديدة</h3>
+                      <div className="flex items-center justify-between gap-4 mb-6">
+                        <h3 className="text-lg font-bold text-[#181d27] min-w-0 truncate">إدارة جديدة</h3>
+                        <div className="flex items-center gap-3 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveEduAdminInput(region.id, index)}
+                            className="w-8 h-8 bg-red-500 rounded-lg flex items-center justify-center hover:bg-red-600 transition-colors shadow-sm shrink-0"
+                            title="إزالة الإدارة"
+                          >
+                            <XIcon className="w-5 h-5 text-white" />
+                          </button>
                         </div>
                       </div>
 
-                      <div className="flex [direction:rtl]">
-                        <input
-                          type="text"
-                          name="itemName"
-                          value={eduAdminName}
-                          data-eduadmin-region={region.id}
-                          data-eduadmin-index={index}
-                          onChange={(e) => {
-                            handleEduAdminInputChange(region.id, index, e.target.value);
-                            handleEduAdminNameChange(e.target.value, `new-eduadmin-${region.id}-${index}`, region.id);
-                          }}
-                          placeholder="اكتب اسم الإدارة المراد اضافتها"
-                          className={`flex-1 px-4 py-3 bg-white border rounded-lg text-right text-[#535861] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:border-transparent ${
-                            validationErrors[`new-eduadmin-${region.id}-${index}`] 
-                              ? "border-red-500 focus:ring-red-500" 
-                              : "border-[#D5D7DA] focus:ring-[#17b169]"
-                          }`}
-                          required
-                        />
-                      </div>
-                      
+                      <input
+                        type="text"
+                        name="itemName"
+                        value={eduAdminName}
+                        data-eduadmin-region={region.id}
+                        data-eduadmin-index={index}
+                        onChange={(e) => {
+                          handleEduAdminInputChange(region.id, index, e.target.value);
+                          handleEduAdminNameChange(e.target.value, `new-eduadmin-${region.id}-${index}`, region.id);
+                        }}
+                        placeholder="اكتب اسم الإدارة المراد اضافتها"
+                        className={`w-full px-4 py-3 bg-white border rounded-lg text-[#535861] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:border-transparent ${
+                          validationErrors[`new-eduadmin-${region.id}-${index}`]
+                            ? "border-red-500 focus:ring-red-500"
+                            : "border-[#D5D7DA] focus:ring-[#17b169]"
+                        }`}
+                        required
+                      />
+
                       {/* Validation Error for new eduAdmin input */}
                       {validationErrors[`new-eduadmin-${region.id}-${index}`] && (
-                        <div className="bg-red-50 border border-red-200 rounded-lg p-2 [direction:rtl] mt-2">
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-2 mt-2">
                           <p className="text-xs text-red-600">{validationErrors[`new-eduadmin-${region.id}-${index}`]}</p>
                         </div>
                       )}
                     </Form>
 
                     {/* Schools section for new eduAdmin */}
-                    <div className="pr-8">
-                      <div className="flex items-center justify-between mb-6">
-                        <div></div>
-                        <div className="flex items-center gap-3">
-                          <button
-                            type="button"
-                            onClick={() => handleAddSchoolInput(`new-eduadmin-${region.id}-${index}`)}
-                            className="w-6 h-6 bg-[#17b169] rounded flex items-center justify-center hover:bg-[#15a062] transition-colors"
-                          >
-                            <span className="text-white text-sm font-bold">+</span>
-                          </button>
-                          <h3 className="text-lg font-bold text-[#181d27]">المدارس</h3>
-                        </div>
+                    <div className="mt-6 border-t border-[#E5E7EB] pt-6">
+                      <div className="flex items-center justify-between gap-4 mb-4">
+                        <h4 className="text-base font-semibold text-[#181d27] min-w-0 truncate">المدارس</h4>
+                        <button
+                          type="button"
+                          onClick={() => handleAddSchoolInput(`new-eduadmin-${region.id}-${index}`)}
+                          className="w-8 h-8 bg-[#17b169] rounded-lg flex items-center justify-center hover:bg-[#15a062] transition-colors shadow-sm shrink-0"
+                          title="إضافة مدرسة"
+                        >
+                          <span className="text-white text-sm font-bold">+</span>
+                        </button>
                       </div>
 
                       {/* New Schools for this new EduAdmin */}
-                      {newSchools[`new-eduadmin-${region.id}-${index}`] &&
-                      newSchools[`new-eduadmin-${region.id}-${index}`].map((schoolName, schoolIndex) => (
-                        <div key={schoolIndex} className="flex items-center gap-2 [direction:rtl] mb-4">
-                          <input
-                            type="text"
-                            value={schoolName}
-                            data-school-region={region.id}
-                            data-new-eduadmin-index={index}
-                            data-school-index={schoolIndex}
-                            onChange={(e) => handleSchoolInputChange(`new-eduadmin-${region.id}-${index}`, schoolIndex, e.target.value)}
-                            placeholder="اكتب اسم المدرسة المراد اضافتها"
-                            className="flex-1 px-4 py-3 bg-white border border-[#D5D7DA] rounded-lg text-right text-[#535861] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#17b169] focus:border-transparent"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveSchoolInput(`new-eduadmin-${region.id}-${index}`, schoolIndex)}
-                            className="w-12 h-12 bg-red-500 rounded flex items-center justify-center hover:bg-red-600 transition-colors"
-                          >
-                            <XIcon className="w-4 h-4 text-white" />
-                          </button>
-                        </div>
-                      ))}
+                      <div className="space-y-3">
+                        {newSchools[`new-eduadmin-${region.id}-${index}`] &&
+                        newSchools[`new-eduadmin-${region.id}-${index}`].map((schoolName, schoolIndex) => (
+                          <div key={schoolIndex} className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={schoolName}
+                              data-school-region={region.id}
+                              data-new-eduadmin-index={index}
+                              data-school-index={schoolIndex}
+                              onChange={(e) => handleSchoolInputChange(`new-eduadmin-${region.id}-${index}`, schoolIndex, e.target.value)}
+                              placeholder="اكتب اسم المدرسة المراد اضافتها"
+                              className="flex-1 min-w-0 px-4 py-3 bg-white border border-[#D5D7DA] rounded-lg text-[#535861] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#17b169] focus:border-transparent"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveSchoolInput(`new-eduadmin-${region.id}-${index}`, schoolIndex)}
+                              className="w-10 h-10 bg-red-500 rounded-lg flex items-center justify-center hover:bg-red-600 transition-colors shrink-0"
+                              title="إزالة المدرسة"
+                            >
+                              <XIcon className="w-4 h-4 text-white" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -1512,62 +1457,57 @@ export const ManageData = (): JSX.Element => {
                         )
                       ))}
 
-                      <div className="flex items-center justify-between mb-6">
-                        <div></div>
-                        <div className="flex items-center gap-3">
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteClick("eduAdmin", eduAdmin.id, eduAdmin.name)}
-                            className="w-8 h-8 bg-red-500 rounded-lg flex items-center justify-center hover:bg-red-600 transition-colors shadow-sm"
-                            title="حذف الإدارة"
-                          >
-                            <XIcon className="w-5 h-5 text-white" />
-                          </button>
+                      <div className="flex items-center justify-between gap-4 mb-6">
+                        <h3 className="text-lg font-bold text-[#181d27] min-w-0 truncate">{eduAdmin.name}</h3>
+                        <div className="flex items-center gap-3 shrink-0">
                           <button
                             type="button"
                             onClick={() => handleAddSchoolInput(eduAdmin.id)}
-                            className="w-8 h-8 bg-[#17b169] rounded-lg flex items-center justify-center hover:bg-[#15a062] transition-colors shadow-sm"
+                            className="w-8 h-8 bg-[#17b169] rounded-lg flex items-center justify-center hover:bg-[#15a062] transition-colors shadow-sm shrink-0"
                             title="إضافة مدرسة"
                           >
                             <span className="text-white text-sm font-bold">+</span>
                           </button>
-                          <h3 className="text-lg font-bold text-[#181d27]">{eduAdmin.name}</h3>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteClick("eduAdmin", eduAdmin.id, eduAdmin.name)}
+                            className="w-8 h-8 bg-red-500 rounded-lg flex items-center justify-center hover:bg-red-600 transition-colors shadow-sm shrink-0"
+                            title="حذف الإدارة"
+                          >
+                            <XIcon className="w-5 h-5 text-white" />
+                          </button>
                         </div>
                       </div>
 
-                      <div className="flex [direction:rtl]">
-                        <input
-                          type="text"
-                          name="itemName"
-                          defaultValue={eduAdmin.name}
-                          placeholder="اكتب اسم الإدارة المراد اضافتها"
-                          className="flex-1 px-4 py-3 bg-white border border-[#D5D7DA] rounded-lg text-right text-[#535861] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#17b169] focus:border-transparent"
-                          required
-                        />
-                      </div>
+                      <input
+                        type="text"
+                        name="itemName"
+                        defaultValue={eduAdmin.name}
+                        placeholder="اكتب اسم الإدارة المراد اضافتها"
+                        className="w-full px-4 py-3 bg-white border border-[#D5D7DA] rounded-lg text-[#535861] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#17b169] focus:border-transparent"
+                        required
+                      />
                     </Form>
 
                     {/* Dynamic Schools for this EduAdmin */}
-                    <div className="pr-8">
-                      <div className="flex items-center justify-between mb-6">
-                        <div></div>
-                        <div className="flex items-center gap-3">
-                          <button
-                            type="button"
-                            onClick={() => handleAddSchoolInput(eduAdmin.id)}
-                            className="w-6 h-6 bg-[#17b169] rounded flex items-center justify-center hover:bg-[#15a062] transition-colors"
-                          >
-                            <span className="text-white text-sm font-bold">+</span>
-                          </button>
-                          <h3 className="text-lg font-bold text-[#181d27]">المدارس</h3>
-                        </div>
+                    <div className="mt-6 border-t border-[#E5E7EB] pt-6">
+                      <div className="flex items-center justify-between gap-4 mb-4">
+                        <h4 className="text-base font-semibold text-[#181d27] min-w-0 truncate">المدارس</h4>
+                        <button
+                          type="button"
+                          onClick={() => handleAddSchoolInput(eduAdmin.id)}
+                          className="w-8 h-8 bg-[#17b169] rounded-lg flex items-center justify-center hover:bg-[#15a062] transition-colors shadow-sm shrink-0"
+                          title="إضافة مدرسة"
+                        >
+                          <span className="text-white text-sm font-bold">+</span>
+                        </button>
                       </div>
 
-                      <div className="space-y-4">
+                      <div className="space-y-3">
                         {/* New School Inputs - Show first */}
                         {newSchools[eduAdmin.id] &&
                         newSchools[eduAdmin.id].map((schoolName, index) => (
-                          <div key={index} className="flex items-center gap-2 [direction:rtl]">
+                          <div key={index} className="flex items-center gap-2">
                             <input
                               type="text"
                               value={schoolName}
@@ -1576,12 +1516,13 @@ export const ManageData = (): JSX.Element => {
                               data-school-index={index}
                               onChange={(e) => handleSchoolInputChange(eduAdmin.id, index, e.target.value)}
                               placeholder="اكتب اسم المدرسة المراد اضافتها"
-                              className="flex-1 px-4 py-3 bg-white border border-[#D5D7DA] rounded-lg text-right text-[#535861] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#17b169] focus:border-transparent"
+                              className="flex-1 min-w-0 px-4 py-3 bg-white border border-[#D5D7DA] rounded-lg text-[#535861] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#17b169] focus:border-transparent"
                             />
                             <button
                               type="button"
                               onClick={() => handleRemoveSchoolInput(eduAdmin.id, index)}
-                              className="w-12 h-12 bg-red-500 rounded flex items-center justify-center hover:bg-red-600 transition-colors"
+                              className="w-10 h-10 bg-red-500 rounded-lg flex items-center justify-center hover:bg-red-600 transition-colors shrink-0"
+                              title="إزالة المدرسة"
                             >
                               <XIcon className="w-4 h-4 text-white" />
                             </button>
@@ -1590,17 +1531,18 @@ export const ManageData = (): JSX.Element => {
 
                         {/* Show existing schools */}
                         {getSchoolsForEduAdmin(eduAdmin.id).map((school) => (
-                          <div key={school.id} className="flex items-center gap-2 [direction:rtl]">
+                          <div key={school.id} className="flex items-center gap-2">
                             <input
                               type="text"
                               defaultValue={school.name}
-                              className="flex-1 px-4 py-3 bg-gray-100 border border-[#D5D7DA] rounded-lg text-right text-[#535861] placeholder-[#9CA3AF]"
+                              className="flex-1 min-w-0 px-4 py-3 bg-gray-50 border border-[#D5D7DA] rounded-lg text-[#535861]"
                               readOnly
                             />
                             <button
                               type="button"
                               onClick={() => handleDeleteClick("school", school.id, school.name)}
-                              className="w-12 h-12 bg-red-500 rounded flex items-center justify-center hover:bg-red-600 transition-colors"
+                              className="w-10 h-10 bg-red-500 rounded-lg flex items-center justify-center hover:bg-red-600 transition-colors shrink-0"
+                              title="حذف المدرسة"
                             >
                               <XIcon className="w-4 h-4 text-white" />
                             </button>
@@ -1615,7 +1557,7 @@ export const ManageData = (): JSX.Element => {
             ))}        
 
           {safeData.regions.length === 0 && (
-            <div className="text-center text-[#717680] py-8 [direction:rtl]">
+            <div className="text-center text-[#717680] py-8">
               لا توجد مناطق متاحة - استخدم النموذج أعلاه لإضافة منطقة جديدة
             </div>
           )}
@@ -1624,42 +1566,40 @@ export const ManageData = (): JSX.Element => {
 
       {/* Delete Confirmation Modal */}
       {deleteConfirmation?.isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 [direction:rtl]">
-            <div className="mb-4">
-              <h3 className="text-lg font-bold text-[#414651] mb-2">
-                تأكيد الحذف
-              </h3>
-              <p className="text-[#717680] mb-4">
-                {deleteConfirmation.hasChildren ? (
-                  <>
-                    هل أنت متأكد من حذف "{deleteConfirmation.entityName}"؟
-                    <br />
-                    <span className="text-red-600 font-medium">
-                      تحذير: سيتم حذف جميع {deleteConfirmation.childrenType}{" "}
-                      المرتبطة ({deleteConfirmation.childrenCount} عنصر) أيضاً.
-                    </span>
-                  </>
-                ) : (
-                  <>هل أنت متأكد من حذف "{deleteConfirmation.entityName}"؟</>
-                )}
-              </p>
-            </div>
-            <div className="flex gap-3 justify-end">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full shadow-xl">
+            <h3 className="text-lg font-bold text-[#181d27] mb-4">
+              تأكيد الحذف
+            </h3>
+            <p className="text-[#535861] mb-6">
+              {deleteConfirmation.hasChildren ? (
+                <>
+                  هل أنت متأكد من حذف "{deleteConfirmation.entityName}"؟
+                  <br />
+                  <span className="text-red-600 font-medium mt-2 block">
+                    تحذير: سيتم حذف جميع {deleteConfirmation.childrenType}{" "}
+                    المرتبطة ({deleteConfirmation.childrenCount} عنصر) أيضاً.
+                  </span>
+                </>
+              ) : (
+                <>هل أنت متأكد من حذف "{deleteConfirmation.entityName}"؟</>
+              )}
+            </p>
+            <div className="flex gap-3 justify-start">
+              <Button
+                type="button"
+                onClick={confirmDelete}
+                className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white"
+              >
+                حذف
+              </Button>
               <Button
                 type="button"
                 variant="outline"
                 onClick={cancelDelete}
-                className="px-4 py-2"
+                className="px-6 py-2"
               >
                 إلغاء
-              </Button>
-              <Button
-                type="button"
-                onClick={confirmDelete}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white"
-              >
-                حذف
               </Button>
             </div>
           </div>

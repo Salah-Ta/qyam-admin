@@ -126,12 +126,14 @@ async function loadArabicFont(
 ): Promise<{ regular: any; bold: any }> {
   const fontPaths = {
     regular: [
+      "/fonts/Alexandria-Medium.ttf",
       "/fonts/PingARLT-Regular.ttf",
       "/fonts/Lateef-Regular.ttf",
       "/fonts/Almarai-Regular.ttf",
       "/fonts/Amiri-Regular.ttf",
     ],
     bold: [
+      "/fonts/Alexandria-Bold.ttf",
       "/fonts/PingARLT-Bold.ttf",
       "/fonts/Tajawal-Regular.ttf",
       "/fonts/Almarai-Regular.ttf",
