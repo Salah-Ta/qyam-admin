@@ -72,19 +72,32 @@ Promise<StatusResponse<School>> => {
   });
 };
 
-const createSchool = 
-(name: string, address: string, dbUrl?: string, eduAdminId?: string): 
+const createSchool =
+(name: string, address: string, dbUrl?: string, eduAdminId?: string):
 Promise<StatusResponse<School>> => {
-  
+
   const db = initializeDatabase(dbUrl);
-  
+  const trimmedName = name.trim();
+  const normalizedEduAdminId = eduAdminId || null;
+
   return new Promise((resolve, reject) => {
     db.school
-      .create({
-        data: { 
-          name,
+      .upsert({
+        where: {
+          // Use the unique constraint for lookup
+          name_eduAdminId: {
+            name: trimmedName,
+            eduAdminId: normalizedEduAdminId
+          }
+        },
+        update: {
+          // If exists, update the address
+          address
+        },
+        create: {
+          name: trimmedName,
           address,
-          eduAdminId: eduAdminId || null
+          eduAdminId: normalizedEduAdminId
         }
       })
       .then((res) => {
@@ -233,6 +246,64 @@ Promise<StatusResponse<{ exists: boolean; school?: School }>> => {
   });
 };
 
+/**
+ * Remove duplicate schools, keeping the oldest one for each (name, eduAdminId) combination.
+ * This should be run before applying the unique constraint migration.
+ */
+const removeDuplicateSchools = async (dbUrl?: string): Promise<StatusResponse<{ removed: number }>> => {
+  const db = initializeDatabase(dbUrl);
+
+  try {
+    // Find all duplicate combinations
+    const duplicates = await db.$queryRaw<Array<{ name: string; eduAdminId: string | null; count: bigint }>>`
+      SELECT name, "eduAdminId", COUNT(*) as count
+      FROM school
+      GROUP BY name, "eduAdminId"
+      HAVING COUNT(*) > 1
+    `;
+
+    let totalRemoved = 0;
+
+    for (const dup of duplicates) {
+      // Get all schools with this name and eduAdminId, ordered by creation date
+      const schools = await db.school.findMany({
+        where: {
+          name: dup.name,
+          eduAdminId: dup.eduAdminId
+        },
+        orderBy: {
+          createdAt: 'asc'
+        }
+      });
+
+      // Keep the first (oldest) one, delete the rest
+      const toDelete = schools.slice(1).map(s => s.id);
+
+      if (toDelete.length > 0) {
+        await db.school.deleteMany({
+          where: {
+            id: { in: toDelete }
+          }
+        });
+        totalRemoved += toDelete.length;
+      }
+    }
+
+    return {
+      status: "success",
+      data: { removed: totalRemoved },
+      message: `تم حذف ${totalRemoved} مدرسة مكررة بنجاح`
+    };
+  } catch (error: any) {
+    console.log("ERROR [removeDuplicateSchools]: ", error);
+    return {
+      status: "error",
+      message: "فشل حذف المدارس المكررة",
+      data: { removed: 0 }
+    };
+  }
+};
+
 export default {
   getAllSchools,
   getSchool,
@@ -240,5 +311,6 @@ export default {
   createSchool,
   updateSchool,
   deleteSchool,
-  checkSchoolExists
+  checkSchoolExists,
+  removeDuplicateSchools
 };

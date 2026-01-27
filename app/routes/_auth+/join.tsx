@@ -1,6 +1,7 @@
 import {
   Form,
   useActionData,
+  useFetcher,
   useLoaderData,
   useNavigate,
   useNavigation,
@@ -33,8 +34,6 @@ import registerLogo from "~/assets/images/new-design/logo-login.svg";
 import arrowLeft from "~/assets/icons/square-arrow-login.svg";
 import arrowregister from "~/assets/icons/arrow-White.svg";
 import regionDB from "~/db/region/region.server";
-import eduAdminDB from "~/db/eduAdmin/eduAdmin.server";
-import schoolDB from "~/db/school/school.server";
 import section from "../../assets/images/new-design/section.png";
 import { sendEmail } from "~/lib/send-email.server";
 import glossary from "~/lib/glossary";
@@ -98,16 +97,11 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   // await redirectIfAuthenticated(request, context);
 
   const dbUrl = context.cloudflare.env.DATABASE_URL;
-  const [regions, eduAdmins, schools] = await Promise.all([
-    regionDB.getAllRegions(dbUrl),
-    eduAdminDB.getAllEduAdmins(dbUrl),
-    schoolDB.getAllSchools(dbUrl),
-  ]);
+  // Only load regions initially - eduAdmins and schools are fetched dynamically
+  const regions = await regionDB.getAllRegions(dbUrl);
 
   return json({
     regions: regions.data || [],
-    eduAdmins: eduAdmins.data || [],
-    schools: schools.data || [],
   });
 }
 
@@ -243,24 +237,30 @@ export default function Signup() {
   const navigate = useNavigate();
   const submit = useSubmit();
   const loaderData = useLoaderData<typeof loader>();
-  const { regions, eduAdmins, schools } = loaderData;
+  const { regions } = loaderData;
 
-  // Filter eduAdmins based on selected region
-  const filteredEduAdmins = eduAdmins.filter(
-    (eduAdm: any) => eduAdm.regionId === form.region
-  );
+  // Fetchers for dynamic loading of eduAdmins and schools
+  const eduAdminsFetcher = useFetcher<{ success: boolean; data: EntityItem[] }>();
+  const schoolsFetcher = useFetcher<{ success: boolean; data: EntityItem[] }>();
 
-  // Filter schools based on selected eduAdmin
-  const filteredSchools = schools.filter(
-    (sch: any) => sch.eduAdminId === form.eduAdmin
-  );
+  // Get data from fetchers (or empty array if not loaded yet)
+  const filteredEduAdmins = eduAdminsFetcher.data?.data || [];
+  const filteredSchools = schoolsFetcher.data?.data || [];
 
-  // Reset eduAdmin and school when region changes
+  // Fetch eduAdmins when region changes
   useEffect(() => {
     setForm((f) => ({ ...f, eduAdmin: "", school: "" }));
+    if (form.region) {
+      eduAdminsFetcher.load(`/api/locations?type=eduAdmins&regionId=${form.region}`);
+    }
   }, [form.region]);
+
+  // Fetch schools when eduAdmin changes
   useEffect(() => {
     setForm((f) => ({ ...f, school: "" }));
+    if (form.eduAdmin) {
+      schoolsFetcher.load(`/api/locations?type=schools&eduAdminId=${form.eduAdmin}`);
+    }
   }, [form.eduAdmin]);
 
   // Reset eduAdmin and school when role changes to supervisor
@@ -500,14 +500,18 @@ export default function Signup() {
                     name="eduAdmin"
                     value={form.eduAdmin}
                     onValueChange={(value) => handleChange("eduAdmin", value)}
-                    disabled={!form.region}
+                    disabled={!form.region || eduAdminsFetcher.state === "loading"}
                   >
                     <SelectTrigger className="justify-end gap-2 px-3.5 bg-white rounded-lg border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs [direction:rtl]">
                       <div className="flex-1 text-start font-normal text-[#717680] text-base">
-                        {form.eduAdmin
+                        {eduAdminsFetcher.state === "loading"
+                          ? "جاري التحميل..."
+                          : form.eduAdmin
                           ? (filteredEduAdmins as any[]).find(
                               (ea: any) => ea.id === form.eduAdmin
                             )?.name
+                          : form.region && filteredEduAdmins.length === 0
+                          ? "لا توجد إدارات تعليمية متاحة"
                           : "اختر الإدارة التعليمية"}
                       </div>
                     </SelectTrigger>
@@ -567,17 +571,19 @@ export default function Signup() {
                     name="school"
                     value={form.school}
                     onValueChange={(value) => handleChange("school", value)}
-                    disabled={!form.eduAdmin}
+                    disabled={!form.eduAdmin || schoolsFetcher.state === "loading"}
                   >
                     <SelectTrigger className="justify-end gap-2 px-3.5 bg-white rounded-lg border border-solid border-[#d5d6d9] shadow-shadows-shadow-xs [direction:rtl]">
                       <div className="flex-1 text-start font-normal text-[#717680] text-base">
-                        {form.school
+                        {schoolsFetcher.state === "loading"
+                          ? "جاري التحميل..."
+                          : form.school
                           ? (filteredSchools as any[]).find(
                               (s: any) => s.id === form.school
                             )?.name
-                          : filteredSchools.length
-                          ? "اختر المدرسة"
-                          : "لا توجد مدارس متاحة"}
+                          : form.eduAdmin && filteredSchools.length === 0
+                          ? "لا توجد مدارس متاحة"
+                          : "اختر المدرسة"}
                       </div>
                     </SelectTrigger>
                     <SelectContent className="max-h-64 [direction:rtl]">

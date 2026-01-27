@@ -82,6 +82,27 @@ export default function Login() {
     try {
       setLoading(true);
 
+      // Check user status before attempting login
+      const statusFormData = new FormData();
+      statusFormData.append("email", trimmedEmail);
+
+      const statusResponse = await fetch("/api/check-user-status", {
+        method: "POST",
+        body: statusFormData
+      });
+
+      const statusData = await statusResponse.json();
+
+      if (!statusData.canLogin && statusData.code) {
+        setLoading(false);
+        const arabicErrorMessage = getErrorMessage({ code: statusData.code });
+        setLoginError(arabicErrorMessage);
+        showToast.error("فشل تسجيل الدخول", {
+          description: arabicErrorMessage,
+        });
+        return;
+      }
+
       await authClient.signIn.email(
         { email: trimmedEmail, password },
         {

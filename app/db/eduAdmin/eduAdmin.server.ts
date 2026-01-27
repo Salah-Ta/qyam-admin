@@ -10,22 +10,33 @@ const initializeDatabase = (dbUrl?: string) => {
   return db;
 };
 
-const createEduAdmin = 
-(name: string, dbUrl?: string, regionId?: string): 
+const createEduAdmin =
+(name: string, dbUrl?: string, regionId?: string):
 Promise<StatusResponse<EduAdmin>> => {
 
   const db = initializeDatabase(dbUrl);
+  const trimmedName = name.trim();
+  const normalizedRegionId = regionId || null;
 
-  console.log("Creating EduAdmin:", name, "with regionId:", regionId);
-
-  console.log("Creating EduAdmin:", name, "with regionId:", regionId);
+  console.log("Creating/Upserting EduAdmin:", trimmedName, "with regionId:", normalizedRegionId);
 
   return new Promise((resolve, reject) => {
     db.eduAdmin
-      .create({
-        data: {
-          name,
-          regionId: regionId || null
+      .upsert({
+        where: {
+          // Use the unique constraint for lookup
+          name_regionId: {
+            name: trimmedName,
+            regionId: normalizedRegionId
+          }
+        },
+        update: {
+          // If exists, just return it (no update needed)
+          updatedAt: new Date()
+        },
+        create: {
+          name: trimmedName,
+          regionId: normalizedRegionId
         }
       })
       .then((res) => {
@@ -265,6 +276,75 @@ Promise<StatusResponse<{ exists: boolean; eduAdmin?: EduAdmin }>> => {
   });
 };
 
+/**
+ * Remove duplicate eduAdmins, keeping the oldest one for each (name, regionId) combination.
+ * This should be run before applying the unique constraint migration.
+ */
+const removeDuplicateEduAdmins = async (dbUrl?: string): Promise<StatusResponse<{ removed: number }>> => {
+  const db = initializeDatabase(dbUrl);
+
+  try {
+    // Find all duplicate combinations
+    const duplicates = await db.$queryRaw<Array<{ name: string; regionId: string | null; count: bigint }>>`
+      SELECT name, "regionId", COUNT(*) as count
+      FROM "eduAdministration"
+      GROUP BY name, "regionId"
+      HAVING COUNT(*) > 1
+    `;
+
+    let totalRemoved = 0;
+
+    for (const dup of duplicates) {
+      // Get all eduAdmins with this name and regionId, ordered by creation date
+      const eduAdmins = await db.eduAdmin.findMany({
+        where: {
+          name: dup.name,
+          regionId: dup.regionId
+        },
+        orderBy: {
+          createdAt: 'asc'
+        }
+      });
+
+      // Keep the first (oldest) one, delete the rest
+      const toDelete = eduAdmins.slice(1).map(e => e.id);
+
+      if (toDelete.length > 0) {
+        // First, update any schools pointing to duplicates to point to the kept one
+        const keptId = eduAdmins[0].id;
+        await db.school.updateMany({
+          where: {
+            eduAdminId: { in: toDelete }
+          },
+          data: {
+            eduAdminId: keptId
+          }
+        });
+
+        await db.eduAdmin.deleteMany({
+          where: {
+            id: { in: toDelete }
+          }
+        });
+        totalRemoved += toDelete.length;
+      }
+    }
+
+    return {
+      status: "success",
+      data: { removed: totalRemoved },
+      message: `تم حذف ${totalRemoved} إدارة تعليمية مكررة بنجاح`
+    };
+  } catch (error: any) {
+    console.log("ERROR [removeDuplicateEduAdmins]: ", error);
+    return {
+      status: "error",
+      message: "فشل حذف الإدارات التعليمية المكررة",
+      data: { removed: 0 }
+    };
+  }
+};
+
 export default {
   createEduAdmin,
   getAllEduAdmins,
@@ -274,5 +354,6 @@ export default {
   deleteEduAdmin,
   deleteEduAdminsWithoutRegion,
   deleteEduAdminsWithNonExistentRegions,
-  checkEduAdminExists
+  checkEduAdminExists,
+  removeDuplicateEduAdmins
 };

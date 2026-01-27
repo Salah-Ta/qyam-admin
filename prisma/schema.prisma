@@ -181,6 +181,7 @@ model EduAdmin {
   schools   School[]
   //users     User[]
 
+  @@unique([name, regionId])
   @@index([regionId])
   @@map("eduAdministration")
 }
@@ -195,6 +196,7 @@ model School {
   eduAdmin   EduAdmin? @relation(fields: [eduAdminId], references: [id])
   //users      User[]
 
+  @@unique([name, eduAdminId])
   @@index([eduAdminId])
   @@map("school")
 }

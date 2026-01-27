@@ -836,7 +836,7 @@ export const TrainerProfile = () => {
                     <div className="w-2 h-2 bg-[#199491] rounded-full"></div>
                   </Badge>
                   <div className="font-medium text-gray-900 text-base md:text-left  tracking-[0] leading-[normal] [direction:rtl]  ">
-                    المدرسة : خالد بن الوليد
+                    المدرسة : {user?.schoolName || "-"}
                   </div>
                 </div>
               </div>

@@ -21,6 +21,7 @@ import { Toaster } from "sonner";
 import { getToast } from "./lib/toast.server";
 import { useToast } from "./components/toaster";
 import messageDB from "./db/message/message.server";
+import userDB from "./db/user/user.server";
 
 export const links: LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -58,17 +59,19 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
       getToast(request),
     ]);
 
-    const user = sessionResponse?.user ? (sessionResponse.user as User) : null;
+    const authUser = sessionResponse?.user ? (sessionResponse.user as User) : null;
 
-    // Fetch notifications if user is authenticated
+    // Fetch notifications and enriched user data if user is authenticated
     let notifications = null;
     let unreadCount = 0;
+    let user = authUser;
 
-    if (user) {
+    if (authUser) {
       try {
-        const [messagesResult, unreadCountResult] = await Promise.all([
-          messageDB.getIncomingMessages(user.id, context.cloudflare.env.DATABASE_URL),
-          messageDB.getUnreadCount(user.id, context.cloudflare.env.DATABASE_URL)
+        const [messagesResult, unreadCountResult, enrichedUserResult] = await Promise.all([
+          messageDB.getIncomingMessages(authUser.id, context.cloudflare.env.DATABASE_URL),
+          messageDB.getUnreadCount(authUser.id, context.cloudflare.env.DATABASE_URL),
+          userDB.getUser(authUser.id, context.cloudflare.env.DATABASE_URL)
         ]);
 
         if (messagesResult.status === "success") {
@@ -77,6 +80,11 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
         if (unreadCountResult.status === "success") {
           unreadCount = typeof unreadCountResult.data === 'number' ? unreadCountResult.data : 0;
+        }
+
+        // Use enriched user data with schoolName, eduAdminName, regionName
+        if (enrichedUserResult.status === "success" && enrichedUserResult.data) {
+          user = enrichedUserResult.data;
         }
 
         // Only log once for debugging
