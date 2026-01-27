@@ -12,6 +12,7 @@ import {
   UserIcon,
   LockIcon,
   PlusIcon,
+  PencilIcon,
 } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 import { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/cloudflare";
@@ -536,6 +537,42 @@ export async function action({ request, context }: ActionFunctionArgs) {
       );
     }
 
+    // Handle edit user
+    if (actionType === "editUser") {
+      const targetUserId = formData.get("userId") as string;
+      const name = formData.get("name") as string;
+      const phone = formData.get("phone") as string;
+      const role = formData.get("role") as string;
+      const regionId = formData.get("regionId") as string;
+      const eduAdminId = formData.get("eduAdminId") as string;
+      const schoolId = formData.get("schoolId") as string;
+
+      if (!targetUserId) {
+        return new Response(
+          JSON.stringify({ success: false, message: "معرف المستخدم مطلوب" }),
+          { status: 400 }
+        );
+      }
+
+      await userDB.updateUser(
+        targetUserId,
+        {
+          name: name || undefined,
+          phone: phone || undefined,
+          role: role || undefined,
+          regionId: regionId || null,
+          eduAdminId: eduAdminId || null,
+          schoolId: schoolId || null,
+        },
+        DBurl
+      );
+
+      return new Response(
+        JSON.stringify({ success: true, message: "تم تحديث بيانات المستخدم بنجاح" }),
+        { status: 200 }
+      );
+    }
+
     if (actionType === "delete") {
       if (!userId) {
         return new Response(
@@ -677,6 +714,78 @@ export const Users = (): React.JSX.Element => {
   // Reset Password Dialog state
   const [resetPasswordUser, setResetPasswordUser] = useState<QUser | null>(null);
   const [newPassword, setNewPassword] = useState("");
+
+  // Edit User Dialog state
+  const [editUserDialogOpen, setEditUserDialogOpen] = useState(false);
+  const [editUserForm, setEditUserForm] = useState<{
+    id: string;
+    name: string;
+    email: string;
+    phone: string;
+    role: string;
+    regionId: string;
+    eduAdminId: string;
+    schoolId: string;
+  } | null>(null);
+
+  // Fetchers for edit user dynamic loading
+  const editEduAdminsFetcher = useFetcher<{ success: boolean; data: Array<{ id: string; name: string }> }>();
+  const editSchoolsFetcher = useFetcher<{ success: boolean; data: Array<{ id: string; name: string }> }>();
+
+  // Load eduAdmins when edit region changes
+  useEffect(() => {
+    if (editUserForm?.regionId) {
+      editEduAdminsFetcher.load(`/api/locations?type=eduAdmins&regionId=${editUserForm.regionId}`);
+    }
+  }, [editUserForm?.regionId]);
+
+  // Load schools when edit eduAdmin changes
+  useEffect(() => {
+    if (editUserForm?.eduAdminId) {
+      editSchoolsFetcher.load(`/api/locations?type=schools&eduAdminId=${editUserForm.eduAdminId}`);
+    }
+  }, [editUserForm?.eduAdminId]);
+
+  const editEduAdmins = editEduAdminsFetcher.data?.data || [];
+  const editSchools = editSchoolsFetcher.data?.data || [];
+
+  // Open Edit User dialog
+  const handleEditUserClick = (user: QUser, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setEditUserForm({
+      id: user.id || "",
+      name: user.name || "",
+      email: user.email || "",
+      phone: user.phone?.toString() || "",
+      role: user.role || "user",
+      regionId: user.regionId || "",
+      eduAdminId: user.eduAdminId || "",
+      schoolId: user.schoolId || "",
+    });
+    setEditUserDialogOpen(true);
+  };
+
+  // Handle Edit User submit
+  const handleEditUserSubmit = () => {
+    if (editUserForm) {
+      fetcher.submit(
+        {
+          actionType: "editUser",
+          userId: editUserForm.id,
+          name: editUserForm.name,
+          phone: editUserForm.phone,
+          role: editUserForm.role,
+          regionId: editUserForm.regionId,
+          eduAdminId: editUserForm.eduAdminId,
+          schoolId: editUserForm.schoolId,
+        },
+        { method: "POST" }
+      );
+      setEditUserDialogOpen(false);
+      setEditUserForm(null);
+    }
+  };
 
   // Metrics calculation
   metricsData.students.value = users
@@ -1337,6 +1446,13 @@ export const Users = (): React.JSX.Element => {
                                     تعطيل
                                   </button>
                                   <button
+                                    onClick={(e) => handleEditUserClick(row, e)}
+                                    className="button p-2 rounded-lg text-green-600 border border-green-600 flex gap-1 hover:opacity-80 hover:bg-green-600/10 transition-all"
+                                    title="تعديل البيانات"
+                                  >
+                                    <PencilIcon className="w-5 h-5" />
+                                  </button>
+                                  <button
                                     onClick={(e) => handleResetPasswordClick(row, e)}
                                     className="button p-2 rounded-lg text-blue-600 border border-blue-600 flex gap-1 hover:opacity-80 hover:bg-blue-600/10 transition-all"
                                     title="إعادة تعيين كلمة المرور"
@@ -1733,6 +1849,143 @@ export const Users = (): React.JSX.Element => {
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white"
               >
                 تعيين كلمة المرور
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit User Dialog */}
+      {editUserDialogOpen && editUserForm && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={() => { setEditUserDialogOpen(false); setEditUserForm(null); }}
+        >
+          <div
+            className="bg-white rounded-lg p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto [direction:rtl]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">تعديل بيانات المستخدم</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              تعديل بيانات: <strong>{editUserForm.name}</strong>
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">الاسم</label>
+                <Input
+                  value={editUserForm.name}
+                  onChange={(e) => setEditUserForm({ ...editUserForm, name: e.target.value })}
+                  placeholder="أدخل الاسم الكامل"
+                  className="text-right"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">رقم الجوال</label>
+                <Input
+                  value={editUserForm.phone}
+                  onChange={(e) => setEditUserForm({ ...editUserForm, phone: e.target.value })}
+                  placeholder="05xxxxxxxx"
+                  dir="ltr"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">الدور</label>
+                <Select
+                  value={editUserForm.role}
+                  onValueChange={(value) => setEditUserForm({ ...editUserForm, role: value })}
+                >
+                  <SelectTrigger className="text-right">
+                    <SelectValue placeholder="اختر الدور" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="user">مدرب</SelectItem>
+                    <SelectItem value="supervisor">مشرف</SelectItem>
+                    <SelectItem value="admin">مدير</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">المنطقة</label>
+                <Select
+                  value={editUserForm.regionId}
+                  onValueChange={(value) => setEditUserForm({ ...editUserForm, regionId: value, eduAdminId: "", schoolId: "" })}
+                >
+                  <SelectTrigger className="text-right">
+                    <SelectValue placeholder="اختر المنطقة" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {regions.map((region: any) => (
+                      <SelectItem key={region.id} value={region.id}>
+                        {region.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">الإدارة التعليمية</label>
+                <Select
+                  value={editUserForm.eduAdminId}
+                  onValueChange={(value) => setEditUserForm({ ...editUserForm, eduAdminId: value, schoolId: "" })}
+                  disabled={!editUserForm.regionId || editEduAdminsFetcher.state === "loading"}
+                >
+                  <SelectTrigger className="text-right">
+                    <SelectValue placeholder={
+                      !editUserForm.regionId
+                        ? "اختر المنطقة أولاً"
+                        : editEduAdminsFetcher.state === "loading"
+                          ? "جاري التحميل..."
+                          : "اختر الإدارة التعليمية"
+                    } />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {editEduAdmins.map((eduAdmin) => (
+                      <SelectItem key={eduAdmin.id} value={eduAdmin.id}>
+                        {eduAdmin.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">المدرسة</label>
+                <Select
+                  value={editUserForm.schoolId}
+                  onValueChange={(value) => setEditUserForm({ ...editUserForm, schoolId: value })}
+                  disabled={!editUserForm.eduAdminId || editSchoolsFetcher.state === "loading"}
+                >
+                  <SelectTrigger className="text-right">
+                    <SelectValue placeholder={
+                      !editUserForm.eduAdminId
+                        ? "اختر الإدارة التعليمية أولاً"
+                        : editSchoolsFetcher.state === "loading"
+                          ? "جاري التحميل..."
+                          : "اختر المدرسة"
+                    } />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {editSchools.map((school) => (
+                      <SelectItem key={school.id} value={school.id}>
+                        {school.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end mt-6">
+              <Button
+                variant="outline"
+                onClick={() => { setEditUserDialogOpen(false); setEditUserForm(null); }}
+                className="px-4 py-2"
+              >
+                إلغاء
+              </Button>
+              <Button
+                onClick={handleEditUserSubmit}
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white"
+              >
+                حفظ التغييرات
               </Button>
             </div>
           </div>
