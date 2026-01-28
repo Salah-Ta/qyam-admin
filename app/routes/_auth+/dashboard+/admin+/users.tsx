@@ -680,6 +680,7 @@ export const Users = (): React.JSX.Element => {
   const loaderData = useLoaderData<{ users: QUser[]; regions: any[] }>();
   const users = Array.isArray(loaderData?.users) ? loaderData.users : (Array.isArray(loaderData) ? loaderData : []);
   const regions = loaderData?.regions || [];
+  console.log("Loader data:", users);
 
   // Create User Dialog state
   const [isCreateUserDialogOpen, setIsCreateUserDialogOpen] = useState(false);

@@ -844,13 +844,253 @@ const addCertificateToUser = (
         });
       })
       .catch((error) => {
-        
+
         reject({
           status: "error",
           message: "فشل إضافة الشهادة للمستخدم",
         });
       });
   });
+};
+
+/**
+ * Check if a string looks like a valid CUID (not a name)
+ */
+const isValidCuid = (str: string | null): boolean => {
+  if (!str) return true; // null is valid (no reference)
+  // CUIDs are alphanumeric and start with 'c'
+  return /^c[a-z0-9]{24,}$/i.test(str);
+};
+
+/**
+ * Backup users who have entity names stored in ID fields
+ * Returns the data that can be used to restore if migration fails
+ */
+const backupUsersWithInvalidIds = async (dbUrl?: string): Promise<StatusResponse<{
+  backupDate: string;
+  usersCount: number;
+  users: Array<{
+    id: string;
+    eduAdminId: string | null;
+    schoolId: string | null;
+    regionId: string | null;
+  }>;
+}>> => {
+  const db = initializeDatabase(dbUrl);
+
+  try {
+    // Get all users
+    const allUsers = await db.user.findMany({
+      select: { id: true, eduAdminId: true, schoolId: true, regionId: true }
+    });
+
+    // Filter users with names in ID fields
+    const usersToBackup = allUsers.filter(
+      u => !isValidCuid(u.eduAdminId) || !isValidCuid(u.schoolId)
+    );
+
+    console.log(`Backing up ${usersToBackup.length} users with invalid IDs`);
+
+    return {
+      status: "success",
+      data: {
+        backupDate: new Date().toISOString(),
+        usersCount: usersToBackup.length,
+        users: usersToBackup
+      },
+      message: `تم حفظ نسخة احتياطية لـ ${usersToBackup.length} مستخدم`
+    };
+  } catch (error: any) {
+    console.log("ERROR [backupUsersWithInvalidIds]: ", error);
+    return {
+      status: "error",
+      message: "فشل إنشاء النسخة الاحتياطية",
+      data: {
+        backupDate: new Date().toISOString(),
+        usersCount: 0,
+        users: []
+      }
+    };
+  }
+};
+
+/**
+ * Restore users from backup data
+ * Use this if migration produces unexpected results
+ */
+const restoreUsersFromBackup = async (
+  backupData: Array<{
+    id: string;
+    eduAdminId: string | null;
+    schoolId: string | null;
+  }>,
+  dbUrl?: string
+): Promise<StatusResponse<{ restored: number }>> => {
+  const db = initializeDatabase(dbUrl);
+
+  try {
+    let restored = 0;
+
+    for (const user of backupData) {
+      await db.user.update({
+        where: { id: user.id },
+        data: {
+          eduAdminId: user.eduAdminId,
+          schoolId: user.schoolId
+        }
+      });
+      restored++;
+    }
+
+    console.log(`Restored ${restored} users from backup`);
+
+    return {
+      status: "success",
+      data: { restored },
+      message: `تم استعادة ${restored} مستخدم من النسخة الاحتياطية`
+    };
+  } catch (error: any) {
+    console.log("ERROR [restoreUsersFromBackup]: ", error);
+    return {
+      status: "error",
+      message: "فشل استعادة النسخة الاحتياطية",
+      data: { restored: 0 }
+    };
+  }
+};
+
+/**
+ * Migrate users who have entity names stored in ID fields
+ * This fixes old data where eduAdminId/schoolId contain names instead of IDs
+ */
+const migrateUserEntityIds = async (dbUrl?: string): Promise<StatusResponse<{
+  eduAdminMatched: number;
+  eduAdminUnmatched: number;
+  schoolMatched: number;
+  schoolUnmatched: number;
+  unmatchedEduAdmins: string[];
+  unmatchedSchools: string[];
+}>> => {
+  const db = initializeDatabase(dbUrl);
+
+  try {
+    // Get all users
+    const allUsers = await db.user.findMany({
+      select: { id: true, eduAdminId: true, schoolId: true, regionId: true }
+    });
+
+    // Filter users with names in ID fields
+    const usersToMigrate = allUsers.filter(
+      u => !isValidCuid(u.eduAdminId) || !isValidCuid(u.schoolId)
+    );
+
+    console.log(`Found ${usersToMigrate.length} users to migrate`);
+
+    // Get all eduAdmins and schools for matching
+    const [eduAdmins, schools] = await Promise.all([
+      db.eduAdmin.findMany({ select: { id: true, name: true, regionId: true } }),
+      db.school.findMany({ select: { id: true, name: true, eduAdminId: true } })
+    ]);
+
+    // Create lookup maps (name -> entities array)
+    const eduAdminByName = new Map<string, Array<{ id: string; name: string; regionId: string | null }>>();
+    eduAdmins.forEach(e => {
+      const key = e.name.trim();
+      if (!eduAdminByName.has(key)) eduAdminByName.set(key, []);
+      eduAdminByName.get(key)!.push(e);
+    });
+
+    const schoolByName = new Map<string, Array<{ id: string; name: string; eduAdminId: string | null }>>();
+    schools.forEach(s => {
+      const key = s.name.trim();
+      if (!schoolByName.has(key)) schoolByName.set(key, []);
+      schoolByName.get(key)!.push(s);
+    });
+
+    let eduAdminMatched = 0, eduAdminUnmatched = 0;
+    let schoolMatched = 0, schoolUnmatched = 0;
+    const unmatchedEduAdmins = new Set<string>();
+    const unmatchedSchools = new Set<string>();
+
+    for (const user of usersToMigrate) {
+      const updates: { eduAdminId?: string; schoolId?: string } = {};
+
+      // Fix eduAdminId if it contains a name
+      if (user.eduAdminId && !isValidCuid(user.eduAdminId)) {
+        const eduAdminName = user.eduAdminId.trim();
+        const matches = eduAdminByName.get(eduAdminName) || [];
+
+        // Try to find exact match, prefer one in same region
+        const matchedEduAdmin = matches.find(e => e.regionId === user.regionId) || matches[0];
+
+        if (matchedEduAdmin) {
+          updates.eduAdminId = matchedEduAdmin.id;
+          eduAdminMatched++;
+        } else {
+          // No match found - keep the original value (don't clear it)
+          unmatchedEduAdmins.add(eduAdminName);
+          eduAdminUnmatched++;
+        }
+      }
+
+      // Fix schoolId if it contains a name
+      if (user.schoolId && !isValidCuid(user.schoolId)) {
+        const schoolName = user.schoolId.trim();
+        const matches = schoolByName.get(schoolName) || [];
+
+        // Try to find exact match, prefer one under same eduAdmin
+        const newEduAdminId = updates.eduAdminId ?? user.eduAdminId;
+        const validEduAdminId = isValidCuid(newEduAdminId) ? newEduAdminId : null;
+        const matchedSchool = matches.find(s => s.eduAdminId === validEduAdminId) || matches[0];
+
+        if (matchedSchool) {
+          updates.schoolId = matchedSchool.id;
+          schoolMatched++;
+        } else {
+          // No match found - keep the original value (don't clear it)
+          unmatchedSchools.add(schoolName);
+          schoolUnmatched++;
+        }
+      }
+
+      // Apply updates only if we found matches
+      if (Object.keys(updates).length > 0) {
+        await db.user.update({
+          where: { id: user.id },
+          data: updates
+        });
+      }
+    }
+
+    console.log(`Migration complete: ${eduAdminMatched} eduAdmins matched, ${schoolMatched} schools matched`);
+
+    return {
+      status: "success",
+      data: {
+        eduAdminMatched,
+        eduAdminUnmatched,
+        schoolMatched,
+        schoolUnmatched,
+        unmatchedEduAdmins: Array.from(unmatchedEduAdmins),
+        unmatchedSchools: Array.from(unmatchedSchools)
+      },
+      message: `تم ربط ${eduAdminMatched} إدارة تعليمية و ${schoolMatched} مدرسة`
+    };
+  } catch (error: any) {
+    console.log("ERROR [migrateUserEntityIds]: ", error);
+    return {
+      status: "error",
+      message: "فشل عملية الترحيل",
+      data: {
+        eduAdminMatched: 0,
+        eduAdminUnmatched: 0,
+        schoolMatched: 0,
+        schoolUnmatched: 0,
+        unmatchedEduAdmins: [],
+        unmatchedSchools: []
+      }
+    };
+  }
 };
 
 export default {
@@ -866,5 +1106,8 @@ export default {
   getUsersByEduAdmin,
   getUsersBySchool,
   getUserWithCertificates,
-  addCertificateToUser
+  addCertificateToUser,
+  backupUsersWithInvalidIds,
+  restoreUsersFromBackup,
+  migrateUserEntityIds
 };

@@ -10,6 +10,7 @@ import {
 import schoolDB from "~/db/school/school.server";
 import eduAdminDB from "~/db/eduAdmin/eduAdmin.server";
 import regionDB from "~/db/region/region.server";
+import userDB from "~/db/user/user.server";
 import { LoaderFunctionArgs } from "@remix-run/cloudflare";
 import { XIcon } from "lucide-react";
 import { Button } from "~/components/ui/button";
@@ -196,6 +197,39 @@ export const action = async ({ request, context }: LoaderFunctionArgs) => {
         createdEntityType: entityType,
         createdParentId: parentId
       });
+    }
+
+    // Handle backup user data before migration
+    if (actionType === "backupUserData") {
+      console.log("Starting user data backup...");
+      const result = await userDB.backupUsersWithInvalidIds(dbUrl);
+      console.log("Backup result:", result);
+      return json(result);
+    }
+
+    // Handle restore user data from backup
+    if (actionType === "restoreUserData") {
+      console.log("Starting user data restore...");
+      const backupDataStr = formData.get("backupData") as string;
+      if (!backupDataStr) {
+        return json({ status: "error", message: "لا توجد بيانات للاستعادة" });
+      }
+      try {
+        const backupData = JSON.parse(backupDataStr);
+        const result = await userDB.restoreUsersFromBackup(backupData.users, dbUrl);
+        console.log("Restore result:", result);
+        return json(result);
+      } catch (e) {
+        return json({ status: "error", message: "خطأ في قراءة بيانات النسخة الاحتياطية" });
+      }
+    }
+
+    // Handle user entity IDs migration
+    if (actionType === "migrateUserEntityIds") {
+      console.log("Starting user entity IDs migration...");
+      const result = await userDB.migrateUserEntityIds(dbUrl);
+      console.log("Migration result:", result);
+      return json(result);
     }
 
     // Handle batch save action with proper hierarchical transaction support
@@ -564,6 +598,25 @@ export const ManageData = (): JSX.Element => {
         createdParentId?: string;
         savedEntityType?: string;
         savedEntityId?: string;
+        data?: {
+          eduAdminMatched?: number;
+          eduAdminUnmatched?: number;
+          schoolMatched?: number;
+          schoolUnmatched?: number;
+          unmatchedEduAdmins?: string[];
+          unmatchedSchools?: string[];
+          // Backup data
+          backupDate?: string;
+          usersCount?: number;
+          users?: Array<{
+            id: string;
+            eduAdminId: string | null;
+            schoolId: string | null;
+            regionId: string | null;
+          }>;
+          // Restore data
+          restored?: number;
+        };
       }
     | undefined;
 
@@ -1155,6 +1208,190 @@ export const ManageData = (): JSX.Element => {
         </div>
       )}
 
+      {/* Data Migration Section */}
+      <div className="w-full bg-white rounded-2xl border border-solid border-[#d0d5dd] mb-8">
+        <div className="p-6">
+          <div className="flex items-center justify-between gap-4 mb-4">
+            <div>
+              <h3 className="text-lg font-bold text-[#181d27]">إصلاح بيانات المستخدمين</h3>
+              <p className="text-sm text-[#535861] mt-1">
+                ربط بيانات الإدارات التعليمية والمدارس القديمة بالمعرفات الصحيحة
+              </p>
+            </div>
+            <div className="flex gap-2">
+              {/* Backup Button */}
+              <Form method="post">
+                <input type="hidden" name="actionType" value="backupUserData" />
+                <Button
+                  type="submit"
+                  variant="outline"
+                  className="px-4 py-2 border-blue-300 text-blue-700 hover:bg-blue-50"
+                >
+                  نسخة احتياطية
+                </Button>
+              </Form>
+              {/* Upload Restore Button */}
+              <label className="cursor-pointer">
+                <input
+                  type="file"
+                  accept=".json"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+
+                    try {
+                      const text = await file.text();
+                      const backupData = JSON.parse(text);
+
+                      if (!backupData.users || !Array.isArray(backupData.users)) {
+                        alert("ملف النسخة الاحتياطية غير صالح");
+                        return;
+                      }
+
+                      // Submit restore form
+                      const formData = new FormData();
+                      formData.append("actionType", "restoreUserData");
+                      formData.append("backupData", JSON.stringify(backupData));
+
+                      const response = await fetch(window.location.pathname, {
+                        method: "POST",
+                        body: formData,
+                      });
+
+                      if (response.ok) {
+                        revalidator.revalidate();
+                        alert("تم استعادة البيانات بنجاح");
+                      } else {
+                        alert("فشل استعادة البيانات");
+                      }
+                    } catch (error) {
+                      alert("خطأ في قراءة الملف");
+                    }
+
+                    // Reset input
+                    e.target.value = "";
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="px-4 py-2 border-amber-300 text-amber-700 hover:bg-amber-50"
+                  asChild
+                >
+                  <span>استعادة من ملف</span>
+                </Button>
+              </label>
+              {/* Migration Button */}
+              <Form method="post">
+                <input type="hidden" name="actionType" value="migrateUserEntityIds" />
+                <Button
+                  type="submit"
+                  variant="outline"
+                  disabled={loadingStates["migrate-users"]}
+                  className="px-6 py-2"
+                >
+                  {loadingStates["migrate-users"] ? "جاري الإصلاح..." : "إصلاح البيانات"}
+                </Button>
+              </Form>
+            </div>
+          </div>
+
+          {/* Backup Results */}
+          {actionData?.data?.backupDate && actionData?.data?.users && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
+              <h4 className="font-semibold text-blue-800 mb-2">النسخة الاحتياطية:</h4>
+              <ul className="text-sm text-blue-700 space-y-1">
+                <li>📅 تاريخ النسخة: {new Date(actionData.data.backupDate).toLocaleString('ar-SA')}</li>
+                <li>👥 عدد المستخدمين: {actionData.data.usersCount}</li>
+              </ul>
+
+              {/* Download backup as JSON */}
+              <div className="mt-3 pt-3 border-t border-blue-200">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const dataStr = JSON.stringify(actionData.data, null, 2);
+                    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                    const url = URL.createObjectURL(dataBlob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `user-backup-${actionData.data?.backupDate?.split('T')[0]}.json`;
+                    link.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                  className="text-sm text-blue-700 underline hover:text-blue-900"
+                >
+                  تحميل النسخة الاحتياطية (JSON)
+                </button>
+              </div>
+
+              {/* Restore Form */}
+              <Form method="post" className="mt-3 pt-3 border-t border-blue-200">
+                <input type="hidden" name="actionType" value="restoreUserData" />
+                <input type="hidden" name="backupData" value={JSON.stringify(actionData.data)} />
+                <Button
+                  type="submit"
+                  variant="outline"
+                  className="text-sm px-4 py-1 border-amber-300 text-amber-700 hover:bg-amber-50"
+                >
+                  استعادة من هذه النسخة
+                </Button>
+              </Form>
+            </div>
+          )}
+
+          {/* Restore Results */}
+          {actionData?.data?.restored !== undefined && actionData?.data?.eduAdminMatched === undefined && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mt-4">
+              <h4 className="font-semibold text-amber-800 mb-2">نتيجة الاستعادة:</h4>
+              <p className="text-sm text-amber-700">
+                ✅ تم استعادة {actionData.data.restored} مستخدم
+              </p>
+            </div>
+          )}
+
+          {/* Migration Results */}
+          {actionData?.data?.eduAdminMatched !== undefined && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mt-4">
+              <h4 className="font-semibold text-green-800 mb-2">نتائج الإصلاح:</h4>
+              <ul className="text-sm text-green-700 space-y-1">
+                <li>✅ تم ربط {actionData.data.eduAdminMatched} إدارة تعليمية</li>
+                <li>✅ تم ربط {actionData.data.schoolMatched} مدرسة</li>
+                {actionData.data.eduAdminUnmatched! > 0 && (
+                  <li className="text-amber-700">⚠️ لم يتم العثور على {actionData.data.eduAdminUnmatched} إدارة تعليمية</li>
+                )}
+                {actionData.data.schoolUnmatched! > 0 && (
+                  <li className="text-amber-700">⚠️ لم يتم العثور على {actionData.data.schoolUnmatched} مدرسة</li>
+                )}
+              </ul>
+
+              {/* Show unmatched names if any */}
+              {actionData.data.unmatchedEduAdmins && actionData.data.unmatchedEduAdmins.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-green-200">
+                  <p className="text-sm font-medium text-amber-700 mb-1">إدارات تعليمية غير موجودة:</p>
+                  <ul className="text-xs text-amber-600 list-disc list-inside">
+                    {actionData.data.unmatchedEduAdmins.map((name, i) => (
+                      <li key={i}>{name}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {actionData.data.unmatchedSchools && actionData.data.unmatchedSchools.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-green-200">
+                  <p className="text-sm font-medium text-amber-700 mb-1">مدارس غير موجودة:</p>
+                  <ul className="text-xs text-amber-600 list-disc list-inside">
+                    {actionData.data.unmatchedSchools.map((name, i) => (
+                      <li key={i}>{name}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Single Region Add Section - As shown in image.png */}
       <div className="w-full bg-white rounded-2xl border border-solid border-[#d0d5dd] mt-8">
