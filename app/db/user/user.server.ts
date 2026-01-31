@@ -1093,6 +1093,271 @@ const migrateUserEntityIds = async (dbUrl?: string): Promise<StatusResponse<{
   }
 };
 
+/**
+ * Get backup data for users by their emails
+ * Returns user data and account data for backup before bulk operations
+ */
+const getUsersBackupByEmails = async (
+  emails: string[],
+  dbUrl?: string
+): Promise<StatusResponse<{
+  timestamp: string;
+  totalEmails: number;
+  foundUsers: number;
+  users: Array<{
+    id: string;
+    email: string;
+    name: string | null;
+    phone: string | null;
+    createdAt: Date;
+    acceptenceState: string | null;
+    hasAccount: boolean;
+    accountId?: string;
+  }>;
+  notFoundEmails: string[];
+}>> => {
+  const db = initializeDatabase(dbUrl);
+
+  try {
+    // Normalize emails
+    const normalizedEmails = emails.map(e => e.trim().toLowerCase());
+    const uniqueEmails = [...new Set(normalizedEmails)];
+
+    // Find users
+    const users = await db.user.findMany({
+      where: {
+        email: { in: uniqueEmails }
+      }
+    });
+
+    // Get user IDs to find their accounts
+    const userIds = users.map(u => u.id);
+
+    // Find accounts for these users
+    const accounts = await db.account.findMany({
+      where: {
+        userId: { in: userIds }
+      },
+      select: {
+        id: true,
+        userId: true
+      }
+    });
+
+    // Create a map of userId to accountId
+    const userAccountMap = new Map(accounts.map(a => [a.userId, a.id]));
+
+    // Map found users
+    const foundUserEmails = new Set(users.map(u => u.email.toLowerCase()));
+    const notFoundEmails = uniqueEmails.filter(e => !foundUserEmails.has(e));
+
+    const backupData = users.map(user => ({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      phone: user.phone?.toString() || null,
+      createdAt: user.createdAt,
+      acceptenceState: user.acceptenceState,
+      hasAccount: userAccountMap.has(user.id),
+      accountId: userAccountMap.get(user.id)
+    }));
+
+    return {
+      status: "success",
+      message: `تم تجهيز نسخة احتياطية لـ ${users.length} مستخدم`,
+      data: {
+        timestamp: new Date().toISOString(),
+        totalEmails: uniqueEmails.length,
+        foundUsers: users.length,
+        users: backupData,
+        notFoundEmails
+      }
+    };
+  } catch (error) {
+    console.log("ERROR [getUsersBackupByEmails]: ", error);
+    return {
+      status: "error",
+      message: "حدث خطأ أثناء تجهيز النسخة الاحتياطية"
+    };
+  }
+};
+
+/**
+ * Bulk fix user accounts - reset passwords for existing users or create new accounts
+ * Used to fix users who have login/password issues
+ */
+const bulkFixUserAccounts = async (
+  users: Array<{
+    email: string;
+    name: string;
+    phone?: string;
+    regionName?: string;
+    schoolName?: string;
+  }>,
+  defaultPassword: string,
+  dbUrl?: string
+): Promise<StatusResponse<{
+  processed: number;
+  passwordReset: number;
+  created: number;
+  skipped: number;
+  errors: Array<{ email: string; error: string }>;
+}>> => {
+  const db = initializeDatabase(dbUrl);
+
+  const results = {
+    processed: 0,
+    passwordReset: 0,
+    created: 0,
+    skipped: 0,
+    errors: [] as Array<{ email: string; error: string }>
+  };
+
+  try {
+    // Hash the default password once
+    const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+
+    // Deduplicate by email (keep first occurrence)
+    const emailsSeen = new Set<string>();
+    const uniqueUsers = users.filter(u => {
+      const normalizedEmail = u.email.trim().toLowerCase();
+      if (emailsSeen.has(normalizedEmail)) {
+        results.skipped++;
+        return false;
+      }
+      emailsSeen.add(normalizedEmail);
+      return true;
+    });
+
+    console.log(`Processing ${uniqueUsers.length} unique users (${results.skipped} duplicates skipped)`);
+
+    for (const userData of uniqueUsers) {
+      const normalizedEmail = userData.email.trim().toLowerCase();
+      results.processed++;
+
+      try {
+        // Check if user exists
+        const existingUser = await db.user.findUnique({
+          where: { email: normalizedEmail }
+        });
+
+        if (existingUser) {
+          // User exists - reset their password
+          const existingAccount = await db.account.findFirst({
+            where: {
+              userId: existingUser.id,
+              providerId: "credential"
+            }
+          });
+
+          if (existingAccount) {
+            // Update existing account password
+            await db.account.update({
+              where: { id: existingAccount.id },
+              data: {
+                password: hashedPassword,
+                updatedAt: new Date()
+              }
+            });
+          } else {
+            // Create credential account if doesn't exist
+            await db.account.create({
+              data: {
+                id: crypto.randomUUID(),
+                accountId: existingUser.id,
+                providerId: "credential",
+                userId: existingUser.id,
+                password: hashedPassword,
+                createdAt: new Date(),
+                updatedAt: new Date()
+              }
+            });
+          }
+
+          // Ensure user is accepted
+          if (existingUser.acceptenceState !== "accepted") {
+            await db.user.update({
+              where: { id: existingUser.id },
+              data: { acceptenceState: "accepted" }
+            });
+          }
+
+          results.passwordReset++;
+          console.log(`Password reset for: ${normalizedEmail}`);
+        } else {
+          // User doesn't exist - create new account
+          const now = new Date();
+          const userId = crypto.randomUUID();
+          const accountId = crypto.randomUUID();
+
+          // Clean phone number
+          let phoneNumber: number | null = null;
+          if (userData.phone) {
+            const cleanPhone = userData.phone.replace(/\D/g, '');
+            if (cleanPhone) {
+              phoneNumber = parseInt(cleanPhone, 10);
+            }
+          }
+
+          await db.$transaction(async (tx) => {
+            // Create user
+            await tx.user.create({
+              data: {
+                id: userId,
+                name: userData.name.trim(),
+                email: normalizedEmail,
+                emailVerified: false,
+                createdAt: now,
+                updatedAt: now,
+                role: "user",
+                phone: phoneNumber,
+                acceptenceState: "accepted"
+              }
+            });
+
+            // Create account with password
+            await tx.account.create({
+              data: {
+                id: accountId,
+                accountId: userId,
+                providerId: "credential",
+                userId: userId,
+                password: hashedPassword,
+                createdAt: now,
+                updatedAt: now
+              }
+            });
+          });
+
+          results.created++;
+          console.log(`Created new user: ${normalizedEmail}`);
+        }
+      } catch (userError: any) {
+        console.log(`Error processing ${normalizedEmail}:`, userError.message);
+        results.errors.push({
+          email: normalizedEmail,
+          error: userError.message || "خطأ غير معروف"
+        });
+      }
+    }
+
+    console.log(`Bulk fix complete: ${results.passwordReset} reset, ${results.created} created, ${results.errors.length} errors`);
+
+    return {
+      status: "success",
+      data: results,
+      message: `تم معالجة ${results.processed} مستخدم: ${results.passwordReset} إعادة تعيين كلمة المرور، ${results.created} حساب جديد`
+    };
+  } catch (error: any) {
+    console.log("ERROR [bulkFixUserAccounts]: ", error);
+    return {
+      status: "error",
+      message: "فشل عملية إصلاح الحسابات",
+      data: results
+    };
+  }
+};
+
 export default {
   editUserRegisteration,
   bulkEditUserRegisteration,
@@ -1109,5 +1374,7 @@ export default {
   addCertificateToUser,
   backupUsersWithInvalidIds,
   restoreUsersFromBackup,
-  migrateUserEntityIds
+  migrateUserEntityIds,
+  getUsersBackupByEmails,
+  bulkFixUserAccounts
 };

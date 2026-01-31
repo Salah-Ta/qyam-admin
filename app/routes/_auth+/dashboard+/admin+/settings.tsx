@@ -232,6 +232,108 @@ export const action = async ({ request, context }: LoaderFunctionArgs) => {
       return json(result);
     }
 
+    // Handle download users backup before bulk fix
+    if (actionType === "downloadUsersBackup") {
+      console.log("Starting users backup download...");
+
+      // Users from the Excel file with issues - same list as bulkFixUsers
+      const usersToBackup = [
+        "bma14001@hotmail.com", "Seta8922@gmail.com", "Aljoria12345@gmail.com", "Amlalhdb@gmail.com",
+        "agag23617@gmail.com", "manalhb11@gmail.com", "oolloll19876@gmail.com", "jjssh@hotmail.com",
+        "foofoooo2009@hotmail.com", "binhaneen@gmail.com", "raghab335@gmail.com", "gkhm1396@gmail.com",
+        "Physics7582@gmail.com", "omtariq7788@gmail.com", "Wafamnq2030@gmail.com", "Dee.sara7@gmail.com",
+        "anbr1433@gmail.com", "ma4121071@gmail.com", "Samyhalzbydy1@gmail.com", "ghzylalshly@gmail.com",
+        "s0567674837@yahoo.com", "A.ashwaqalmarwani@hotmail.com", "amalalghafli9@gmail.com",
+        "a0553933644@gmail.com", "drah14000@gmail.com", "Sebraalarjani@gmail.com", "za1422@hotmail.com",
+        "Sohair_h@hotmail.com", "siham.hakami@gmail.com", "Zaihi1989@gmail.com", "sjghazwani@moe.gov.sa",
+        "wwd2012@hotma.com", "Eedah972@gmail.com", "Zakia1402z@gmail.com", "Walfaife@gmail.com",
+        "Shmr03a04@gmail.com", "roromsh7@gmail.com", "ltyfazila90@gmail.com", "n1402u@hotmail.com",
+        "asasf412@gmail.com", "Aleen4199@gmail.com", "norah.123789@yahoo.com", "alnonh61@gmail.com",
+        "amfaisal1392x@gmail.com", "froooh7117@gmail.com", "Ssbe9876@gmail.com", "X00x18@hotmail.com",
+        "zahraayahya0@gmail.com", "e.h111@hotmail.com", "zfs504@gmail.com", "noonaa_7@hotmail.com",
+        "az6190565@gmail.com", "sh12sa12sh@gmail.com", "Heyam.ksa@hotmail.com", "amal333r@gmail.com",
+        "Kmta80@gmail.com", "S10s103000@gmail.com", "al.7ake@hotmail.com", "Tapnajwan@gmail.com",
+        "mona.muhawwis@gmail.com"
+      ];
+
+      const result = await userDB.getUsersBackupByEmails(usersToBackup, dbUrl);
+      console.log("Backup result:", result);
+      return json(result);
+    }
+
+    // Handle bulk fix user accounts
+    if (actionType === "bulkFixUsers") {
+      console.log("Starting bulk fix user accounts...");
+
+      // Users from the Excel file with issues
+      const usersToFix = [
+        { email: "bma14001@hotmail.com", name: "بشرى محمد صالح العبلان", phone: "0535211708" },
+        { email: "Seta8922@gmail.com", name: "صيته عبدالعزيز الذوادي", phone: "0506909450" },
+        { email: "Aljoria12345@gmail.com", name: "عائشة محمد عطية", phone: "0552506749" },
+        { email: "Amlalhdb@gmail.com", name: "امل عايش الحدب", phone: "0536881945" },
+        { email: "agag23617@gmail.com", name: "ريم خالد الوسمي", phone: "0540294013" },
+        { email: "manalhb11@gmail.com", name: "منال حسين البندر", phone: "0540021062" },
+        { email: "oolloll19876@gmail.com", name: "ليلى علي رابح الرحيلي", phone: "0552135439" },
+        { email: "jjssh@hotmail.com", name: "جملا حماد العمراني", phone: "0501933007" },
+        { email: "foofoooo2009@hotmail.com", name: "فوزه سليم البلوي", phone: "0563329083" },
+        { email: "binhaneen@gmail.com", name: "حنين احمد بن حسين", phone: "0533001456" },
+        { email: "raghab335@gmail.com", name: "عيده فريج صالح البلوي", phone: "0502033581" },
+        { email: "gkhm1396@gmail.com", name: "غادة خليفة الممتن", phone: "0555494336" },
+        { email: "Physics7582@gmail.com", name: "صفية عبدالله الحبيب", phone: "0563552455" },
+        { email: "omtariq7788@gmail.com", name: "فايقه يحيى عطيف", phone: "0552452191" },
+        { email: "Wafamnq2030@gmail.com", name: "وفاء محمد القرافي", phone: "0506598085" },
+        { email: "Dee.sara7@gmail.com", name: "ساره احمد الجيبان", phone: "0569766213" },
+        { email: "anbr1433@gmail.com", name: "عنبر منور المطيري", phone: "0567273771" },
+        { email: "ma4121071@gmail.com", name: "مريم أحمد المزيعل", phone: "0503912286" },
+        { email: "Samyhalzbydy1@gmail.com", name: "ساميه محمد الزبيدي", phone: "0566221192" },
+        { email: "ghzylalshly@gmail.com", name: "غزيل عيد السهلي", phone: "0566065096" },
+        { email: "s0567674837@yahoo.com", name: "صديقه عبدالله الحميد", phone: "0567674837" },
+        { email: "A.ashwaqalmarwani@hotmail.com", name: "أشواق ضيف الله المرواني", phone: "0563014492" },
+        { email: "amalalghafli9@gmail.com", name: "أمل ابراهيم الغافلي", phone: "0569501113" },
+        { email: "a0553933644@gmail.com", name: "لطيفة شامس النعيم", phone: "0500577656" },
+        { email: "drah14000@gmail.com", name: "بدرة حسين الشيخ", phone: "0550533788" },
+        { email: "Sebraalarjani@gmail.com", name: "صبره مساعد العرجاني", phone: "0532003817" },
+        { email: "za1422@hotmail.com", name: "زهره حسن الجمعان", phone: "0504532436" },
+        { email: "Sohair_h@hotmail.com", name: "سهير حبيب العليوي", phone: "0569790035" },
+        { email: "siham.hakami@gmail.com", name: "سهام فهد حكمي", phone: "0556546027" },
+        { email: "Zaihi1989@gmail.com", name: "رحمه ناصر ريحان", phone: "0550464908" },
+        { email: "sjghazwani@moe.gov.sa", name: "صالحه جابر يحي غزواني", phone: "0506292177" },
+        { email: "wwd2012@hotma.com", name: "وداد فريح البلوي", phone: "0597173791" },
+        { email: "Eedah972@gmail.com", name: "عيدة مفلح العنزي", phone: "0590490491" },
+        { email: "Zakia1402z@gmail.com", name: "زكيه حسين العيسى", phone: "0542760888" },
+        { email: "Walfaife@gmail.com", name: "وضحه سالم جبار الفيفي", phone: "0538819774" },
+        { email: "Shmr03a04@gmail.com", name: "شريفه علي العمري", phone: "0538718909" },
+        { email: "roromsh7@gmail.com", name: "راويه محمد الشهري", phone: "0541010716" },
+        { email: "ltyfazila90@gmail.com", name: "لطيفه محمد زيلع", phone: "0534594544" },
+        { email: "n1402u@hotmail.com", name: "ندى عبداللطيف العبيد", phone: "0501125811" },
+        { email: "asasf412@gmail.com", name: "اسمهان فالح البلوي", phone: "0505380412" },
+        { email: "Aleen4199@gmail.com", name: "امل محمد رفاعي", phone: "0503096330" },
+        { email: "norah.123789@yahoo.com", name: "نوره عتيق العطوي", phone: "0530610242" },
+        { email: "alnonh61@gmail.com", name: "نوره عواد العنزي", phone: "0535134859" },
+        { email: "amfaisal1392x@gmail.com", name: "مطره عبدالله سليمان الفيفي", phone: "0535432591" },
+        { email: "froooh7117@gmail.com", name: "غاده عبد الكريم مدخلي", phone: "0559775023" },
+        { email: "Ssbe9876@gmail.com", name: "صبيحه سويلم الحويطي", phone: "0546995290" },
+        { email: "X00x18@hotmail.com", name: "سناء احمد العطوي", phone: "0542843844" },
+        { email: "zahraayahya0@gmail.com", name: "زهراء يحي علي عسيري", phone: "0597472972" },
+        { email: "e.h111@hotmail.com", name: "ايمان حسين موسى خفشة", phone: "0502710062" },
+        { email: "zfs504@gmail.com", name: "فاطمه منصور صميلي", phone: "0533249881" },
+        { email: "noonaa_7@hotmail.com", name: "نوره سعد مهدي", phone: "0552835486" },
+        { email: "az6190565@gmail.com", name: "عزيزة عياد الخمعلي", phone: "0590759008" },
+        { email: "sh12sa12sh@gmail.com", name: "شيخه ابراهيم الجلعود", phone: "0567450020" },
+        { email: "Heyam.ksa@hotmail.com", name: "هيام خالد باصهي", phone: "0504793324" },
+        { email: "amal333r@gmail.com", name: "أمل عبدالله التميمي", phone: "0503991894" },
+        { email: "Kmta80@gmail.com", name: "المها بندر الخشرم", phone: "0534289780" },
+        { email: "S10s103000@gmail.com", name: "علياء جمعه الحويطي", phone: "0567870701" },
+        { email: "al.7ake@hotmail.com", name: "مريم سعد الهجله", phone: "0555175917" },
+        { email: "Tapnajwan@gmail.com", name: "نجوان عبدالله الدوسري", phone: "0557002664" },
+        { email: "mona.muhawwis@gmail.com", name: "منى مهوس الشمري", phone: "0553193999" }
+      ];
+
+      const result = await userDB.bulkFixUserAccounts(usersToFix, "Qyam@2026", dbUrl);
+      console.log("Bulk fix result:", result);
+      return json(result);
+    }
+
     // Handle batch save action with proper hierarchical transaction support
     if (actionType === "batchSave") {
       console.log("=== BATCH SAVE DEBUG ===");
@@ -667,6 +769,25 @@ export const ManageData = (): JSX.Element => {
   const [validationErrors, setValidationErrors] = useState<{
     [key: string]: string;
   }>({});
+
+  // State for bulk fix user accounts modal
+  const [bulkFixModal, setBulkFixModal] = useState<{
+    isOpen: boolean;
+    isLoading: boolean;
+    results: {
+      processed: number;
+      passwordReset: number;
+      created: number;
+      skipped: number;
+      errors: Array<{ email: string; error: string }>;
+    } | null;
+    error: string | null;
+  }>({
+    isOpen: false,
+    isLoading: false,
+    results: null,
+    error: null
+  });
 
   // LocalStorage keys
   const STORAGE_KEYS = {
@@ -1392,6 +1513,212 @@ export const ManageData = (): JSX.Element => {
           )}
         </div>
       </div>
+
+      {/* Bulk Fix User Accounts Section */}
+      <div className="w-full bg-white rounded-2xl border border-solid border-[#d0d5dd] mb-8">
+        <div className="p-6">
+          <div className="flex items-center justify-between gap-4 mb-4">
+            <div>
+              <h3 className="text-lg font-bold text-[#181d27]">إصلاح حسابات المستخدمين</h3>
+              <p className="text-sm text-[#535861] mt-1">
+                إعادة تعيين كلمات المرور للمستخدمين الذين لديهم مشاكل في تسجيل الدخول (68 مستخدم)
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="px-4 py-2 border-green-300 text-green-700 hover:bg-green-50"
+                onClick={async () => {
+                  try {
+                    const formData = new FormData();
+                    formData.append("actionType", "downloadUsersBackup");
+
+                    const response = await fetch(window.location.pathname, {
+                      method: "POST",
+                      body: formData,
+                    });
+
+                    const result = await response.json() as { status: string; data?: any; message?: string };
+
+                    if (result.status === "success" && result.data) {
+                      // Create and download JSON file
+                      const blob = new Blob([JSON.stringify(result.data, null, 2)], { type: "application/json" });
+                      const url = URL.createObjectURL(blob);
+                      const link = document.createElement("a");
+                      link.href = url;
+                      link.download = `users-backup-${new Date().toISOString().slice(0, 10)}.json`;
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                      URL.revokeObjectURL(url);
+                    } else {
+                      alert(result.message || "حدث خطأ أثناء تحميل النسخة الاحتياطية");
+                    }
+                  } catch (error: any) {
+                    alert(error.message || "فشل الاتصال بالخادم");
+                  }
+                }}
+              >
+                تحميل نسخة احتياطية
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="px-6 py-2 border-purple-300 text-purple-700 hover:bg-purple-50"
+                onClick={async () => {
+                  // Open modal and start processing
+                  setBulkFixModal({
+                    isOpen: true,
+                    isLoading: true,
+                    results: null,
+                    error: null
+                  });
+
+                  try {
+                    const formData = new FormData();
+                    formData.append("actionType", "bulkFixUsers");
+
+                    const response = await fetch(window.location.pathname, {
+                      method: "POST",
+                      body: formData,
+                    });
+
+                    const result = await response.json() as { status: string; data?: any; message?: string };
+
+                    if (result.status === "success" && result.data) {
+                      setBulkFixModal(prev => ({
+                        ...prev,
+                        isLoading: false,
+                        results: result.data,
+                        error: null
+                      }));
+                    } else {
+                      setBulkFixModal(prev => ({
+                        ...prev,
+                        isLoading: false,
+                        error: result.message || "حدث خطأ غير متوقع"
+                      }));
+                    }
+                  } catch (error: any) {
+                    setBulkFixModal(prev => ({
+                      ...prev,
+                      isLoading: false,
+                      error: error.message || "فشل الاتصال بالخادم"
+                    }));
+                  }
+                }}
+              >
+                إصلاح حسابات المستخدمين
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Bulk Fix User Accounts Modal */}
+      {bulkFixModal.isOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 max-h-[80vh] overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-purple-50">
+              <h3 className="text-lg font-bold text-purple-800">إصلاح حسابات المستخدمين</h3>
+              {!bulkFixModal.isLoading && (
+                <button
+                  type="button"
+                  onClick={() => setBulkFixModal(prev => ({ ...prev, isOpen: false }))}
+                  className="p-1 hover:bg-purple-100 rounded-full transition-colors"
+                >
+                  <XIcon className="w-5 h-5 text-purple-700" />
+                </button>
+              )}
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 overflow-y-auto max-h-[60vh]">
+              {/* Loading State */}
+              {bulkFixModal.isLoading && (
+                <div className="flex flex-col items-center justify-center py-8">
+                  <div className="w-12 h-12 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mb-4"></div>
+                  <p className="text-lg font-medium text-gray-700">جاري معالجة الحسابات...</p>
+                  <p className="text-sm text-gray-500 mt-2">يرجى الانتظار، هذه العملية قد تستغرق بعض الوقت</p>
+                </div>
+              )}
+
+              {/* Error State */}
+              {!bulkFixModal.isLoading && bulkFixModal.error && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <h4 className="font-semibold text-red-800 mb-2">حدث خطأ</h4>
+                  <p className="text-sm text-red-700">{bulkFixModal.error}</p>
+                </div>
+              )}
+
+              {/* Success State */}
+              {!bulkFixModal.isLoading && bulkFixModal.results && (
+                <div className="space-y-4">
+                  {/* Summary Cards */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+                      <p className="text-2xl font-bold text-green-700">{bulkFixModal.results.passwordReset}</p>
+                      <p className="text-xs text-green-600">تم إعادة تعيين كلمة المرور</p>
+                    </div>
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
+                      <p className="text-2xl font-bold text-blue-700">{bulkFixModal.results.created}</p>
+                      <p className="text-xs text-blue-600">حساب جديد تم إنشاؤه</p>
+                    </div>
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-center">
+                      <p className="text-2xl font-bold text-gray-700">{bulkFixModal.results.processed}</p>
+                      <p className="text-xs text-gray-600">إجمالي المعالجة</p>
+                    </div>
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
+                      <p className="text-2xl font-bold text-amber-700">{bulkFixModal.results.skipped}</p>
+                      <p className="text-xs text-amber-600">تم تخطيه (مكرر)</p>
+                    </div>
+                  </div>
+
+                  {/* Errors Section */}
+                  {bulkFixModal.results.errors && bulkFixModal.results.errors.length > 0 && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <h4 className="font-semibold text-red-800 mb-2">
+                        الأخطاء ({bulkFixModal.results.errors.length})
+                      </h4>
+                      <ul className="text-xs text-red-600 list-disc list-inside max-h-32 overflow-y-auto space-y-1">
+                        {bulkFixModal.results.errors.map((err, i) => (
+                          <li key={i}>{err.email}: {err.error}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Default Password Info */}
+                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                    <p className="text-sm text-purple-800">
+                      <span className="font-medium">كلمة المرور الافتراضية:</span>{" "}
+                      <code className="bg-purple-100 px-2 py-0.5 rounded font-mono text-purple-900">Qyam@2026</code>
+                    </p>
+                    <p className="text-xs text-purple-600 mt-2">
+                      يرجى إبلاغ المستخدمين بتغيير كلمة المرور عند أول تسجيل دخول
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            {!bulkFixModal.isLoading && (
+              <div className="flex justify-end p-4 border-t border-gray-200 bg-gray-50">
+                <Button
+                  type="button"
+                  onClick={() => setBulkFixModal(prev => ({ ...prev, isOpen: false }))}
+                  className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white"
+                >
+                  إغلاق
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Single Region Add Section - As shown in image.png */}
       <div className="w-full bg-white rounded-2xl border border-solid border-[#d0d5dd] mt-8">
