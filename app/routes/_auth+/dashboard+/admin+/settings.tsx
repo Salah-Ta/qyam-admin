@@ -329,7 +329,7 @@ export const action = async ({ request, context }: LoaderFunctionArgs) => {
         { email: "mona.muhawwis@gmail.com", name: "منى مهوس الشمري", phone: "0553193999" }
       ];
 
-      const result = await userDB.bulkFixUserAccounts(usersToFix, "Qyam@2026", dbUrl);
+      const result = await userDB.bulkFixUserAccounts(usersToFix, "Yaneah@2026", dbUrl);
       console.log("Bulk fix result:", result);
       return json(result);
     }
@@ -1514,7 +1514,8 @@ export const ManageData = (): JSX.Element => {
         </div>
       </div>
 
-      {/* Bulk Fix User Accounts Section */}
+      {/* Bulk Fix User Accounts Section - Hidden (operation complete) */}
+      {false && (<>
       <div className="w-full bg-white rounded-2xl border border-solid border-[#d0d5dd] mb-8">
         <div className="p-6">
           <div className="flex items-center justify-between gap-4 mb-4">
@@ -1694,7 +1695,7 @@ export const ManageData = (): JSX.Element => {
                   <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
                     <p className="text-sm text-purple-800">
                       <span className="font-medium">كلمة المرور الافتراضية:</span>{" "}
-                      <code className="bg-purple-100 px-2 py-0.5 rounded font-mono text-purple-900">Qyam@2026</code>
+                      <code className="bg-purple-100 px-2 py-0.5 rounded font-mono text-purple-900">Yaneah@2026</code>
                     </p>
                     <p className="text-xs text-purple-600 mt-2">
                       يرجى إبلاغ المستخدمين بتغيير كلمة المرور عند أول تسجيل دخول
@@ -1719,6 +1720,7 @@ export const ManageData = (): JSX.Element => {
           </div>
         </div>
       )}
+      </>)}
 
       {/* Single Region Add Section - As shown in image.png */}
       <div className="w-full bg-white rounded-2xl border border-solid border-[#d0d5dd] mt-8">

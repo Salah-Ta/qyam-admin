@@ -321,9 +321,12 @@ const createUser = (userData: {
     }
 
     try {
-      // Check if user already exists
-      const existingUser = await db.user.findUnique({
-        where: { email: userData.email }
+      // Normalize email to lowercase for case-insensitive login
+      const normalizedEmail = userData.email.trim().toLowerCase();
+
+      // Check if user already exists (case-insensitive)
+      const existingUser = await db.user.findFirst({
+        where: { email: { equals: normalizedEmail, mode: 'insensitive' } }
       });
 
       if (existingUser) {
@@ -349,7 +352,7 @@ const createUser = (userData: {
           data: {
             id: userId,
             name: userData.name,
-            email: userData.email,
+            email: normalizedEmail,
             emailVerified: false,
             createdAt: now,
             updatedAt: now,

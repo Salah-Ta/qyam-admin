@@ -7,9 +7,9 @@ import { getPrismaClient } from "~/db/db-client.server";
  */
 export async function action({ request, context }: ActionFunctionArgs) {
   const formData = await request.formData();
-  const email = formData.get("email")?.toString()?.trim();
+  const emailRaw = formData.get("email")?.toString()?.trim();
 
-  if (!email) {
+  if (!emailRaw) {
     return json({
       status: "error",
       code: "INVALID_EMAIL",
@@ -17,14 +17,17 @@ export async function action({ request, context }: ActionFunctionArgs) {
     });
   }
 
+  // Normalize email to lowercase for case-insensitive lookup
+  const email = emailRaw.toLowerCase();
+
   try {
     const prisma = await getPrismaClient(
       context.cloudflare.env.DATABASE_URL,
       context
     );
 
-    const user = await prisma.user.findUnique({
-      where: { email },
+    const user = await prisma.user.findFirst({
+      where: { email: { equals: email, mode: 'insensitive' } },
       select: {
         id: true,
         acceptenceState: true,

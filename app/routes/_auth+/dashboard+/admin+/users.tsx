@@ -41,6 +41,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "~/components/ui/dialog";
+import { SearchableSelect } from "~/components/ui/searchable-select";
 
 // Utility function
 const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
@@ -1975,21 +1976,13 @@ export const Users = (): React.JSX.Element => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   المنطقة
                 </label>
-                <Select
+                <SearchableSelect
+                  options={regions.map((region: any) => ({ value: region.id, label: region.name }))}
                   value={editUserForm.regionId}
                   onValueChange={(value) => setEditUserForm({ ...editUserForm, regionId: value, eduAdminId: "", schoolId: "" })}
-                >
-                  <SelectTrigger className="w-full h-11 text-right">
-                    <SelectValue placeholder="اختر المنطقة" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {regions.map((region: any) => (
-                      <SelectItem key={region.id} value={region.id}>
-                        {region.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="اختر المنطقة"
+                  searchPlaceholder="بحث عن منطقة..."
+                />
               </div>
 
               {/* EduAdmin */}
@@ -1997,28 +1990,20 @@ export const Users = (): React.JSX.Element => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   الإدارة التعليمية
                 </label>
-                <Select
+                <SearchableSelect
+                  options={editEduAdmins.map((eduAdmin) => ({ value: eduAdmin.id, label: eduAdmin.name }))}
                   value={editUserForm.eduAdminId}
                   onValueChange={(value) => setEditUserForm({ ...editUserForm, eduAdminId: value, schoolId: "" })}
+                  placeholder={
+                    !editUserForm.regionId
+                      ? "اختر المنطقة أولاً"
+                      : editEduAdminsFetcher.state === "loading"
+                        ? "جاري التحميل..."
+                        : "اختر الإدارة التعليمية"
+                  }
+                  searchPlaceholder="بحث عن إدارة تعليمية..."
                   disabled={!editUserForm.regionId || editEduAdminsFetcher.state === "loading"}
-                >
-                  <SelectTrigger className="w-full h-11 text-right disabled:bg-gray-100 disabled:cursor-not-allowed">
-                    <SelectValue placeholder={
-                      !editUserForm.regionId
-                        ? "اختر المنطقة أولاً"
-                        : editEduAdminsFetcher.state === "loading"
-                          ? "جاري التحميل..."
-                          : "اختر الإدارة التعليمية"
-                    } />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {editEduAdmins.map((eduAdmin) => (
-                      <SelectItem key={eduAdmin.id} value={eduAdmin.id}>
-                        {eduAdmin.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                />
               </div>
 
               {/* School */}
@@ -2026,28 +2011,20 @@ export const Users = (): React.JSX.Element => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   المدرسة
                 </label>
-                <Select
+                <SearchableSelect
+                  options={editSchools.map((school) => ({ value: school.id, label: school.name }))}
                   value={editUserForm.schoolId}
                   onValueChange={(value) => setEditUserForm({ ...editUserForm, schoolId: value })}
+                  placeholder={
+                    !editUserForm.eduAdminId
+                      ? "اختر الإدارة التعليمية أولاً"
+                      : editSchoolsFetcher.state === "loading"
+                        ? "جاري التحميل..."
+                        : "اختر المدرسة"
+                  }
+                  searchPlaceholder="بحث عن مدرسة..."
                   disabled={!editUserForm.eduAdminId || editSchoolsFetcher.state === "loading"}
-                >
-                  <SelectTrigger className="w-full h-11 text-right disabled:bg-gray-100 disabled:cursor-not-allowed">
-                    <SelectValue placeholder={
-                      !editUserForm.eduAdminId
-                        ? "اختر الإدارة التعليمية أولاً"
-                        : editSchoolsFetcher.state === "loading"
-                          ? "جاري التحميل..."
-                          : "اختر المدرسة"
-                    } />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {editSchools.map((school) => (
-                      <SelectItem key={school.id} value={school.id}>
-                        {school.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                />
               </div>
             </div>
           )}
