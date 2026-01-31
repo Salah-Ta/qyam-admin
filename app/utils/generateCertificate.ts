@@ -289,6 +289,36 @@ export async function generateCertificatePDF(
       );
     }
 
+    // Cover "منسقة التطوع" text with white rectangle and draw administration name
+    // Position at bottom left of certificate
+    const coverX = 70;
+    const coverY = 100;
+    const coverWidth = 150;
+    const coverHeight = 30;
+
+    // Draw white rectangle to cover existing text
+    page.drawRectangle({
+      x: coverX,
+      y: coverY,
+      width: coverWidth,
+      height: coverHeight,
+      color: rgb(1, 1, 1), // White
+    });
+
+    // Draw administration name in the covered area
+    if (certificateData.administration) {
+      drawArabicText(
+        page,
+        arabicFontBold,
+        certificateData.administration,
+        coverX + coverWidth / 2,
+        coverY + 10,
+        12,
+        [0.3, 0.3, 0.3],
+        "center"
+      );
+    }
+
     const pdfBytes = await pdfDoc.save();
 
     return new Blob([pdfBytes], { type: "application/pdf" });
