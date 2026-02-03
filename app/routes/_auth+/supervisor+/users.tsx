@@ -312,7 +312,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     // Check authentication and get supervisor's region
     const user = await getAuthenticated({ request, context }) as any;
     if (!user) {
-      return Response.json([]);
+      return [];
     }
 
     // Get supervisor's regionId
@@ -325,7 +325,6 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
           supervisorRegionId = fullUser?.regionId || null;
         }
       } catch (error) {
-        console.error("Error fetching supervisor region:", error);
       }
     }
 
@@ -342,10 +341,9 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
       users = users.filter((u: any) => u.regionId === supervisorRegionId);
     }
 
-    return Response.json(users);
+    return users;
   } catch (error) {
-    console.error("Loader error:", error);
-    return Response.json([]);
+    return [];
   }
 }
 

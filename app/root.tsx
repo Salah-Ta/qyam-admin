@@ -88,12 +88,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         }
 
         // Only log once for debugging
-        console.log('Root loader notifications loaded:', {
-          messagesCount: notifications?.length || 0,
-          unreadCount
-        });
       } catch (error) {
-        console.error("Error fetching notifications in root loader:", error);
         // Continue without notifications
       }
     }
@@ -164,7 +159,6 @@ export default function App() {
   const { toast, phoneNumber } = useLoaderData<any>();
 
   useToast(toast);
-  // console.log("qrcode:::",generatedQRCode);
 
   const noNavbarRoutes = [
     "/login",

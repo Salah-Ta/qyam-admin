@@ -1,4 +1,4 @@
-import { json, LoaderFunctionArgs } from "@remix-run/cloudflare";
+import { LoaderFunctionArgs, data } from "@remix-run/cloudflare";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
   try {
@@ -6,13 +6,13 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     const key = url.pathname.split("/")[2];
 
     if (!key) {
-      return Response.json({ error: "No file key provided" }, { status: 400 });
+      return data({ error: "No file key provided" }, { status: 400 });
     }
 
     const object :R2ObjectBody| null= await (context.cloudflare as any).env.QYAM_BUCKET.get(key);
 
     if (!object) {
-      return Response.json({ error: "File not found" }, { status: 404 });
+      return data({ error: "File not found" }, { status: 404 });
     }
 
 
@@ -37,8 +37,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
       },
     });
   } catch (error) {
-    console.error("Download error:", error);
-    return Response.json(
+    return data(
       { error: "Failed to download file" },
       { status: 500 }
     );

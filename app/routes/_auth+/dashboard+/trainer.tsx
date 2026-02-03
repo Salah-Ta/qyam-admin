@@ -21,7 +21,7 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
   return materialDB
     .getAllMaterials(context.cloudflare.env.DATABASE_URL)
     .then((res: any) => {
-      return Response.json(res.data);
+      return res.data;
     })
     .catch(() => {
       return null;
@@ -54,7 +54,6 @@ export const Trainer = () => {
         const parsed = JSON.parse(storedProgress);
         setProgressData(parsed);
       } catch (error) {
-        console.error('Error parsing progress data:', error);
       }
     }
   };

@@ -1,4 +1,4 @@
-import { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/cloudflare";
+import { ActionFunctionArgs, LoaderFunctionArgs, data } from "@remix-run/cloudflare";
 import { Article, StatusResponse, QUser } from "~/types/types";
 import articleDB from "~/db/articles/articles.server";
 import { useFetcher, useLoaderData } from "@remix-run/react";
@@ -14,7 +14,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   return articleDB
     .getAllArticles(context.cloudflare.env.DATABASE_URL)
     .then((res) => {
-      return Response.json(res.data);
+      return res.data;
     });
 }
 
@@ -24,8 +24,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
   
     try {
   //     const file = formData.get("image");
-  //     console.log("yahoooooo its file");
-  // console.log(formData);
   
     //   if (file && (file instanceof File)) {
             
@@ -43,7 +41,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
           context.cloudflare.env.DATABASE_URL
         );
   
-        return Response.json(
+        return data(
           { success: true },
           {
             headers: await createToastHeaders({
@@ -74,7 +72,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         }, context.cloudflare.env.DATABASE_URL);
       }
   
-      return Response.json(
+      return data(
         { success: true },
         {
           headers: await createToastHeaders({
@@ -85,7 +83,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         }
       );
     } catch (error) {
-      return Response.json(
+      return data(
         { success: false },
         {
           headers: await createToastHeaders({

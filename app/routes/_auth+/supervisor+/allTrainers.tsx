@@ -316,7 +316,7 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
     // Check authentication and get supervisor's region
     const user = await getAuthenticated({ request, context }) as any;
     if (!user) {
-      return Response.json({ users: [], currentUser: null });
+      return { users: [], currentUser: null };
     }
 
     // Get supervisor's regionId
@@ -329,7 +329,6 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
           supervisorRegionId = fullUser?.regionId || null;
         }
       } catch (error) {
-        console.error("Error fetching supervisor region:", error);
       }
     }
 
@@ -356,13 +355,11 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
         currentUserData = Array.isArray(fullUserResult.data) ? fullUserResult.data[0] : fullUserResult.data;
       }
     } catch (error) {
-      console.error("Error fetching current user data:", error);
     }
 
-    return Response.json({ users, currentUser: currentUserData });
+    return { users, currentUser: currentUserData };
   } catch (error) {
-    console.error("Loader error:", error);
-    return Response.json({ users: [], currentUser: null });
+    return { users: [], currentUser: null };
   }
 }
 
@@ -384,8 +381,6 @@ export const AllTrainers = (): JSX.Element => {
   const loaderData = useLoaderData<{ users: QUser[], currentUser: any }>() || { users: [], currentUser: null };
   const users = loaderData.users || [];
   const currentUser = loaderData.currentUser;
-  console.log("Trainers data:", users);
-  console.log("Current user data:", currentUser);
 
   // Filter only users with role "user" (trainers)
   const trainers = users.filter((user) => user.role === "user");
@@ -536,7 +531,7 @@ export const AllTrainers = (): JSX.Element => {
                 {currentUser?.name || "المشرف"}
               </h2>
               <p className="text-sm text-[#535862]">
-                {currentUser?.region || ""}
+                {currentUser?.regionName || currentUser?.region || ""}
               </p>
             </div>
           </div>
@@ -739,17 +734,17 @@ export const AllTrainers = (): JSX.Element => {
                           </TableCell>
                           <TableCell className="py-1 px-2 text-right max-md:hidden ">
                             <span className=" font-medium text-[#027163] text-base [direction:rtl]">
-                              {row?.schoolId}
+                              {row?.schoolName || row?.schoolId || "-"}
                             </span>
                           </TableCell>
                           <TableCell className="py-1 px-2 text-right max-md:hidden ">
                             <span className=" font-medium text-[#027163] text-base [direction:rtl]">
-                              {row?.eduAdminId}
+                              {row?.eduAdminName || row?.eduAdminId || "-"}
                             </span>
                           </TableCell>
                           <TableCell className="py-1 px-2 text-right max-md:hidden ">
                             <span className=" font-medium text-[#027163] text-base [direction:rtl]">
-                              {row.region}
+                              {row?.regionName || row?.region || "-"}
                             </span>
                           </TableCell>
                           <TableCell className="py-1 px-2 text-right max-md:hidden ">

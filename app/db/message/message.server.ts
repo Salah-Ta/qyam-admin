@@ -64,7 +64,6 @@ Promise<StatusResponse<Message>> => {
         });
       })
       .catch((error: any) => {
-        console.log("ERROR [sendMessage]: ", error);
         reject({
           status: "error",
           message: "فشل إرسال الرسالة"
@@ -110,7 +109,6 @@ const getUserMessages =
           });
         })
         .catch((error: any) => {
-          console.log("ERROR [getUserMessages]: ", error);
           reject({
             status: "error",
             message: "فشل جلب الرسائل"
@@ -153,7 +151,6 @@ const getIncomingMessages =
           });
         })
         .catch((error: any) => {
-          console.log("ERROR [getIncomingMessages]: ", error);
           reject({
             status: "error",
             message: "فشل جلب الرسائل الواردة"
@@ -185,7 +182,6 @@ const getUnreadCount =
           });
         })
         .catch((error: any) => {
-          console.log("ERROR [getUnreadCount]: ", error);
           reject({
             status: "error",
             message: "فشل حساب الرسائل غير المقروءة"
@@ -227,7 +223,6 @@ const markAsRead =
           });
         })
         .catch((error: any) => {
-          console.log("ERROR [markAsRead]: ", error);
           reject({
             status: "error",
             message: "فشل تحديث حالة الرسالة"
@@ -259,7 +254,6 @@ const deleteMessage =
           });
         })
         .catch((error: any) => {
-          console.log("ERROR [deleteMessage]: ", error);
           reject({
             status: "error",
             message: "فشل حذف الرسالة"

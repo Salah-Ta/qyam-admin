@@ -18,7 +18,6 @@ Promise<StatusResponse<EduAdmin>> => {
   const trimmedName = name.trim();
   const normalizedRegionId = regionId || null;
 
-  console.log("Creating EduAdmin:", trimmedName, "with regionId:", normalizedRegionId);
 
   try {
     // First check if eduAdmin with this name and regionId already exists
@@ -31,7 +30,6 @@ Promise<StatusResponse<EduAdmin>> => {
 
     if (existing) {
       // Return existing eduAdmin
-      console.log("EduAdmin already exists, returning existing:", existing.id);
       return {
         status: "success",
         data: existing,
@@ -47,14 +45,12 @@ Promise<StatusResponse<EduAdmin>> => {
       }
     });
 
-    console.log("Created new EduAdmin:", newEduAdmin.id);
     return {
       status: "success",
       data: newEduAdmin,
       message: "تم إضافة الإدارة التعليمية بنجاح",
     };
   } catch (error: any) {
-    console.log("ERROR [createEduAdmin]: ", error);
     throw {
       status: "error",
       message: "فشل إضافة الإدارة التعليمية",
@@ -73,7 +69,6 @@ const getAllEduAdmins = (dbUrl?: string): Promise<StatusResponse<EduAdmin[]>> =>
         resolve({ status: "success", data: res });
       })
       .catch((error: any) => {
-        console.log("ERROR [getAllEduAdmins]: ", error);
         reject({
           status: "error",
           message: glossary.status_response.error.general,
@@ -96,7 +91,6 @@ const getEduAdmin = (id: string, dbUrl?: string): Promise<StatusResponse<EduAdmi
         resolve({ status: "success", data: res });
       })
       .catch((error: any) => {
-        console.log("ERROR [getEduAdmin]: ", error);
         reject({
           status: "error",
           message: glossary.status_response.error.general,
@@ -128,7 +122,6 @@ const updateEduAdmin =
         });
       })
       .catch((error: any) => {
-        console.log("ERROR [updateEduAdmin]: ", error);
         reject({
           status: "error",
           message: "فشل تحديث الإدارة التعليمية",
@@ -155,7 +148,6 @@ Promise<StatusResponse<null>> => {
         });
       })
       .catch((error: any) => {
-        console.log("ERROR [deleteEduAdmin]: ", error);
         reject({
           status: "error",
           message: "فشل حذف الإدارة التعليمية",
@@ -182,7 +174,6 @@ const getEduAdminsByRegion =
           resolve({ status: "success", data: res });
         })
         .catch((error: any) => {
-          console.log("ERROR [getEduAdminsByRegion]: ", error);
           reject({
             status: "error",
             message: "فشل جلب الإدارات التعليمية للمنطقة",
@@ -211,7 +202,6 @@ const deleteEduAdminsWithoutRegion =
         });
       })
       .catch((error: any) => {
-        console.log("ERROR [deleteEduAdminsWithoutRegion]: ", error);
         reject({
           status: "error",
           message: "فشل حذف الإدارات التعليمية بدون منطقة",
@@ -240,7 +230,6 @@ const deleteEduAdminsWithNonExistentRegions =
         message: `تم حذف ${result} إدارة تعليمية مرتبطة بمناطق غير موجودة بنجاح`,
       });
     } catch (error: any) {
-      console.log("ERROR [deleteEduAdminsWithNonExistentRegions]: ", error);
       reject({
         status: "error",
         message: "فشل حذف الإدارات التعليمية المرتبطة بمناطق غير موجودة",
@@ -273,7 +262,6 @@ Promise<StatusResponse<{ exists: boolean; eduAdmin?: EduAdmin }>> => {
         });
       })
       .catch((error: any) => {
-        console.log("ERROR [checkEduAdminExists]: ", error);
         reject({
           status: "error",
           message: "فشل التحقق من وجود الإدارة التعليمية",
@@ -342,7 +330,6 @@ const removeDuplicateEduAdmins = async (dbUrl?: string): Promise<StatusResponse<
       message: `تم حذف ${totalRemoved} إدارة تعليمية مكررة بنجاح`
     };
   } catch (error: any) {
-    console.log("ERROR [removeDuplicateEduAdmins]: ", error);
     return {
       status: "error",
       message: "فشل حذف الإدارات التعليمية المكررة",

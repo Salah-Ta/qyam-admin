@@ -479,33 +479,42 @@ export const MaterialManagement: React.FC<MaterialManagementProps> = ({
           {/* Search and Sort Controls */}
           <div className="flex flex-col sm:flex-row gap-3 mb-4">
             {/* Search Input */}
-            <div className="relative flex-1">
+            <div className="relative flex-1 h-1/2">
               <input
                 type="text"
                 placeholder="ابحث عن ملف..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full px-4 py-2.5 pr-10 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#8bc53f] focus:border-transparent"
+                className="w-full px-4 py-2.5 pr-10 border border-gray-200 rounded-lg text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#8bc53f] focus:border-transparent placeholder:text-white"
               />
-              <Icon
-                name="search"
-                size="sm"
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
-              />
+              <div className="absolute right-3 top-0 bottom-0 flex items-center pointer-events-none">
+                <Icon
+                  name="search"
+                  size="sm"
+                  className="!block text-gray-400"
+                />
+              </div>
             </div>
 
             {/* Sort Dropdown */}
-            <select
-              value={sortOption}
-              onChange={(e) => setSortOption(e.target.value as SortOption)}
-              className="px-4 py-2.5 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#8bc53f] focus:border-transparent cursor-pointer min-w-[150px]"
-            >
-              {SORT_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            <div className="relative min-w-[150px]">
+              <select
+                value={sortOption}
+                onChange={(e) => setSortOption(e.target.value as SortOption)}
+                className="w-full appearance-none px-4 pe-10 py-2.5 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#8bc53f] focus:border-transparent cursor-pointer"
+              >
+                {SORT_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <div className="absolute left-3 top-0 bottom-0 flex items-center pointer-events-none">
+                <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
           </div>
 
           {/* Files List */}

@@ -15,9 +15,8 @@ export async function loader({ params, context }: LoaderFunctionArgs) {
       throw new Response("Article not found", { status: 404 });
     }
 
-    return Response.json(response.data);
+    return response.data;
   } catch (error) {
-    console.error("Article fetch error:", error);
     throw new Response("Article not found", { status: 404 });
   }
 }

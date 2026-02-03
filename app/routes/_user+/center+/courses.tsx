@@ -8,7 +8,7 @@ export async function loader({ context }: LoaderFunctionArgs) {
   return materialDB
     .getAllMaterials(context.cloudflare.env.DATABASE_URL)
     .then((res: any) => {
-      return Response.json(res.data);
+      return res.data;
     })
     .catch((err: any) => {
       return null

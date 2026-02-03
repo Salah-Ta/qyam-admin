@@ -22,13 +22,9 @@ const Footer = ({
       document.getElementById("qrcode"),
       `https://wa.me/${phoneNumber}?text=${text}`,
       { toSJISFunc: toSJIS },
-      (error) => {
-        if (error) console.error(error);
-        else console.log("success");
-      }
+      () => {}
     );
 
-    // console.log("happened qrcode");
   });
 
   return (

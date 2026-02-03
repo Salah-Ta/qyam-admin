@@ -1,4 +1,4 @@
-import { json, LoaderFunctionArgs } from "@remix-run/cloudflare";
+import { LoaderFunctionArgs, data } from "@remix-run/cloudflare";
 import eduAdminDB from "~/db/eduAdmin/eduAdmin.server";
 import schoolDB from "~/db/school/school.server";
 
@@ -20,29 +20,28 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   try {
     if (type === "eduAdmins" && regionId) {
       const result = await eduAdminDB.getEduAdminsByRegion(regionId, dbUrl);
-      return json({
+      return {
         success: true,
         data: result.data || []
-      });
+      };
     }
 
     if (type === "schools" && eduAdminId) {
       const result = await schoolDB.getSchoolsByEduAdmin(eduAdminId, dbUrl);
-      return json({
+      return {
         success: true,
         data: result.data || []
-      });
+      };
     }
 
-    return json({
+    return data({
       success: false,
       error: "Invalid request parameters",
       data: []
     }, { status: 400 });
 
   } catch (error) {
-    console.error("Error fetching locations:", error);
-    return json({
+    return data({
       success: false,
       error: "Failed to fetch data",
       data: []

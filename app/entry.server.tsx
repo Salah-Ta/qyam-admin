@@ -35,7 +35,6 @@ export default async function handleRequest(
       onError(error: unknown) {
         if (!controller.signal.aborted) {
           // Log streaming rendering errors from inside the shell
-          console.error(error);
         }
         responseStatusCode = 500;
       },

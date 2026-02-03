@@ -1,5 +1,5 @@
 import { Form } from "@remix-run/react";
-import { ActionFunctionArgs } from "@remix-run/cloudflare";
+import { ActionFunctionArgs, data } from "@remix-run/cloudflare";
 import glossary from "~/lib/glossary";
 import TitleBlock from "~/components/ui/title-block";
 import { sendEmail } from "~/lib/send-email.server";
@@ -13,11 +13,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
   const message = formData.get("message") as string;
 
   try {
-    console.log( `
-      الاسم: ${name}
-      البريد الإلكتروني: ${email}
-      الرسالة: ${message}
-    `,);
     
     sendEmail(
       {
@@ -35,7 +30,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
       context.cloudflare.env.MAIN_EMAIL
     );
    
-    return Response.json(
+    return data(
       { success: true },
       {
         headers: await createToastHeaders({
@@ -46,7 +41,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
       }
     );
   } catch (error) {
-    return Response.json(
+    return data(
       { success: false },
       {
         headers: await createToastHeaders({

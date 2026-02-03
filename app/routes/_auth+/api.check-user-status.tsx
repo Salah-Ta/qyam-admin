@@ -1,4 +1,4 @@
-import { ActionFunctionArgs, json } from "@remix-run/cloudflare";
+import { ActionFunctionArgs } from "@remix-run/cloudflare";
 import { getPrismaClient } from "~/db/db-client.server";
 
 /**
@@ -10,11 +10,11 @@ export async function action({ request, context }: ActionFunctionArgs) {
   const emailRaw = formData.get("email")?.toString()?.trim();
 
   if (!emailRaw) {
-    return json({
+    return {
       status: "error",
       code: "INVALID_EMAIL",
       canLogin: false
-    });
+    };
   }
 
   // Normalize email to lowercase for case-insensitive lookup
@@ -37,64 +37,63 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
     if (!user) {
       // Don't reveal if user exists or not for security
-      return json({
+      return {
         status: "ok",
         canLogin: true
-      });
+      };
     }
 
     // Check banned status
     if (user.banned) {
-      return json({
+      return {
         status: "blocked",
         code: "ACCOUNT_DEACTIVATED",
         canLogin: false
-      });
+      };
     }
 
     // Check acceptenceState
     switch (user.acceptenceState) {
       case "accepted":
-        return json({
+        return {
           status: "ok",
           canLogin: true
-        });
+        };
 
       case "pending":
-        return json({
+        return {
           status: "blocked",
           code: "ACCOUNT_PENDING",
           canLogin: false
-        });
+        };
 
       case "denied":
-        return json({
+        return {
           status: "blocked",
           code: "ACCOUNT_DENIED",
           canLogin: false
-        });
+        };
 
       case "idle":
-        return json({
+        return {
           status: "blocked",
           code: "ACCOUNT_DEACTIVATED",
           canLogin: false
-        });
+        };
 
       default:
         // Unknown state - treat as pending
-        return json({
+        return {
           status: "blocked",
           code: "ACCOUNT_PENDING",
           canLogin: false
-        });
+        };
     }
   } catch (error) {
-    console.error("Error checking user status:", error);
     // On error, allow login attempt (let better-auth handle it)
-    return json({
+    return {
       status: "ok",
       canLogin: true
-    });
+    };
   }
 }

@@ -23,7 +23,6 @@ async function createTestimonial(data: CreateTestimonialData, dbUrl?: string) {
     
     return { success: true, data: testimonial };
   } catch (error: any) {
-    console.error("Error creating testimonial:", error);
     return { success: false, error: error.message };
   } finally {
     await db.$disconnect();
@@ -41,7 +40,6 @@ async function getTestimonial(id: string, dbUrl?: string) {
     
     return { success: true, data: testimonial };
   } catch (error: any) {
-    console.error("Error fetching testimonial:", error);
     return { success: false, error: error.message };
   } finally {
     await db.$disconnect();
@@ -61,7 +59,6 @@ async function getAllTestimonials(dbUrl?: string) {
     
     return { success: true, data: testimonials };
   } catch (error: any) {
-    console.error("Error fetching testimonials:", error);
     return { success: false, error: error.message };
   } finally {
     await db.$disconnect();

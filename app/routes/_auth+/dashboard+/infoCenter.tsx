@@ -31,10 +31,9 @@ export async function loader({ context }: LoaderFunctionArgs) {
       ? articlesResult.value.data as Article[]
       : [];
 
-    return Response.json({ materials, articles });
+    return { materials, articles };
   } catch (error) {
-    console.error('Error loading data:', error);
-    return Response.json({ materials: [], articles: [] });
+    return { materials: [], articles: [] };
   }
 }
 

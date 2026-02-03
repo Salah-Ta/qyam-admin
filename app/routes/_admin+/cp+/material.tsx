@@ -1,4 +1,4 @@
-import { ActionFunctionArgs, LoaderFunctionArgs, unstable_parseMultipartFormData } from "@remix-run/cloudflare";
+import { ActionFunctionArgs, LoaderFunctionArgs, unstable_parseMultipartFormData, data } from "@remix-run/cloudflare";
 import materialDB from "~/db/material/material.server";
 import { Link, useFetcher, useLoaderData } from "@remix-run/react";
 import {  Material } from "~/types/types";
@@ -14,9 +14,9 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
     const result = await materialDB.getAllMaterials(
       context.cloudflare.env.DATABASE_URL
     );
-    return Response.json(result.data || []);
+    return result.data || [];
   } catch (error) {
-    return Response.json([]);
+    return [];
   }
 }
 
@@ -66,7 +66,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         uploadHandler as any
       );
   
-      return Response.json(
+      return data(
         { success: true },
         {
           headers: await createToastHeaders({
@@ -77,7 +77,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         }
       );
     } catch (error) {
-      return Response.json(
+      return data(
         { success: false },
         {
           headers: await createToastHeaders({
@@ -101,7 +101,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
 const formData = await request.formData()
     return  materialDB.deleteMaterial(formData.get("id") as string,context.cloudflare.env.DATABASE_URL).then(async (res)=>{
 
-      return Response.json(
+      return data(
         { success: true },
         {
           headers: await createToastHeaders({
@@ -122,7 +122,7 @@ const formData = await request.formData()
 
 
     catch(e){
-      return Response.json(
+      return data(
         { success: false },
         {
           headers: await createToastHeaders({

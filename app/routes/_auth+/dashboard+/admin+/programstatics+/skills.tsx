@@ -19,7 +19,7 @@ const ClientOnly: React.FC<{
 };
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { json, LoaderFunctionArgs } from "@remix-run/cloudflare";
+import { LoaderFunctionArgs, data } from "@remix-run/cloudflare";
 import { useLoaderData } from "@remix-run/react";
 import skillDb from "~/db/skill/skill.server";
 import testimonialDb from "~/db/testimonial/testimonial.server";
@@ -42,7 +42,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     // Check authentication
     const user = await getAuthenticated({ request, context });
     if (!user) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+      return data({ error: "Unauthorized" }, { status: 401 });
     }
     const dbUrl = context.cloudflare.env.DATABASE_URL;
 
@@ -51,12 +51,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     try {
       skillsResult = await skillDb.getSkillsWithUsageCount(dbUrl);
     } catch (skillsError) {
-      console.error("Skills fetch error:", skillsError);
-      console.error(
-        "Skills error stack:",
-        skillsError instanceof Error ? skillsError.stack : "No stack trace"
-      );
-      return Response.json(
+      return data(
         {
           error: "Failed to fetch skills",
           details:
@@ -73,20 +68,12 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     try {
       testimonialsResult = await testimonialDb.getAllTestimonials(dbUrl);
     } catch (testimonialsError) {
-      console.error("Testimonials fetch error:", testimonialsError);
-      console.error(
-        "Testimonials error stack:",
-        testimonialsError instanceof Error
-          ? testimonialsError.stack
-          : "No stack trace"
-      );
       // Don't fail the whole request if testimonials fail
       testimonialsResult = { success: false, data: [] };
     }
 
     if (!skillsResult.success) {
-      console.error("Skills fetch failed:", skillsResult);
-      return Response.json(
+      return data(
         { error: "Failed to fetch skills" },
         { status: 500 }
       );
@@ -99,14 +86,9 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         : [],
     };
 
-    return Response.json(response);
+    return response;
   } catch (error) {
-    console.error("Error in skills loader:", error);
-    console.error(
-      "Error stack:",
-      error instanceof Error ? error.stack : "No stack trace"
-    );
-    return Response.json({ error: "Internal server error" }, { status: 500 });
+    return data({ error: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -250,7 +232,6 @@ export const Skills = (): JSX.Element => {
                     rows={3}
                     onChange={(e) => {
               
-                      console.log(e.target.value);
                     }}
                   />
                 </div>

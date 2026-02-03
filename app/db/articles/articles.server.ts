@@ -19,7 +19,6 @@ const createArticle = (
         });
       })
       .catch((error: any) => {
-        console.log("ERROR [createArticle]: ", error);
         reject({
           status: "error",
           message: glossary.status_response.error.article_added,
@@ -37,7 +36,6 @@ const getAllArticles = (dbUrl: string): Promise<StatusResponse<Article>> => {
         resolve({ status: "success", data: res });
       })
       .catch((error: any) => {
-        console.log("ERROR [getAllArticles]: ", error);
         reject({
           status: "error",
           message: glossary.status_response.error.general,
@@ -57,7 +55,6 @@ const getArticleBySlug = (slug: string, dbUrl: string) => {
         resolve({ status: "success", data: res });
       })
       .catch((error: any) => {
-        console.log("ERROR [getArticle]: ", error);
         reject({
           status: "error",
           message: glossary.status_response.error.general,
@@ -81,7 +78,6 @@ const updateArticle = ( article: Article, dbUrl: string) => {
         });
       })
       .catch((error: any) => {
-        console.log("ERROR [updateArticle]: ", error);
         reject({
           status: "error",
           message: glossary.status_response.error.article_updated,
@@ -104,7 +100,6 @@ const deleteArticle = (articleId: string, dbUrl: string) => {
         });
       })
       .catch((error: any) => {
-        console.log("ERROR [deleteArticle]: ", error);
         reject({
           status: "error",
           message: glossary.status_response.error.article_deleted,

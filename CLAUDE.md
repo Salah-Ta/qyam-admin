@@ -99,3 +99,15 @@ Required in `.dev.vars` (local) or Cloudflare Pages secrets:
 - Client-only code uses `.client.ts` suffix
 - Loader/action data validated with Zod schemas where applicable
 - Toast notifications via sonner + custom `app/lib/toast.server.ts`
+
+### Loader/Action Return Values (IMPORTANT)
+
+This project uses `v3_singleFetch: true` which enables turbo-stream encoding. **Never use `Response.json()` or the deprecated `json()` helper in route loaders/actions.** They bypass turbo-stream and cause hydration errors or Worker crashes.
+
+- **200 responses**: return a plain object (`return { users, regions }`)
+- **Non-200 responses**: use `data()` from `@remix-run/cloudflare` (`return data({ error: "..." }, { status: 401 })`)
+- **Responses with headers** (e.g. toast): use `data()` (`return data({ success: true }, { headers: await createToastHeaders(...) })`)
+- **Binary responses** (file downloads): `new Response(blob, { headers })` is still correct
+- **Redirects**: `redirect()` from `@remix-run/cloudflare` is still correct
+
+An ESLint rule enforces this: `no-restricted-syntax` flags `Response.json()` in route files.

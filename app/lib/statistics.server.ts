@@ -21,7 +21,6 @@ const statisticsDB = {
 
       return stats;
     } catch (error) {
-      console.error("Error fetching statistics:", error);
       throw error;
     } finally {
       // await prisma.$disconnect();
@@ -57,7 +56,6 @@ const statisticsDB = {
 
       return stats;
     } catch (error) {
-      console.error("Error updating statistics:", error);
       throw error;
     } finally {
       // await prisma.$disconnect();

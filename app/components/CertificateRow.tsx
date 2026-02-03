@@ -92,6 +92,7 @@ export const CertificateRow: React.FC<CertificateRowProps> = ({
     administration: initialData.administration || "",
     school: initialData.school || "",
     hours: initialData.hours || "",
+    coordinator: initialData.coordinator || "",
   });
 
   const [pdfPreview, setPdfPreview] = useState<string | null>(null);
@@ -116,6 +117,11 @@ export const CertificateRow: React.FC<CertificateRowProps> = ({
       required: true,
     },
     {
+      id: "coordinator",
+      label: "المنسقة",
+      required: true,
+    },
+    {
       id: "hours",
       label: "الساعات",
       required: true,
@@ -130,10 +136,11 @@ export const CertificateRow: React.FC<CertificateRowProps> = ({
   };
 
   const isFormValid = () => {
-    return formData.fullName && 
-           formData.administration && 
-           formData.school && 
-           formData.hours;
+    return formData.fullName &&
+           formData.administration &&
+           formData.school &&
+           formData.hours &&
+           formData.coordinator;
   };
 
   const handleGeneratePDF = async () => {
@@ -147,6 +154,7 @@ export const CertificateRow: React.FC<CertificateRowProps> = ({
         administration: formData.administration!,
         school: formData.school!,
         hours: formData.hours!,
+        coordinator: formData.coordinator!,
         useBoldFont,
       };
 
@@ -155,7 +163,6 @@ export const CertificateRow: React.FC<CertificateRowProps> = ({
       const pdfDataUri = URL.createObjectURL(pdfBlob);
       setPdfPreview(pdfDataUri);
     } catch (error) {
-      console.error("Error generating PDF:", error);
       alert("حدث خطأ أثناء توليد الشهادة");
     } finally {
       setIsGenerating(false);
@@ -173,12 +180,12 @@ export const CertificateRow: React.FC<CertificateRowProps> = ({
         administration: formData.administration!,
         school: formData.school!,
         hours: formData.hours!,
+        coordinator: formData.coordinator!,
         useBoldFont,
       };
 
       await downloadCertificate(certificateData);
     } catch (error) {
-      console.error("Error downloading certificate:", error);
       alert("حدث خطأ أثناء تحميل الشهادة");
     } finally {
       setIsDownloading(false);

@@ -8,9 +8,9 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
   try {
     const generatedQRCode = await QRCode.toDataURL(whatsappURL);
-    return Response.json({ generatedQRCode });
+    return { generatedQRCode };
   } catch (error) {
-    return Response.json({ generatedQRCode: null });
+    return { generatedQRCode: null };
   }
 }
 

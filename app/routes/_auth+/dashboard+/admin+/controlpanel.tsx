@@ -61,7 +61,7 @@ const createTimeoutPromise = (ms: number = 10000) =>
 // --- Remix Loader & Action ---
 export async function loader({
   context,
-}: LoaderFunctionArgs): Promise<Response> {
+}: LoaderFunctionArgs) {
   try {
     const timeoutPromise = createTimeoutPromise();
 
@@ -76,21 +76,20 @@ export async function loader({
       ]),
     ]);
 
-    return Response.json({
+    return {
       materials: Array.isArray((materialsRes as any)?.data)
         ? (materialsRes as any).data
         : [],
       articles: Array.isArray((articlesRes as any)?.data)
         ? (articlesRes as any).data
         : [],
-    });
+    };
   } catch (error) {
-    console.error("Loader error:", error);
-    return Response.json({
+    return {
       materials: [],
       articles: [],
       error: error instanceof Error ? error.message : "Unknown error",
-    });
+    };
   }
 }
 

@@ -43,7 +43,6 @@ import ProfileImage from "../../assets/images/profile.png";
 export async function loader({ request, context }: LoaderFunctionArgs) {
   const user = await getAuthenticated({ request, context });
   console.clear();
-  console.log("user in signup loader: ", user);
   if (!user) return null;
   if (user) return user;
   // else if ((user as QUser).acceptenceState === "accepted") return redirect("/");
@@ -58,7 +57,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
     if (!file || !(file instanceof File)) {
       return { error: "Please select a valid file", status: 400 };
     }
-    console.log("file", file);
 
     const key = `${Date.now()}-${createId()}.${file.name.split(".")[1]}`;
     const buffer = await file.arrayBuffer();
@@ -82,7 +80,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
       },
     };
   } catch (error) {
-    console.error(error);
 
     return {
       error: "failed to upload",
@@ -324,7 +321,6 @@ export default function Signup() {
           replace: true,
         });
       } catch (error) {
-        console.error("Error preparing file upload:", error);
         showToast.error("Upload Error", {
           description: "Failed to prepare file for upload",
         });
@@ -612,7 +608,6 @@ export default function Signup() {
 
     //         setCv(newFile);
     //       } catch (error) {
-    //         console.error("File processing error:", error);
     //       }
     //     }
     //   }}

@@ -47,7 +47,6 @@ const updateUserRole = (userId: string, role: string, dbUrl: string): Promise<St
         });
       })
       .catch((error: any) => {
-        console.log("ERROR [updateUserRole]: ", error);
         reject({
           status: "error",
           message: "فشل تحديث دور المستخدم"
@@ -75,7 +74,6 @@ const getUsersByRole = (role: string, dbUrl: string): Promise<StatusResponse<QUs
         resolve({ status: "success", data: res as unknown as QUser[] });
       })
       .catch((error: any) => {
-        console.log("ERROR [getUsersByRole]: ", error);
         reject({
           status: "error",
           message: glossary.status_response.error.general
@@ -104,7 +102,6 @@ const bulkUpdateUserRoles = (userIds: string[], role: string, dbUrl: string): Pr
         });
       })
       .catch((error: any) => {
-        console.log("ERROR [bulkUpdateUserRoles]: ", error);
         reject({
           status: "error",
           message: "فشل تحديث أدوار المستخدمين"

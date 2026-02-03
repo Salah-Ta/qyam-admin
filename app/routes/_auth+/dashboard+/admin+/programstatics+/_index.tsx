@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { LoaderFunctionArgs } from "@remix-run/cloudflare";
+import { LoaderFunctionArgs, data } from "@remix-run/cloudflare";
 import { useLoaderData, useNavigate, useSearchParams, useFetcher } from "@remix-run/react";
 import { MoreVerticalIcon } from "lucide-react";
 import {
@@ -31,7 +31,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     // Check authentication
     const user = await getAuthenticated({ request, context });
     if (!user) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+      return data({ error: "Unauthorized" }, { status: 401 });
     }
 
     const dbUrl = context.cloudflare.env.DATABASE_URL;
@@ -42,11 +42,6 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     const eduAdminId = url.searchParams.get("eduAdminId") || undefined;
     const schoolId = url.searchParams.get("schoolId") || undefined;
 
-    console.log("Loading statistics with filters:", {
-      regionId,
-      eduAdminId,
-      schoolId,
-    });
 
     // Use the new statistics service
     const [
@@ -67,16 +62,15 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         : Promise.resolve([]),
     ]);
 
-    return Response.json({
+    return {
       statistics: dashStatistics,
       regionalBreakdown,
       eduAdminBreakdown,
       schoolBreakdown,
       filters: { regionId, eduAdminId, schoolId },
-    });
+    };
   } catch (error) {
-    console.error("Error loading statistics:", error);
-    return Response.json(
+    return data(
       {
         error: "Failed to load data",
         details: error instanceof Error ? error.message : "Unknown error",
@@ -115,7 +109,6 @@ export default function ProgramStatisticsContent(): JSX.Element {
     };
   }>();
 
-  console.log("Loader data:", loaderData);
 
   // Get filter values from URL parameters
   const selectedRegion = searchParams.get("regionId") || "";
@@ -196,8 +189,6 @@ export default function ProgramStatisticsContent(): JSX.Element {
   const safeSchoolBreakdown = Array.isArray(schoolBreakdown) ? schoolBreakdown : [];
 
   // Debug education departments data
-  console.log("EduAdmin Breakdown:", safeEduAdminBreakdown);
-  console.log("Regional Breakdown:", safeRegionalBreakdown);
 
   // Ensure statistics has the proper structure with fallback values
   const safeStatistics = statistics || {
@@ -421,19 +412,6 @@ export default function ProgramStatisticsContent(): JSX.Element {
                         activitiesCount + volunteerCount + skillsEconomicValue + 
                         skillsTrainedCount;
       
-      console.log(`Education Department ${stat.name}:`, {
-        schoolsCount,
-        trainersCount,
-        reportsCount,
-        volunteerHours,
-        economicValue,
-        volunteerOpportunities,
-        activitiesCount,
-        volunteerCount,
-        skillsEconomicValue,
-        skillsTrainedCount,
-        totalValue
-      });
       
       return {
         name: stat.name,

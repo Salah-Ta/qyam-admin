@@ -35,7 +35,6 @@ Promise<StatusResponse<School[]>> => {
         resolve({ status: "success", data: res });
       })
       .catch((error: any) => {
-        console.log("ERROR [getAllSchools]: ", error);
         reject({
           status: "error",
           message: glossary.status_response.error.general,
@@ -63,7 +62,6 @@ Promise<StatusResponse<School>> => {
         resolve({ status: "success", data: res });
       })
       .catch((error: any) => {
-        console.log("ERROR [getSchool]: ", error);
         reject({
           status: "error",
           message: glossary.status_response.error.general,
@@ -80,7 +78,6 @@ Promise<StatusResponse<School>> => {
   const trimmedName = name.trim();
   const normalizedEduAdminId = eduAdminId || null;
 
-  console.log("Creating School:", trimmedName, "with eduAdminId:", normalizedEduAdminId);
 
   try {
     // First check if school with this name and eduAdminId already exists
@@ -93,7 +90,6 @@ Promise<StatusResponse<School>> => {
 
     if (existing) {
       // Update address if exists and return
-      console.log("School already exists, updating address:", existing.id);
       const updated = await db.school.update({
         where: { id: existing.id },
         data: { address }
@@ -114,14 +110,12 @@ Promise<StatusResponse<School>> => {
       }
     });
 
-    console.log("Created new School:", newSchool.id);
     return {
       status: "success",
       data: newSchool,
       message: "تم إضافة المدرسة بنجاح",
     };
   } catch (error: any) {
-    console.log("ERROR [createSchool]: ", error);
     throw {
       status: "error",
       message: "فشل إضافة المدرسة",
@@ -153,7 +147,6 @@ Promise<StatusResponse<School>> => {
         });
       })
       .catch((error: any) => {
-        console.log("ERROR [updateSchool]: ", error);
         reject({
           status: "error",
           message: "فشل تحديث المدرسة",
@@ -180,7 +173,6 @@ Promise<StatusResponse<null>> => {
         });
       })
       .catch((error: any) => {
-        console.log("ERROR [deleteSchool]: ", error);
         reject({
           status: "error",
           message: "فشل حذف المدرسة",
@@ -216,7 +208,6 @@ Promise<StatusResponse<School[]>> => {
         resolve({ status: "success", data: res });
       })
       .catch((error: any) => {
-        console.log("ERROR [getSchoolsByEduAdmin]: ", error);
         reject({
           status: "error",
           message: "فشل جلب المدارس للإدارة التعليمية",
@@ -249,7 +240,6 @@ Promise<StatusResponse<{ exists: boolean; school?: School }>> => {
         });
       })
       .catch((error: any) => {
-        console.log("ERROR [checkSchoolExists]: ", error);
         reject({
           status: "error",
           message: "فشل التحقق من وجود المدرسة",
@@ -307,7 +297,6 @@ const removeDuplicateSchools = async (dbUrl?: string): Promise<StatusResponse<{ 
       message: `تم حذف ${totalRemoved} مدرسة مكررة بنجاح`
     };
   } catch (error: any) {
-    console.log("ERROR [removeDuplicateSchools]: ", error);
     return {
       status: "error",
       message: "فشل حذف المدارس المكررة",

@@ -16,7 +16,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 {      return userDB
         .getUserWithCertificates(user.id, context.cloudflare.env.DATABASE_URL)
         .then((res: any) => {
-          return Response.json({ success: true, user: res.data });
+          return { success: true, user: res.data };
         })
         .catch((error) => {
           return error;
@@ -28,8 +28,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         
     } else return redirect("/");
   } catch (error) {
-    console.error("Loader error:", error);
-    return Response.json({ success: false, error });
+    return { success: false, error };
   }
 }
 

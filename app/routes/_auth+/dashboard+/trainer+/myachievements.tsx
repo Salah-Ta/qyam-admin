@@ -23,7 +23,6 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    console.error('MyAchievements Error Boundary caught an error:', error, errorInfo);
   }
 
   render(): ReactNode {
@@ -144,7 +143,6 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         fullUserData = Array.isArray(userResult.data) ? userResult.data[0] : userResult.data;
       }
     } catch (error) {
-      console.error("Error fetching full user data:", error);
       // Fall back to session user
     }
 
@@ -165,34 +163,28 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
     try {
       // Get user statistics from the statistics service
-      console.log('Fetching user statistics for userId:', userIdToFetch);
       const statsPromise = statisticsDB.getUserStatisticsById(userIdToFetch, context?.cloudflare?.env?.DATABASE_URL);
       const statsResult = await Promise.race([statsPromise, timeoutPromise]) as UserStatistics;
 
-      console.log('User stats result:', statsResult);
 
       if (statsResult) {
         finalStatistics = statsResult;
       }
     } catch (error) {
-      console.error("Error fetching user statistics:", error);
       // Continue with default statistics
     }
 
     try {
       // Get incoming messages for the user (keep using currentUser.id for messages)
-      console.log('Fetching incoming messages for userId:', currentUser.id);
       const messagesPromise = messageDB.getIncomingMessages(currentUser.id, context?.cloudflare?.env?.DATABASE_URL);
       const messagesResult = await Promise.race([messagesPromise, timeoutPromise]) as any;
 
-      console.log('Messages result:', messagesResult);
 
       if (messagesResult?.status === "success" && messagesResult.data && messagesResult.data.length > 0) {
         // Get the most recent message (first one since they're ordered by sentAt desc)
         lastReceivedMessage = messagesResult.data[0];
       }
     } catch (error) {
-      console.error("Error fetching incoming messages:", error);
       // Continue with no message
     }
 
@@ -205,27 +197,23 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
       trainersCount: number;
     }> = [];
     try {
-      console.log('Fetching regional statistics');
       const regionalPromise = statisticsDB.getRegionalBreakdown(context?.cloudflare?.env?.DATABASE_URL);
       regionalStats = await Promise.race([regionalPromise, timeoutPromise]) as any;
-      console.log('Regional stats result:', regionalStats);
     } catch (error) {
-      console.error("Error fetching regional statistics:", error);
       // Continue with empty regional stats
     }
 
-    return Response.json({
+    return {
       user: fullUserData || currentUser, // Use full user data if available, otherwise session user
       statistics: finalStatistics,
       lastMessage: lastReceivedMessage,
       regionalStats,
       reports: [] // We don't need individual reports anymore since we have aggregated stats
-    });
+    };
   } catch (error) {
-    console.error("Error loading my achievements data:", error);
 
     // Return a safe fallback instead of throwing
-    return Response.json({
+    return {
       user: currentUser,
       statistics: {
         reportsCount: 0,
@@ -241,7 +229,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
       regionalStats: [],
       reports: [],
       error: "Failed to load achievements data"
-    }, { status: 200 }); // Return 200 with error info instead of 500
+    }; // Return 200 with error info instead of 500
   }
 }
 
@@ -329,7 +317,6 @@ export const MyAchievements = (): JSX.Element => {
     loaderData = useLoaderData<typeof loader>() as any;
     navigate = useNavigate();
   } catch (error) {
-    console.error('Hook usage failed:', error);
     // Fallback to prevent hydration errors
   }
   
@@ -354,15 +341,6 @@ export const MyAchievements = (): JSX.Element => {
   const regionalStats = Array.isArray(loaderData?.regionalStats) ? loaderData.regionalStats : [];
   
   // Debug logging to verify getUserStatisticsById integration
-  console.log('MyAchievements - Loaded data:', {
-    userName: userData?.name,
-    noStudents: userData?.noStudents, // DEBUG: Check if noStudents is loaded
-    hasStatistics: !!statistics,
-    statisticsData: statistics,
-    hasLastMessage: !!lastMessage,
-    lastMessageContent: lastMessage?.content,
-    timestamp: new Date().toISOString()
-  });
   
   // Handle error state
   if (loaderData?.error && !userData) {
@@ -420,8 +398,6 @@ export const MyAchievements = (): JSX.Element => {
 
   // Data for metric cards using real statistics from getUserStatisticsById
   // DEBUG: Log statistics right before metricCards
-  console.log('DEBUG metricCards - statistics object:', statistics);
-  console.log('DEBUG metricCards - volunteerCount value:', statistics?.volunteerCount);
 
   const metricCards = [
     {

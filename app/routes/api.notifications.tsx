@@ -1,4 +1,4 @@
-import { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/cloudflare";
+import { ActionFunctionArgs, LoaderFunctionArgs, data } from "@remix-run/cloudflare";
 import messageDB from "~/db/message/message.server";
 import { getAuthenticated } from "~/lib/get-authenticated.server";
 import { Message } from "~/types/types";
@@ -7,7 +7,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   const currentUser = await getAuthenticated({ request, context });
 
   if (!currentUser) {
-    return Response.json(
+    return data(
       { error: "Unauthorized" },
       { status: 401 }
     );
@@ -29,13 +29,12 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     const messages = messagesResult.status === "success" ? messagesResult.data : [];
     const unreadCount = unreadCountResult.status === "success" ? unreadCountResult.data : 0;
 
-    return Response.json({
+    return {
       messages: messages || [],
       unreadCount: unreadCount || 0,
-    });
+    };
   } catch (error) {
-    console.error("Error fetching notifications:", error);
-    return Response.json(
+    return data(
       { error: "Failed to fetch notifications" },
       { status: 500 }
     );
@@ -46,7 +45,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
   const currentUser = await getAuthenticated({ request, context });
 
   if (!currentUser) {
-    return Response.json(
+    return data(
       { error: "Unauthorized" },
       { status: 401 }
     );
@@ -60,7 +59,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
       const messageId = formData.get("messageId")?.toString();
 
       if (!messageId) {
-        return Response.json(
+        return data(
           { error: "Message ID is required" },
           { status: 400 }
         );
@@ -68,10 +67,10 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
       await messageDB.markAsRead(messageId, context.cloudflare.env.DATABASE_URL);
 
-      return Response.json({
+      return {
         success: true,
         message: "Message marked as read"
-      });
+      };
     }
 
     if (action === "markAllAsRead") {
@@ -96,19 +95,18 @@ export async function action({ request, context }: ActionFunctionArgs) {
         );
       }
 
-      return Response.json({
+      return {
         success: true,
         message: "All messages marked as read"
-      });
+      };
     }
 
-    return Response.json(
+    return data(
       { error: "Invalid action" },
       { status: 400 }
     );
   } catch (error) {
-    console.error("Error handling notification action:", error);
-    return Response.json(
+    return data(
       { error: "Failed to process action" },
       { status: 500 }
     );

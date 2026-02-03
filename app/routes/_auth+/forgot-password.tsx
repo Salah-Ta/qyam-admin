@@ -71,7 +71,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
       email: email 
     };
   } catch (error) {
-    console.error("Error checking user:", error);
     return { 
       error: "حدث خطأ أثناء التحقق من المستخدم",
       canReset: false 
@@ -115,7 +114,6 @@ const ForgotPassword = () => {
         },
         {
           onRequest: (ctx: any) => {
-            console.log("Password reset request started");
           },
           onSuccess: (ctx: any) => {
             setLoading(false);
@@ -132,7 +130,6 @@ const ForgotPassword = () => {
               description: "حدث خطأ اثناء عملية  تعيين كلمة المرور   ",
             });
             setResetError(msg);
-            console.log("msg error in forgot password", ctx);
           },
         }
       );

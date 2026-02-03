@@ -9,7 +9,7 @@ import {
 } from "@remix-run/react";
 import {
   ActionFunctionArgs,
-  json,
+  data,
   LoaderFunctionArgs,
   redirect,
 } from "@remix-run/cloudflare";
@@ -100,7 +100,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   // Only load regions initially - eduAdmins and schools are fetched dynamically
   const regions = await regionDB.getAllRegions(dbUrl);
 
-  return json({
+  return data({
     regions: regions.data || [],
   });
 }
@@ -132,17 +132,17 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
   };
   const errors = validateSignup(fields);
   if (Object.keys(errors).length > 0) {
-    return json({ error: Object.values(errors)[0] }, { status: 400 });
+    return data({ error: Object.values(errors)[0] }, { status: 400 });
   }
   const phoneRegex = /^(009665|9665|\+9665|05|5)(5|0|3|6|4|9|1|8|7)([0-9]{7})$/;
   if (!phoneRegex.test(fields.phone)) {
-    return json({ error: "رقم الجوال غير صالح" }, { status: 400 });
+    return data({ error: "رقم الجوال غير صالح" }, { status: 400 });
   }
   const existingUser = await prisma.user.findUnique({
     where: { email: fields.email },
   });
   if (existingUser) {
-    return json({ error: "البريد الإلكتروني مسجل مسبقاً" }, { status: 400 });
+    return data({ error: "البريد الإلكتروني مسجل مسبقاً" }, { status: 400 });
   }
   try {
     const hashedPassword = await bcrypt.hash(fields.password, 10);
@@ -206,7 +206,7 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
       }
     );
   } catch (error) {
-    return json(
+    return data(
       {
         error: "حدث خطأ أثناء التسجيل",
         details: error instanceof Error ? error.message : String(error),

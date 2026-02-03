@@ -21,7 +21,6 @@ class WordCloudErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBo
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('WordCloud Error:', error, errorInfo);
   }
 
   render() {

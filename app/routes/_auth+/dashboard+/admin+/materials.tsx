@@ -1,6 +1,7 @@
 import {
   ActionFunctionArgs,
   unstable_parseMultipartFormData,
+  data,
 } from "@remix-run/cloudflare";
 import { createId } from "@paralleldrive/cuid2";
 import { createToastHeaders } from "~/lib/toast.server";
@@ -21,8 +22,8 @@ const createTimeoutPromise = (ms: number = 10000) =>
     setTimeout(() => reject(new Error("Database operation timeout")), ms)
   );
 
-const createSuccessResponse = async (title: string): Promise<Response> =>
-  Response.json(
+const createSuccessResponse = async (title: string) =>
+  data(
     { success: true },
     {
       headers: await createToastHeaders({
@@ -33,8 +34,8 @@ const createSuccessResponse = async (title: string): Promise<Response> =>
     }
   );
 
-const createErrorResponse = async (title: string): Promise<Response> =>
-  Response.json(
+const createErrorResponse = async (title: string) =>
+  data(
     { success: false },
     {
       headers: await createToastHeaders({
@@ -48,24 +49,19 @@ const createErrorResponse = async (title: string): Promise<Response> =>
 export async function action({
   request,
   context,
-}: ActionFunctionArgs): Promise<Response> {
-  console.log("=== MATERIALS ACTION CALLED ===");
+}: ActionFunctionArgs) {
   try {
     const contentType = request.headers.get("Content-Type") || "";
-    console.log("Content-Type:", contentType);
 
     // Handle file uploads first (before consuming the request)
     if (contentType.includes("multipart/form-data")) {
-      console.log("Processing multipart form data...");
       try {
         // Parse form data normally first to get categoryId
         const clonedRequest = request.clone();
         const formData = await clonedRequest.formData();
         const categoryId = formData.get("categoryId") as string;
-        console.log("CategoryId from form:", categoryId);
 
         if (!categoryId || !CATEGORIES.find((c) => c.id === categoryId)) {
-          console.log("Invalid category:", categoryId);
           return await createErrorResponse("فئة غير صحيحة");
         }
 
@@ -139,7 +135,6 @@ export async function action({
         await unstable_parseMultipartFormData(request, uploadHandler);
         return await createSuccessResponse("تم رفع الملفات بنجاح");
       } catch (error) {
-        console.error("Upload error:", error);
         const message =
           error instanceof Error ? error.message : "فشل في رفع الملفات";
         return await createErrorResponse(message);
@@ -160,7 +155,6 @@ export async function action({
 
     return await createSuccessResponse("تم حذف الملف بنجاح");
   } catch (error) {
-    console.error("Materials action error:", error);
     const message =
       error instanceof Error ? error.message : "حدث خطأ غير متوقع";
     return await createErrorResponse(message);

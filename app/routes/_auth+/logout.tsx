@@ -1,4 +1,4 @@
-import { redirect } from "@remix-run/cloudflare";
+import { redirect, data } from "@remix-run/cloudflare";
 import { getAuth } from "../../lib/auth.server";
 import { LoaderFunctionArgs } from "@remix-run/cloudflare";
 import { createToastHeaders } from "~/lib/toast.server";
@@ -20,7 +20,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
       });
     })
     .catch(async () => {
-      return Response.json(
+      return data(
         { success: false },
         {
           headers: await createToastHeaders({

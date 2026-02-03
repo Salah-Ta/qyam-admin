@@ -4,7 +4,7 @@ import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import column1 from "../../../assets/images/new-design/column-1.svg";
 import { useNavigate, useLocation } from "@remix-run/react";
-import { json, LoaderFunctionArgs } from "@remix-run/cloudflare";
+import { LoaderFunctionArgs, data } from "@remix-run/cloudflare";
 import { useLoaderData } from "@remix-run/react";
 import skillDb from "../../../db/skill/skill.server";
 import testimonialDb from "../../../db/testimonial/testimonial.server";
@@ -99,7 +99,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     // Check authentication
     const user = await getAuthenticated({ request, context });
     if (!user) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+      return data({ error: "Unauthorized" }, { status: 401 });
     }
 
     const dbUrl = context.cloudflare.env.DATABASE_URL;
@@ -111,19 +111,18 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     ]);
 
     if (!skillsResult.success) {
-      return Response.json(
+      return data(
         { error: "Failed to fetch skills" },
         { status: 500 }
       );
     }
 
-    return Response.json({
+    return data({
       skills: skillsResult.data || [],
       testimonials: testimonialsResult.success ? testimonialsResult.data || [] : [],
     });
   } catch (error) {
-    console.error("Error in skills loader:", error);
-    return Response.json({ error: "Internal server error" }, { status: 500 });
+    return data({ error: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -314,7 +313,6 @@ export const Skills = (): JSX.Element => {
                     rows={3}
                     onChange={(e) => {
               
-                      console.log(e.target.value);
                     }}
                   />
                 </div>

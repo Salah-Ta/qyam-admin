@@ -35,7 +35,11 @@
       "Bash(git push)",
       "WebSearch",
       "Skill(gsd:progress)",
-      "Bash(npm run typecheck:*)"
+      "Bash(npm run typecheck:*)",
+      "Bash(git add:*)",
+      "Bash(npx eslint:*)",
+      "Bash(node:*)",
+      "Bash(git status:*)"
     ]
   }
 }

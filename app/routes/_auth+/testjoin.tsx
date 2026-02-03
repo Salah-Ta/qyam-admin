@@ -8,7 +8,7 @@ import {
 } from "@remix-run/react";
 import {
   ActionFunctionArgs,
-  json,
+  data,
   LoaderFunctionArgs,
   redirect,
 } from "@remix-run/cloudflare";
@@ -59,7 +59,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         name: item.name.replace(prefix + "_", ""),
       }));
 
-  return json({
+  return data({
     regions: allRegions, //getSectionItems("region"),
     eduAdmins: allEduAdmins, //getSectionItems("eduAdmin"),
     schools: allSchools, //getSectionItems("school"),
@@ -93,15 +93,15 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
     !password ||
     !passwordConfirmation
   ) {
-    return json({ error: "جميع الحقول مطلوبة" }, { status: 400 });
+    return data({ error: "جميع الحقول مطلوبة" }, { status: 400 });
   }
 
   if (password !== passwordConfirmation) {
-    return json({ error: "كلمات المرور غير متطابقة" }, { status: 400 });
+    return data({ error: "كلمات المرور غير متطابقة" }, { status: 400 });
   }
 
   if (password.length < 8) {
-    return json(
+    return data(
       { error: "كلمة المرور يجب أن تكون 8 أحرف على الأقل" },
       { status: 400 }
     );
@@ -110,13 +110,13 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
   // Validate phone number format
   const phoneRegex = /^(009665|9665|\+9665|05|5)(5|0|3|6|4|9|1|8|7)([0-9]{7})$/;
   if (!phoneRegex.test(phone)) {
-    return json({ error: "رقم الجوال غير صالح" }, { status: 400 });
+    return data({ error: "رقم الجوال غير صالح" }, { status: 400 });
   }
 
   // Check if user already exists
   const existingUser = await prisma.user.findUnique({ where: { email } });
   if (existingUser) {
-    return json({ error: "البريد الإلكتروني مسجل مسبقاً" }, { status: 400 });
+    return data({ error: "البريد الإلكتروني مسجل مسبقاً" }, { status: 400 });
   }
 
   try {
@@ -165,8 +165,7 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
       },
     });
   } catch (error) {
-    console.error("User creation failed:", error);
-    return json(
+    return data(
       {
         error: "حدث خطأ أثناء التسجيل",
         details: error instanceof Error ? error.message : String(error),
@@ -203,7 +202,6 @@ export default function Signup() {
   const regions = loaderData.regions as { id: string; name: string; }[];
   const eduAdmins = loaderData.eduAdmins as { id: string; name: string; regionId?: string; }[];
   const schools = loaderData.schools as { id: string; name: string; eduAdminId?: string; }[];
-  console.log("loaderData", loaderData);
 
   // Filter eduAdmins by selected region
   const filteredEduAdmins = selectedRegion
@@ -290,17 +288,6 @@ export default function Signup() {
   };
 
   useEffect(() => {
-    console.log({
-      name,
-      phone,
-      email,
-      role,
-      selectedRegion,
-      selectedEduAdmin,
-      selectedSchool,
-      password,
-      passwordConfirmation,
-    });
   }, [
     name,
     phone,

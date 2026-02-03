@@ -41,7 +41,6 @@ const getAllTrainers = (dbUrl: string, currentUser: QUser | null): Promise<Statu
         resolve({ status: "success", data: res as unknown as QUser[] });
       })
       .catch((error: any) => {
-        console.log("ERROR [getAllTrainers]: ", error);
         reject({
           status: "error",
           message: glossary.status_response.error.general,
@@ -67,7 +66,6 @@ const getTrainerById = (trainerId: string, dbUrl: string): Promise<StatusRespons
         resolve({ status: "success", data: res as unknown as QUser });
       })
       .catch((error: any) => {
-        console.log("ERROR [getTrainerById]: ", error);
         reject({
           status: "error",
           message: glossary.status_response.error.general,
@@ -96,7 +94,6 @@ const getTrainersBySchool = (schoolId: string, dbUrl: string): Promise<StatusRes
         resolve({ status: "success", data: res as unknown as QUser[] });
       })
       .catch((error: any) => {
-        console.log("ERROR [getTrainersBySchool]: ", error);
         reject({
           status: "error",
           message: glossary.status_response.error.general,
@@ -144,7 +141,6 @@ const updateTrainerProfile = (
         });
       })
       .catch((error: any) => {
-        console.log("ERROR [updateTrainerProfile]: ", error);
         reject({
           status: "error",
           message: "فشل تحديث بيانات المدرب",

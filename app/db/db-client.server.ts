@@ -15,7 +15,6 @@ export const createPrismaClient = (dbUrl?: string, context?: AppLoadContext): Pr
     throw new Error("No database connection string found in any source");
   }
 
-  console.log("Using database connection:", connectionString + "...");
 
   try {
 
@@ -35,7 +34,6 @@ export const createPrismaClient = (dbUrl?: string, context?: AppLoadContext): Pr
       });
     
   } catch (e) {
-    console.error("Error creating database client:", e);
     throw e;
   }
 };

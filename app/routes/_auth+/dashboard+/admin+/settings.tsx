@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import UserIcon from "../../../../assets/icons/user-modified.svg";
-import { json } from "@remix-run/cloudflare";
+import { data } from "@remix-run/cloudflare";
 import {
   useLoaderData,
   useActionData,
@@ -36,14 +36,13 @@ export async function loader({ context }: LoaderFunctionArgs) {
       timeoutPromise,
     ])) as any[];
 
-    return json({
+    return data({
       regions: regions.data || [],
       eduAdmins: eduAdmins.data || [],
       schools: schools.data || [],
     });
   } catch (error) {
-    console.error("Error loading settings data:", error);
-    return json({
+    return data({
       regions: [],
       eduAdmins: [],
       schools: [],
@@ -53,7 +52,6 @@ export async function loader({ context }: LoaderFunctionArgs) {
 
 export const action = async ({ request, context }: LoaderFunctionArgs) => {
   const requestTimestamp = Date.now();
-  console.log(`🔥 [${requestTimestamp}] Action called - New request received`);
   
   const dbUrl = context.cloudflare.env.DATABASE_URL;
   const formData = await request.formData();
@@ -64,7 +62,6 @@ export const action = async ({ request, context }: LoaderFunctionArgs) => {
   const parentId = formData.get("parentId");
   const submissionId = formData.get("submissionId");
   
-  console.log(`📋 [${requestTimestamp}] Action params:`, { actionType, entityType, entityId, parentId, submissionId });
 
   try {
     // Handle delete action
@@ -81,19 +78,18 @@ export const action = async ({ request, context }: LoaderFunctionArgs) => {
           result = await schoolDB.deleteSchool(entityId as string, dbUrl);
           break;
         default:
-          return json(
+          return data(
             { status: "error", message: "Invalid entity type" },
             { status: 400 }
           );
       }
 
-      return json({ status: "success", message: "تم الحذف بنجاح" });
+      return data({ status: "success", message: "تم الحذف بنجاح" });
     }
 
 
     // Handle create action
     if (actionType === "create") {
-      console.log("Creating", entityType, "with parentId:", parentId);
 
       // Fetch existing data to check for duplicates
       const [existingRegions, existingEduAdmins, existingSchools] = await Promise.all([
@@ -141,7 +137,6 @@ export const action = async ({ request, context }: LoaderFunctionArgs) => {
               break;
             case "eduAdmin":
               // Pass the selected region's ID as regionId
-              console.log("Creating eduAdmin with regionId:", parentId);
               result = await eduAdminDB.createEduAdmin(
                 trimmedName,
                 dbUrl,
@@ -151,7 +146,6 @@ export const action = async ({ request, context }: LoaderFunctionArgs) => {
               break;
             case "school":
               // Pass the selected eduAdmin's ID as eduAdminId
-              console.log("Creating school with eduAdminId:", parentId);
               result = await schoolDB.createSchool(
                 trimmedName,
                 "",
@@ -161,7 +155,7 @@ export const action = async ({ request, context }: LoaderFunctionArgs) => {
               schoolNames.push(lowerName); // Add to list to prevent duplicates in same batch
               break;
             default:
-              return json(
+              return data(
                 { status: "error", message: "Invalid entity type" },
                 { status: 400 }
               );
@@ -173,14 +167,14 @@ export const action = async ({ request, context }: LoaderFunctionArgs) => {
       // Return appropriate response based on duplicates found
       if (duplicateNames.length > 0 && results.length === 0) {
         // All items were duplicates
-        return json({
+        return data({
           status: "error",
           message: `الأسماء التالية موجودة بالفعل: ${duplicateNames.join("، ")}`,
           duplicateNames
         }, { status: 400 });
       } else if (duplicateNames.length > 0) {
         // Some items were duplicates, some were created
-        return json({
+        return data({
           status: "warning",
           message: `تم إنشاء بعض العناصر. الأسماء التالية موجودة بالفعل ولم يتم إضافتها: ${duplicateNames.join("، ")}`,
           results,
@@ -190,7 +184,7 @@ export const action = async ({ request, context }: LoaderFunctionArgs) => {
         });
       }
 
-      return json({
+      return data({
         status: "success",
         message: "تم الإنشاء بنجاح",
         results,
@@ -201,40 +195,33 @@ export const action = async ({ request, context }: LoaderFunctionArgs) => {
 
     // Handle backup user data before migration
     if (actionType === "backupUserData") {
-      console.log("Starting user data backup...");
       const result = await userDB.backupUsersWithInvalidIds(dbUrl);
-      console.log("Backup result:", result);
-      return json(result);
+      return data(result);
     }
 
     // Handle restore user data from backup
     if (actionType === "restoreUserData") {
-      console.log("Starting user data restore...");
       const backupDataStr = formData.get("backupData") as string;
       if (!backupDataStr) {
-        return json({ status: "error", message: "لا توجد بيانات للاستعادة" });
+        return data({ status: "error", message: "لا توجد بيانات للاستعادة" });
       }
       try {
         const backupData = JSON.parse(backupDataStr);
         const result = await userDB.restoreUsersFromBackup(backupData.users, dbUrl);
-        console.log("Restore result:", result);
-        return json(result);
+        return data(result);
       } catch (e) {
-        return json({ status: "error", message: "خطأ في قراءة بيانات النسخة الاحتياطية" });
+        return data({ status: "error", message: "خطأ في قراءة بيانات النسخة الاحتياطية" });
       }
     }
 
     // Handle user entity IDs migration
     if (actionType === "migrateUserEntityIds") {
-      console.log("Starting user entity IDs migration...");
       const result = await userDB.migrateUserEntityIds(dbUrl);
-      console.log("Migration result:", result);
-      return json(result);
+      return data(result);
     }
 
     // Handle download users backup before bulk fix
     if (actionType === "downloadUsersBackup") {
-      console.log("Starting users backup download...");
 
       // Users from the Excel file with issues - same list as bulkFixUsers
       const usersToBackup = [
@@ -257,13 +244,11 @@ export const action = async ({ request, context }: LoaderFunctionArgs) => {
       ];
 
       const result = await userDB.getUsersBackupByEmails(usersToBackup, dbUrl);
-      console.log("Backup result:", result);
-      return json(result);
+      return data(result);
     }
 
     // Handle bulk fix user accounts
     if (actionType === "bulkFixUsers") {
-      console.log("Starting bulk fix user accounts...");
 
       // Users from the Excel file with issues
       const usersToFix = [
@@ -330,21 +315,13 @@ export const action = async ({ request, context }: LoaderFunctionArgs) => {
       ];
 
       const result = await userDB.bulkFixUserAccounts(usersToFix, "Yaneah@2026", dbUrl);
-      console.log("Bulk fix result:", result);
-      return json(result);
+      return data(result);
     }
 
     // Handle batch save action with proper hierarchical transaction support
     if (actionType === "batchSave") {
-      console.log("=== BATCH SAVE DEBUG ===");
-      console.log("Entity Type:", entityType);
-      console.log("Entity ID:", entityId);
-      console.log("Names:", names);
-      console.log("All form data:");
       for (const [key, value] of formData.entries()) {
-        console.log(`  ${key}:`, value);
       }
-      console.log("========================");
 
       const results: any[] = [];
 
@@ -358,13 +335,11 @@ export const action = async ({ request, context }: LoaderFunctionArgs) => {
           
           if (entityType === "region") {
             // REGION BATCH SAVE: Sequential Processing - Region → EduAdmin1 + Schools → EduAdmin2 + Schools...
-            console.log(`🏛️ [${requestTimestamp}] Processing region batch save with sequential eduAdmin+schools creation`);
             
             // Step 1: Update the region name if provided
             if (names.length > 0 && typeof names[0] === "string" && names[0].trim() !== "") {
               const updateResult = await regionDB.updateRegion(entityId as string, names[0].trim(), dbUrl);
               results.push(updateResult);
-              console.log("✅ Updated region:", names[0].trim());
             }
 
             // Step 2: Get all data for processing
@@ -372,35 +347,10 @@ export const action = async ({ request, context }: LoaderFunctionArgs) => {
             const newSchoolsData = formData.getAll("newSchools");
             const newSchoolsForNewEduAdminsData = formData.getAll("newSchoolsForNewEduAdmins");
 
-            console.log("📊 Data summary:");
-            console.log("  - New eduAdmins:", newEduAdminsData.length);
-            console.log("  - Schools for existing eduAdmins:", newSchoolsData.length);
-            console.log("  - Schools for new eduAdmins:", newSchoolsForNewEduAdminsData.length);
             
             // Debug: Log the actual data being processed
-            console.log("📋 New EduAdmins Data:", newEduAdminsData.map(data => {
-              try {
-                return JSON.parse(data as string);
-              } catch (e) {
-                return data;
-              }
-            }));
             
-            console.log("📋 New Schools Data:", newSchoolsData.map(data => {
-              try {
-                return JSON.parse(data as string);
-              } catch (e) {
-                return data;
-              }
-            }));
             
-            console.log("📋 New Schools For New EduAdmins Data:", newSchoolsForNewEduAdminsData.map(data => {
-              try {
-                return JSON.parse(data as string);
-              } catch (e) {
-                return data;
-              }
-            }));
 
             // Step 3: Process existing eduAdmins and their schools first
             // Get existing eduAdmins from database for this region
@@ -410,11 +360,8 @@ export const action = async ({ request, context }: LoaderFunctionArgs) => {
               : [];
             const existingEduAdminsData = (Array.isArray(existingEduAdminsRaw) ? existingEduAdminsRaw : [existingEduAdminsRaw]) as any[];
             const existingEduAdmins = existingEduAdminsData.filter((ea: any) => ea.regionId === entityId);
-            console.log("📋 Processing", existingEduAdmins.length, "existing eduAdmins:");
-            console.log("📋 Existing EduAdmins in DB:", existingEduAdmins.map((ea: any) => ({ id: ea.id, name: ea.name })));
             
             for (const eduAdmin of existingEduAdmins as any[]) {
-              console.log(`\n🏢 Processing existing eduAdmin: ${eduAdmin.name} (ID: ${eduAdmin.id})`);
               
               // Find and create schools for this existing eduAdmin
               const schoolsForThisEduAdmin = [];
@@ -425,13 +372,10 @@ export const action = async ({ request, context }: LoaderFunctionArgs) => {
                     schoolsForThisEduAdmin.push(parsedSchool);
                   }
                 } catch (error) {
-                  console.error("Error parsing school data:", error);
                 }
               }
 
-              console.log(`  📚 Creating ${schoolsForThisEduAdmin.length} schools for eduAdmin: ${eduAdmin.name}`);
               for (const school of schoolsForThisEduAdmin) {
-                console.log(`    ➕ Checking if school exists: ${school.name}`);
                 
                 // Check if school already exists for this eduAdmin
                 const existsResult = await schoolDB.checkSchoolExists(
@@ -441,11 +385,9 @@ export const action = async ({ request, context }: LoaderFunctionArgs) => {
                 );
                 
                 if (existsResult.status === "success" && existsResult.data && (existsResult.data as any).exists) {
-                  console.log(`    ⚠️ School already exists, skipping: ${school.name} → eduAdmin: ${eduAdmin.name}`);
                   continue;
                 }
                 
-                console.log(`    ➕ Creating new school: ${school.name}`);
                 const result = await schoolDB.createSchool(
                   school.name,
                   "",
@@ -454,12 +396,10 @@ export const action = async ({ request, context }: LoaderFunctionArgs) => {
                 );
                 
                 results.push(result);
-                console.log(`    ✅ Created school: ${school.name} → eduAdmin: ${eduAdmin.name}`);
               }
             }
 
             // Step 4: Process new eduAdmins and their schools sequentially
-            console.log(`\n📋 Processing ${newEduAdminsData.length} new eduAdmins:`);
             
             for (let i = 0; i < newEduAdminsData.length; i++) {
               const eduAdminData = newEduAdminsData[i];
@@ -468,7 +408,6 @@ export const action = async ({ request, context }: LoaderFunctionArgs) => {
                 if (parsedEduAdmin.name && parsedEduAdmin.regionId) {
                   // Use originalIndex if available (for matching with schools), otherwise fall back to i
                   const eduAdminOriginalIndex = parsedEduAdmin.originalIndex !== undefined ? parsedEduAdmin.originalIndex : i;
-                  console.log(`\n🏢 Checking if eduAdmin exists: ${parsedEduAdmin.name} (originalIndex: ${eduAdminOriginalIndex})`);
 
                   // Check if eduAdmin already exists for this region
                   const existsResult = await eduAdminDB.checkEduAdminExists(
@@ -480,10 +419,8 @@ export const action = async ({ request, context }: LoaderFunctionArgs) => {
                   let newEduAdminId;
                   const existsData = existsResult.data as any;
                   if (existsResult.status === "success" && existsData && existsData.exists) {
-                    console.log(`  ⚠️ EduAdmin already exists, using existing: ${parsedEduAdmin.name}`);
                     newEduAdminId = existsData.eduAdmin?.id;
                   } else {
-                    console.log(`  ➕ Creating new eduAdmin ${i + 1}: ${parsedEduAdmin.name}`);
 
                     // Create the eduAdmin first
                     const eduAdminResult = await eduAdminDB.createEduAdmin(
@@ -494,7 +431,6 @@ export const action = async ({ request, context }: LoaderFunctionArgs) => {
 
                     results.push(eduAdminResult);
                     newEduAdminId = (eduAdminResult.data as any)?.id;
-                    console.log(`    ✅ Created eduAdmin: ${parsedEduAdmin.name} → region: ${entityId} (ID: ${newEduAdminId})`);
                   }
 
                   // Now create schools for this newly created eduAdmin
@@ -507,13 +443,10 @@ export const action = async ({ request, context }: LoaderFunctionArgs) => {
                         schoolsForThisNewEduAdmin.push(parsedSchool);
                       }
                     } catch (error) {
-                      console.error("Error parsing school data for new eduAdmin:", error);
                     }
                   }
 
-                  console.log(`  📚 Creating ${schoolsForThisNewEduAdmin.length} schools for eduAdmin: ${parsedEduAdmin.name}`);
                   for (const school of schoolsForThisNewEduAdmin) {
-                    console.log(`    ➕ Checking if school exists: ${school.name}`);
                     
                     // Check if school already exists for this eduAdmin
                     const schoolExistsResult = await schoolDB.checkSchoolExists(
@@ -523,11 +456,9 @@ export const action = async ({ request, context }: LoaderFunctionArgs) => {
                     );
                     
                     if (schoolExistsResult.status === "success" && schoolExistsResult.data && (schoolExistsResult.data as any).exists) {
-                      console.log(`    ⚠️ School already exists, skipping: ${school.name} → eduAdmin: ${parsedEduAdmin.name}`);
                       continue;
                     }
                     
-                    console.log(`    ➕ Creating new school: ${school.name}`);
                     const schoolResult = await schoolDB.createSchool(
                       school.name,
                       "",
@@ -536,38 +467,30 @@ export const action = async ({ request, context }: LoaderFunctionArgs) => {
                     );
                     
                     results.push(schoolResult);
-                    console.log(`    ✅ Created school: ${school.name} → eduAdmin: ${parsedEduAdmin.name}`);
                   }
                 }
               } catch (error: any) {
-                console.error("Error processing eduAdmin:", error);
                 throw new Error(`Failed to process eduAdmin ${i + 1}: ${error?.message || 'Unknown error'}`);
               }
             }
 
-            console.log("\n🎉 Region batch save completed successfully!");
 
           } else if (entityType === "eduAdmin") {
             // EDUADMIN BATCH SAVE: EduAdmin → Schools inside it
-            console.log("Processing eduAdmin batch save");
             
             // Step 1: Update the eduAdmin name if provided
             if (names.length > 0 && typeof names[0] === "string" && names[0].trim() !== "") {
               const updateResult = await eduAdminDB.updateEduAdmin(entityId as string, { name: names[0].trim() }, dbUrl);
               results.push(updateResult);
-              console.log("Updated eduAdmin:", names[0].trim());
             }
 
             // Step 2: Create all new schools for this eduAdmin
             const newSchoolsData = formData.getAll("newSchools");
-            console.log("EduAdmin batch save - Found newSchools data:", newSchoolsData.length, "entries");
             for (const schoolData of newSchoolsData) {
               try {
                 const parsedSchool = JSON.parse(schoolData as string);
-                console.log("Processing school data:", parsedSchool, "for entityId:", entityId);
                 
                 if (parsedSchool.name && parsedSchool.eduAdminId && String(parsedSchool.eduAdminId) === String(entityId)) {
-                  console.log(`Checking if school exists: ${parsedSchool.name} for eduAdmin: ${entityId}`);
                   
                   // Check if school already exists for this eduAdmin
                   const existsResult = await schoolDB.checkSchoolExists(
@@ -577,11 +500,9 @@ export const action = async ({ request, context }: LoaderFunctionArgs) => {
                   );
                   
                   if (existsResult.status === "success" && existsResult.data && (existsResult.data as any).exists) {
-                    console.log(`School already exists, skipping: ${parsedSchool.name} for eduAdmin: ${entityId}`);
                     continue;
                   }
                   
-                  console.log(`Creating new school: ${parsedSchool.name} for eduAdmin: ${entityId}`);
                   const result = await schoolDB.createSchool(
                     parsedSchool.name,
                     "",
@@ -590,17 +511,9 @@ export const action = async ({ request, context }: LoaderFunctionArgs) => {
                   );
                   
                   results.push(result);
-                  console.log(`Created school: ${parsedSchool.name}`);
                 } else {
-                  console.log("School filtered out:", {
-                    name: parsedSchool.name,
-                    eduAdminId: parsedSchool.eduAdminId,
-                    entityId: entityId,
-                    match: String(parsedSchool.eduAdminId) === String(entityId)
-                  });
                 }
               } catch (error: any) {
-                console.error("Error parsing school data:", error);
                 throw new Error(`Failed to process school: ${error?.message || 'Unknown error'}`);
               }
             }
@@ -613,9 +526,8 @@ export const action = async ({ request, context }: LoaderFunctionArgs) => {
         // Transaction completed successfully
         await prisma.$disconnect();
         
-        console.log("Batch save completed successfully. Results:", results.length);
         
-        return json({ 
+        return data({ 
           status: "success", 
           message: "تم الحفظ بنجاح", 
           results,
@@ -623,18 +535,16 @@ export const action = async ({ request, context }: LoaderFunctionArgs) => {
           savedEntityId: entityId
         });
       } catch (transactionError) {
-        console.error("Transaction failed:", transactionError);
         await prisma.$disconnect();
         throw transactionError; // Re-throw to be caught by outer catch block
       }
     }
 
-    return json(
+    return data(
       { status: "error", message: "Invalid action" },
       { status: 400 }
     );
   } catch (error: any) {
-    console.error("Action error:", error);
     
     // Handle specific database errors
     let errorMessage = "حدث خطأ غير متوقع";
@@ -651,7 +561,7 @@ export const action = async ({ request, context }: LoaderFunctionArgs) => {
       errorMessage = error.message;
     }
     
-    return json({ 
+    return data({ 
       status: "error", 
       message: errorMessage,
       errorCode: error.code || "UNKNOWN_ERROR",
@@ -689,7 +599,6 @@ export const ManageData = (): JSX.Element => {
     schools: data?.schools || [],
   };
 
-  console.log("Loader data:", data);
 
   const actionData = useActionData() as
     | {
@@ -813,7 +722,6 @@ export const ManageData = (): JSX.Element => {
         setNewSchools(JSON.parse(savedNewSchools));
       }
     } catch (error) {
-      console.warn("Failed to load state from localStorage:", error);
     }
   }, []);
 
@@ -822,7 +730,6 @@ export const ManageData = (): JSX.Element => {
     try {
       localStorage.setItem(STORAGE_KEYS.newRegions, JSON.stringify(newRegions));
     } catch (error) {
-      console.warn("Failed to save newRegions to localStorage:", error);
     }
   }, [newRegions]);
 
@@ -830,7 +737,6 @@ export const ManageData = (): JSX.Element => {
     try {
       localStorage.setItem(STORAGE_KEYS.newEduAdmins, JSON.stringify(newEduAdmins));
     } catch (error) {
-      console.warn("Failed to save newEduAdmins to localStorage:", error);
     }
   }, [newEduAdmins]);
 
@@ -838,7 +744,6 @@ export const ManageData = (): JSX.Element => {
     try {
       localStorage.setItem(STORAGE_KEYS.newSchools, JSON.stringify(newSchools));
     } catch (error) {
-      console.warn("Failed to save newSchools to localStorage:", error);
     }
   }, [newSchools]);
 
@@ -866,7 +771,6 @@ export const ManageData = (): JSX.Element => {
         localStorage.setItem(STORAGE_KEYS.newSchools, JSON.stringify(current));
       }
     } catch (error) {
-      console.warn("Failed to clear localStorage:", error);
     }
   };
 
@@ -932,7 +836,6 @@ export const ManageData = (): JSX.Element => {
           });
           
           clearStorageForEntity("region", savedEntityId);
-          console.log("Cleared state for region batch save:", savedEntityId);
           
         } else if (savedEntityType === "eduAdmin") {
           // EduAdmin batch save completed - clear schools for this eduAdmin
@@ -942,7 +845,6 @@ export const ManageData = (): JSX.Element => {
           }));
           
           clearStorageForEntity("eduAdmin", savedEntityId);
-          console.log("Cleared state for eduAdmin batch save:", savedEntityId);
         }
       }
 
@@ -1147,11 +1049,9 @@ export const ManageData = (): JSX.Element => {
         revalidator.revalidate();
         setDeleteConfirmation(null);
       } else {
-        console.error("Delete failed:", response.statusText);
         // You could add error handling here
       }
     } catch (error) {
-      console.error("Delete error:", error);
       // You could add error handling here
     }
   };
@@ -1164,7 +1064,6 @@ export const ManageData = (): JSX.Element => {
   const handleSaveClick = (formId: string, buttonElement: HTMLButtonElement) => {
     // Check if this form is already submitting or has an active debounce timer
     if (loadingStates[formId] || debounceTimers[formId]) {
-      console.log("Save blocked - form is submitting or debounced:", formId);
       return; // Prevent rapid clicks
     }
 
@@ -1185,7 +1084,6 @@ export const ManageData = (): JSX.Element => {
     // Find the form and submit it
     const form = buttonElement.closest('form');
     if (form) {
-      console.log(`📤 Submitting form: ${formId}`);
       form.requestSubmit();
     }
   };

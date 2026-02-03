@@ -1,4 +1,4 @@
-import { ActionFunctionArgs, json } from "@remix-run/cloudflare";
+import { ActionFunctionArgs, data } from "@remix-run/cloudflare";
 import { getAuthenticated } from "~/lib/get-authenticated.server";
 import schoolDB from "~/db/school/school.server";
 import eduAdminDB from "~/db/eduAdmin/eduAdmin.server";
@@ -15,7 +15,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
   const user = await getAuthenticated({ request, context });
 
   if (!user || user.role !== "admin") {
-    return json({
+    return data({
       status: "error",
       message: "غير مصرح لك بالوصول"
     }, { status: 403 });
@@ -42,15 +42,14 @@ export async function action({ request, context }: ActionFunctionArgs) {
       results.eduAdmins = eduAdminResult.data;
     }
 
-    return json({
+    return {
       status: "success",
       message: "تم تنظيف البيانات المكررة بنجاح",
       data: results
-    });
+    };
 
   } catch (error) {
-    console.error("Error cleaning up duplicates:", error);
-    return json({
+    return data({
       status: "error",
       message: "فشل تنظيف البيانات المكررة"
     }, { status: 500 });

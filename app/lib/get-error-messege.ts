@@ -19,7 +19,6 @@ export function getErrorMessage(error: unknown): string {
     }
   }
 
-  console.error("Unable to get error message for error", error);
   return glossary.login.errors.unexpectedError;
 }
 

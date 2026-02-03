@@ -34,7 +34,6 @@ class AdminErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryStat
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    console.error('Admin Error Boundary caught an error:', error, errorInfo);
   }
 
   render(): ReactNode {
@@ -71,7 +70,7 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
   return materialDB
     .getAllMaterials(context.cloudflare.env.DATABASE_URL)
     .then((res: any) => {
-      return Response.json(res.data);
+      return res.data;
     })
     .catch(() => {
       return null;
@@ -89,7 +88,6 @@ export const Trainer = () => {
     navigation = useNavigation();
     location = useLocation();
   } catch (error) {
-    console.warn('Navigation hooks failed:', error);
     // Fallback values
     navigation = { state: 'idle', location: null };
     location = { pathname: '/dashboard/admin', search: '', hash: '', state: null, key: 'default' };

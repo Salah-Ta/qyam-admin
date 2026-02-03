@@ -19,7 +19,6 @@ const createProgram = (
         });
       })
       .catch((error: any) => {
-        // console.log("ERROR [createMaterial]: ", error);
         reject({
           status: "error",
           message: glossary.status_response.error.material_added,
@@ -37,7 +36,6 @@ const getAllPrograms = (dbUrl: string): Promise<StatusResponse<Program[]>> => {
         resolve({ status: "success", data: res });
       })
       .catch((error: any) => {
-        // console.log("ERROR [getAllPrograms]: ", error);
         reject({
           status: "error",
           message: glossary.status_response.error.general,
@@ -57,7 +55,6 @@ const getProgram = (id: string, dbUrl: string) => {
         resolve({ status: "success", data: res });
       })
       .catch((error: any) => {
-        console.log("ERROR [getProgram]: ", error);
         reject({
           status: "error",
           message: glossary.status_response.error.general,
@@ -83,7 +80,6 @@ const updateProgram = (program: Program, dbUrl: string) => {
         });
       })
       .catch((error: any) => {
-        // console.log("ERROR [updateProgram]: ", error);
         reject({
           status: "error",
           message: glossary.status_response.error.material_updated,
@@ -106,7 +102,6 @@ const deleteProgram = (programId: string, dbUrl: string) => {
         });
       })
       .catch((error: any) => {
-        // console.log("ERROR [ deleteMaterial]: ", error);
         reject({
           status: "error",
           message: glossary.status_response.error.material_deleted,

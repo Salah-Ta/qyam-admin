@@ -50,6 +50,21 @@ module.exports = {
       },
     },
 
+    // Route files - ban Response.json() (incompatible with v3_singleFetch)
+    {
+      files: ["app/routes/**/*.{ts,tsx}"],
+      rules: {
+        "no-restricted-syntax": [
+          "error",
+          {
+            selector: "MemberExpression[object.name='Response'][property.name='json']",
+            message:
+              "Do not use Response.json() in route files. It is incompatible with v3_singleFetch (turbo-stream). Use plain returns for 200 responses, or data() from @remix-run/cloudflare for non-200 status codes.",
+          },
+        ],
+      },
+    },
+
     // Typescript
     {
       files: ["**/*.{ts,tsx}"],

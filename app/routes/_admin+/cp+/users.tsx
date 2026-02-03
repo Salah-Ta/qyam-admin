@@ -1,4 +1,4 @@
-import { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/cloudflare";
+import { ActionFunctionArgs, LoaderFunctionArgs, data } from "@remix-run/cloudflare";
 import userDB from "~/db/user/user.server";
 import glossary from "~/lib/glossary";
 import { Icon } from "~/components/icon";
@@ -111,7 +111,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         },
         context.cloudflare.env.DATABASE_URL
       );
-      return Response.json(
+      return data(
         { success: true },
         {
           headers: await createToastHeaders({
@@ -122,7 +122,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         }
       );
     } catch (e) {
-      return Response.json(
+      return data(
         { success: false },
         {
           headers: await createToastHeaders({
@@ -142,7 +142,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         context.cloudflare.env.DATABASE_URL
       )
       .then(async () => {
-        return Response.json(
+        return data(
           { success: true },
           {
             headers: await createToastHeaders({
@@ -154,7 +154,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         );
       })
       .catch(async () => {
-        return Response.json(
+        return data(
           { success: false },
           {
             headers: await createToastHeaders({
@@ -202,7 +202,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         );
       })
       .then(async () => {
-        return Response.json(
+        return data(
           { success: true },
           {
             headers: await createToastHeaders({
@@ -214,7 +214,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         );
       })
       .catch(async () => {
-        return Response.json(
+        return data(
           { success: false },
           {
             headers: await createToastHeaders({
@@ -250,7 +250,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         );
       })
       .then(async () => {
-        return Response.json(
+        return data(
           { success: true },
           {
             headers: await createToastHeaders({
@@ -262,7 +262,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         );
       })
       .catch(async () => {
-        return Response.json(
+        return data(
           { success: false },
           {
             headers: await createToastHeaders({
@@ -274,7 +274,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         );
       });
   } else {
-    return Response.json(
+    return data(
       { success: false },
       {
         headers: await createToastHeaders({
@@ -369,7 +369,7 @@ const transformedData = data.map((el:any)=>({
   id: el.id,
   name:el.name,
   email:el.email,
-  region:el.region,
+  region:el.regionName || el.region,
   phone:el.phone,
   
   acceptenceState: glossary.cp.user[el.acceptenceState as AcceptenceState] ?? el.acceptenceState , 
@@ -446,8 +446,10 @@ const transformedData = data.map((el:any)=>({
       }),
       columnHelper.accessor("region", {
         header: () => "المنطقة",
-        cell: (info) =>
-          info.getValue() === "none" ? "غير محدد" : info.getValue(),
+        cell: ({ row }) => {
+          const name = (row.original as any).regionName || row.original.region;
+          return name === "none" ? "غير محدد" : (name || "-");
+        },
       }),
       columnHelper.accessor("acceptenceState", {
         header: "حالة التسجيل ",

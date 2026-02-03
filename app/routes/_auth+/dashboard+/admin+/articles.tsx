@@ -1,5 +1,6 @@
 import {
   ActionFunctionArgs,
+  data,
 } from "@remix-run/cloudflare";
 import { createToastHeaders } from "~/lib/toast.server";
 import articleDB from "~/db/articles/articles.server";
@@ -10,8 +11,8 @@ const createTimeoutPromise = (ms: number = 10000) =>
     setTimeout(() => reject(new Error("Database operation timeout")), ms)
   );
 
-const createSuccessResponse = async (title: string): Promise<Response> =>
-  Response.json(
+const createSuccessResponse = async (title: string) =>
+  data(
     { success: true },
     {
       headers: await createToastHeaders({
@@ -22,8 +23,8 @@ const createSuccessResponse = async (title: string): Promise<Response> =>
     }
   );
 
-const createErrorResponse = async (title: string): Promise<Response> =>
-  Response.json(
+const createErrorResponse = async (title: string) =>
+  data(
     { success: false },
     {
       headers: await createToastHeaders({
@@ -57,8 +58,7 @@ const validateArticleData = (formData: FormData) => {
 export async function action({
   request,
   context,
-}: ActionFunctionArgs): Promise<Response> {
-  console.log("=== ARTICLES ACTION CALLED ===");
+}: ActionFunctionArgs) {
   try {
     const formData = await request.formData();
     const actionType = formData.get("actionType") as string;
@@ -117,7 +117,6 @@ export async function action({
       }
     }
   } catch (error) {
-    console.error("Articles action error:", error);
     const message =
       error instanceof Error ? error.message : "حدث خطأ غير متوقع";
     return await createErrorResponse(message);

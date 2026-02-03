@@ -23,7 +23,6 @@ async function createSkill(data: Skill, dbUrl?: string): Promise<{ success: bool
     
     return { success: true, data: skill };
   } catch (error: any) {
-    console.error("Error creating skill:", error);
     return { success: false, error: error.message };
   } finally {
     await db.$disconnect();
@@ -43,7 +42,6 @@ async function getAllSkills(dbUrl?: string): Promise<{ success: boolean; data?: 
     
     return { success: true, data: skills };
   } catch (error: any) {
-    console.error("Error fetching skills:", error);
     return { success: false, error: error.message };
   } finally {
     await db.$disconnect();
@@ -61,7 +59,6 @@ async function getSkill(id: string, dbUrl?: string): Promise<{ success: boolean;
 
     return { success: true, data: skill ?? undefined };
   } catch (error: any) {
-    console.error("Error fetching skill:", error);
     return { success: false, error: error.message };
   } finally {
     await db.$disconnect();
@@ -83,7 +80,6 @@ async function updateSkill(id: string, data: Skill, dbUrl?: string): Promise<{ s
     
     return { success: true, data: skill };
   } catch (error: any) {
-    console.error("Error updating skill:", error);
     return { success: false, error: error.message };
   } finally {
     await db.$disconnect();
@@ -114,7 +110,6 @@ async function deleteSkill(id: string, dbUrl?: string): Promise<{ success: boole
     
     return { success: true };
   } catch (error: any) {
-    console.error("Error deleting skill:", error);
     return { success: false, error: error.message };
   } finally {
     await db.$disconnect();
@@ -151,7 +146,6 @@ async function getSkillsWithUsageCount(dbUrl?: string): Promise<{ success: boole
     
     return { success: true, data: skillsWithCount };
   } catch (error: any) {
-    console.error("Error fetching skills with usage count:", error);
     return { success: false, error: error.message };
   } finally {
     await db.$disconnect();
@@ -188,7 +182,6 @@ async function getSkillsWithUsageCount(dbUrl?: string): Promise<{ success: boole
     
 //     return { success: true, data: skillsWithCount };
 //   } catch (error: any) {
-//     console.error("Error fetching skills with usage count:", error);
 //     return { success: false, error: error.message };
 //   } finally {
 //     await prisma.$disconnect();

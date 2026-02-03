@@ -48,11 +48,10 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
         fullUserData = userResult.data;
       }
     } catch (error) {
-      console.error("Error fetching user data:", error);
     }
   }
 
-  return Response.json({ userData: fullUserData });
+  return { userData: fullUserData };
 }
 
 function cn(...inputs: ClassValue[]) {

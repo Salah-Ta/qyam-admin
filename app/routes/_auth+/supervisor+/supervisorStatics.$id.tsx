@@ -29,11 +29,6 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    console.error(
-      "SupervisorStatistics Error Boundary caught an error:",
-      error,
-      errorInfo
-    );
   }
 
   render(): ReactNode {
@@ -76,7 +71,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 import content from "../../../assets/icons/user.png";
 import verified from "../../../assets/icons/Verified-tick.svg";
 import students from "../../../assets/icons/students.svg";
-import { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/cloudflare";
+import { LoaderFunctionArgs, ActionFunctionArgs, data } from "@remix-run/cloudflare";
 import { useLoaderData, useParams, useFetcher } from "@remix-run/react";
 import { QUser, UserStatistics } from "~/types/types";
 import { getAuthenticated } from "~/lib/get-authenticated.server";
@@ -185,7 +180,6 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
 
     try {
       // Get user statistics from the statistics service
-      console.log("Fetching user statistics for userId:", userId);
       const [statsResult, regionalResult] = await Promise.all([
         Promise.race([
           statisticsDB.getUserStatisticsById(
@@ -200,7 +194,6 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
         ]) as Promise<any>,
       ]);
 
-      console.log("User stats result:", statsResult);
 
       if (statsResult) {
         finalStatistics = statsResult;
@@ -210,31 +203,32 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
         regionalStats = regionalResult;
       }
     } catch (error) {
-      console.error("Error fetching user statistics:", error);
       // Continue with default statistics
     }
 
     // Check if current user and target user are in the same region
     let canSendMessage = false;
+    let currentUserRole = "user";
     if (currentUserResult && currentUserResult.data) {
       const currentUserData: any = Array.isArray(currentUserResult.data) ? currentUserResult.data[0] : currentUserResult.data;
       const targetUserData: any = Array.isArray(userResult.data) ? userResult.data[0] : userResult.data;
-      
+
       canSendMessage = currentUserData.region === targetUserData.region;
+      currentUserRole = currentUserData.role || "user";
     }
 
-    return Response.json({
+    return data({
       user: userResult.data,
       statistics: finalStatistics,
       reports: [], // We don't need individual reports anymore since we have aggregated stats
       canSendMessage, // Add this flag to indicate if messaging is allowed
       regionalStats, // Regional statistics for the chart
+      currentUserRole,
     });
   } catch (error) {
-    console.error("Error loading user data:", error);
 
     // Return a safe fallback instead of throwing
-    return Response.json(
+    return data(
       {
         user: null,
         statistics: {
@@ -250,6 +244,7 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
         reports: [],
         canSendMessage: false,
         regionalStats: [],
+        currentUserRole: "user",
         error: "Failed to load user data",
       },
       { status: 200 }
@@ -261,7 +256,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
   const currentUser = await getAuthenticated({ request, context });
 
   if (!currentUser) {
-    return Response.json(
+    return data(
       {
         status: "error",
         message: "غير مخول للوصول",
@@ -278,7 +273,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
     const toUserId = params.id; // The teacher ID from the URL
 
     if (!messageContent) {
-      return Response.json(
+      return data(
         {
           status: "error",
           message: "محتوى الرسالة مطلوب",
@@ -288,7 +283,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
     }
 
     if (!toUserId) {
-      return Response.json(
+      return data(
         {
           status: "error",
           message: "معرف المستخدم المستقبل مطلوب",
@@ -307,7 +302,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
       ]);
 
       if (!currentUserResult || currentUserResult.status === "error" || !currentUserResult.data) {
-        return Response.json(
+        return data(
           {
             status: "error",
             message: "بيانات المستخدم الحالي غير موجودة",
@@ -317,7 +312,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
       }
 
       if (!targetUserResult || targetUserResult.status === "error" || !targetUserResult.data) {
-        return Response.json(
+        return data(
           {
             status: "error",
             message: "المستخدم المستهدف غير موجود",
@@ -329,12 +324,10 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
       const currentUserData:any = Array.isArray(currentUserResult.data) ? currentUserResult.data[0] : currentUserResult.data;
       const targetUserData:any = Array.isArray(targetUserResult.data) ? targetUserResult.data[0] : targetUserResult.data;
 
-      console.log("Current User Data:", currentUserData);
-      console.log("Target User Data:", targetUserData);
 
       // Check if supervisor and target user are in the same region
       if (currentUserData.region !== targetUserData.region) {
-        return Response.json(
+        return data(
           {
             status: "error",
             message: "لا يمكنك إرسال رسالة لمستخدم من منطقة أخرى. يمكنك فقط التواصل مع المستخدمين في منطقتك",
@@ -354,14 +347,13 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         context?.cloudflare?.env?.DATABASE_URL
       );
 
-      return Response.json({
+      return data({
         status: "success",
         message: "تم إرسال الرسالة بنجاح",
         data: result,
       });
     } catch (error) {
-      console.error("Error sending message:", error);
-      return Response.json(
+      return data(
         {
           status: "error",
           message: "فشل في إرسال الرسالة",
@@ -371,7 +363,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
     }
   }
 
-  return Response.json(
+  return data(
     {
       status: "error",
       message: "إجراء غير صالح",
@@ -478,7 +470,6 @@ export const SupervisorStatistics = (): JSX.Element => {
     navigate = useNavigate();
     fetcher = useFetcher();
   } catch (error) {
-    console.error("Hook usage failed:", error);
     // Fallback to prevent hydration errors
   }
 
@@ -494,10 +485,8 @@ export const SupervisorStatistics = (): JSX.Element => {
         setMessageContent("");
         setIsMessageSending(false);
         setIsModalOpen(true); // Open modal on success
-        console.log("Message sent successfully:", fetcher.data.message);
       } else if (fetcher.data.status === "error") {
         setIsMessageSending(false);
-        console.error("Message sending failed:", fetcher.data.message);
       }
     }
   }, [fetcher.data]);
@@ -512,7 +501,6 @@ export const SupervisorStatistics = (): JSX.Element => {
   // Handle message sending
   const handleSendMessage = () => {
     if (!messageContent.trim()) {
-      console.error("Message content is required");
       return;
     }
 
@@ -542,14 +530,6 @@ export const SupervisorStatistics = (): JSX.Element => {
   const userId = params?.id;
 
   // Debug logging to verify getUserTotalStats integration
-  console.log("SupervisorStatistics - Loaded data:", {
-    userId,
-    userName: userData,
-    hasStatistics: !!statistics,
-    statisticsData: statistics,
-    reportsCount: reports.length,
-    timestamp: new Date().toISOString(),
-  });
 
   // Handle error state
   if (loaderData?.error && !userData) {
@@ -756,11 +736,13 @@ export const SupervisorStatistics = (): JSX.Element => {
         <div className="pt-6 pl-6">
           <button
             onClick={() => {
+              const backPath = loaderData?.currentUserRole === "admin"
+                ? "/dashboard/admin/users"
+                : "/supervisor/allTrainers";
               try {
-                navigate("/supervisor/allTrainers");
+                navigate(backPath);
               } catch (e) {
-                // Fallback navigation
-                window.location.href = "/supervisor/allTrainers";
+                window.location.href = backPath;
               }
             }}
             className="flex items-center justify-center w-10 h-10 bg-white rounded-lg border border-gray-300 shadow-sm hover:bg-gray-50 transition-colors"

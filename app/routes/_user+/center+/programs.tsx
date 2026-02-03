@@ -8,10 +8,9 @@ export async function loader({ context }: LoaderFunctionArgs) {
     const programs = await programDB.getAllPrograms(
       context.cloudflare.env.DATABASE_URL
     );
-    return Response.json({ success: true, programs });
+    return { success: true, programs };
   } catch (error) {
-    console.error("Loader error:", error);
-    return Response.json({ success: false, error });
+    return { success: false, error };
   }
 }
 

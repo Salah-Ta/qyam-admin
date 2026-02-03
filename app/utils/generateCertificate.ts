@@ -7,6 +7,7 @@ export interface CertificateData {
   administration: string;
   school: string;
   hours: string;
+  coordinator?: string;
   programTrainer?: string;
   useBoldFont?: boolean;
 }
@@ -14,10 +15,8 @@ export interface CertificateData {
 async function loadCertificateTemplate(): Promise<Uint8Array> {
   try {
     const templatePath = "/assets/certificate-template.pdf";
-    console.log(`Loading template from: ${templatePath}`);
 
     const response = await fetch(templatePath);
-    console.log("Response status:", response.status);
 
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -33,10 +32,8 @@ async function loadCertificateTemplate(): Promise<Uint8Array> {
       throw new Error("File is not a valid PDF");
     }
 
-    console.log("Template loaded successfully, size:", bytes.length);
     return bytes;
   } catch (error) {
-    console.error("Error loading template:", error);
     return await createFallbackTemplate();
   }
 }
@@ -113,7 +110,6 @@ async function createFallbackTemplate(): Promise<Uint8Array> {
     const pdfBytes = await pdfDoc.save();
     return new Uint8Array(pdfBytes);
   } catch (error) {
-    console.error("Error creating fallback template:", error);
     const pdfDoc = await PDFDocument.create();
     pdfDoc.addPage(PageSizes.A4);
     const pdfBytes = await pdfDoc.save();
@@ -143,19 +139,13 @@ async function loadArabicFont(
   async function loadFont(paths: string[]) {
     for (const path of paths) {
       try {
-        console.log(`Trying to load font from: ${path}`);
         const response = await fetch(path);
         if (response.ok) {
           const arrayBuffer = await response.arrayBuffer();
-          console.log(`Successfully loaded font from: ${path}`);
           return await pdfDoc.embedFont(new Uint8Array(arrayBuffer));
         } else {
-          console.warn(
-            `Failed to load font from ${path} - status ${response.status}`
-          );
         }
       } catch (error) {
-        console.warn(`Error loading font from ${path}:`, error);
         continue;
       }
     }
@@ -166,9 +156,6 @@ async function loadArabicFont(
   const boldFont = await loadFont(fontPaths.bold);
 
   if (!regularFont || !boldFont) {
-    console.warn(
-      "Could not load one or both Arabic fonts, falling back to Helvetica/Helvetica-Bold"
-    );
     return {
       regular: await pdfDoc.embedFont("Helvetica"),
       bold: await pdfDoc.embedFont("Helvetica-Bold"),
@@ -207,7 +194,6 @@ export async function generateCertificatePDF(
   certificateData: CertificateData
 ): Promise<Blob> {
   try {
-    console.log("Starting certificate generation with data:", certificateData);
 
     const templateBytes = await loadCertificateTemplate();
 
@@ -268,14 +254,6 @@ export async function generateCertificatePDF(
       const drawX = width - marginRight;
       const drawY = bottomMargin;
 
-      console.log(
-        "Drawing programTrainer at x=",
-        drawX,
-        "y=",
-        drawY,
-        "text:",
-        certificateData.programTrainer
-      );
 
       drawArabicText(
         page,
@@ -289,7 +267,7 @@ export async function generateCertificatePDF(
       );
     }
 
-    // Cover "منسقة التطوع" text with white rectangle and draw administration name
+    // Cover "منسقة التطوع" text with white rectangle and draw coordinator name
     // Position at bottom left of certificate
     const coverX = 70;
     const coverY = 100;
@@ -305,12 +283,12 @@ export async function generateCertificatePDF(
       color: rgb(1, 1, 1), // White
     });
 
-    // Draw administration name in the covered area
-    if (certificateData.administration) {
+    // Draw coordinator (المنسقة) name in the covered area
+    if (certificateData.coordinator) {
       drawArabicText(
         page,
         arabicFontBold,
-        certificateData.administration,
+        certificateData.coordinator,
         coverX + coverWidth / 2,
         coverY + 10,
         12,
@@ -323,7 +301,6 @@ export async function generateCertificatePDF(
 
     return new Blob([pdfBytes], { type: "application/pdf" });
   } catch (error) {
-    console.error("Error generating certificate PDF:", error);
 
     const pdfDoc = await PDFDocument.create();
     const page = pdfDoc.addPage(PageSizes.A4);

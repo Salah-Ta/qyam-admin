@@ -1,7 +1,7 @@
 import React from "react";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { json, LoaderFunctionArgs } from "@remix-run/cloudflare";
+import { LoaderFunctionArgs, data } from "@remix-run/cloudflare";
 import { useLoaderData } from "@remix-run/react";
 import skillDb from "../../../../db/skill/skill.server";
 import testimonialDb from "../../../../db/testimonial/testimonial.server";
@@ -94,38 +94,23 @@ const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
 // Loader function to fetch skills data
 export async function loader({ request, context }: LoaderFunctionArgs) {
   try {
-    console.log("=== Loader Debug Info ===");
-    console.log("Environment:", typeof context?.cloudflare?.env);
-    console.log("Has DATABASE_URL:", !!context?.cloudflare?.env?.DATABASE_URL);
 
     // Check authentication
     // const user = await getAuthenticated({ request, context });
     // if (!user) {
-    //   console.log("Authentication failed");
-    //   return Response.json({ error: "Unauthorized" }, { status: 401 });
+    //   return data({ error: "Unauthorized" }, { status: 401 });
     // }
-    // console.log("User authenticated:", !!user);
 
     const dbUrl = context.cloudflare.env.DATABASE_URL;
-    console.log("DB URL exists:", !!dbUrl);
 
     // Fetch skills with usage counts first
-    console.log("Fetching skills data...");
     let skillsResult;
     try {
       // skillsResult = await skillDb.getSkillsWithUsageCount(dbUrl);
       skillsResult = await skillDb.getAllSkills(dbUrl);
 
-      console.log("Skills fetch completed:", skillsResult);
-      console.log("Skills success:", skillsResult.success);
-      console.log("Skills data length:", skillsResult.data?.length);
     } catch (skillsError) {
-      console.error("Skills fetch error:", skillsError);
-      console.error(
-        "Skills error stack:",
-        skillsError instanceof Error ? skillsError.stack : "No stack trace"
-      );
-      return Response.json(
+      return data(
         {
           error: "Failed to fetch skills",
           details:
@@ -138,28 +123,16 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     }
 
     // Fetch testimonials separately
-    console.log("Fetching testimonials data...");
     let testimonialsResult;
     try {
       testimonialsResult = await testimonialDb.getAllTestimonials(dbUrl);
-      console.log("Testimonials fetch completed:", testimonialsResult);
-      console.log("Testimonials success:", testimonialsResult.success);
-      console.log("Testimonials data length:", testimonialsResult.data?.length);
     } catch (testimonialsError) {
-      console.error("Testimonials fetch error:", testimonialsError);
-      console.error(
-        "Testimonials error stack:",
-        testimonialsError instanceof Error
-          ? testimonialsError.stack
-          : "No stack trace"
-      );
       // Don't fail the whole request if testimonials fail
       testimonialsResult = { success: false, data: [] };
     }
 
     // if (!skillsResult.success) {
-    //   console.error("Skills fetch failed:", skillsResult);
-    //   return Response.json(
+    //   return data(
     //     { error: "Failed to fetch skills" },
     //     { status: 500 }
     //   );
@@ -172,17 +145,10 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         : [],
     };
 
-    console.log("Final response:", response);
-    console.log("=== End Loader Debug Info ===");
 
-    return Response.json(response);
+    return data(response);
   } catch (error) {
-    console.error("Error in skills loader:", error);
-    console.error(
-      "Error stack:",
-      error instanceof Error ? error.stack : "No stack trace"
-    );
-    return Response.json({ error: "Internal server error" }, { status: 500 });
+    return data({ error: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -221,18 +187,6 @@ export const Skills = (): JSX.Element => {
   const finalWordCloudData = wordCloudData;
 
   // Debug logging for deployment issues
-  console.log("=== WordCloud Debug Info ===");
-  console.log("loaderData:", loaderData);
-  console.log("safeSkills:", safeSkills);
-  console.log("safeSkills length:", safeSkills.length);
-  console.log("wordCloudData:", wordCloudData);
-  console.log("finalWordCloudData:", finalWordCloudData);
-  console.log("Is array:", Array.isArray(finalWordCloudData));
-  console.log(
-    "Has length > 0:",
-    finalWordCloudData && finalWordCloudData.length > 0
-  );
-  console.log("=== End Debug Info ===");
 
   // Word cloud configuration
   const colors = [
@@ -276,12 +230,6 @@ export const Skills = (): JSX.Element => {
   };
 
   // Console log the words that will be displayed in the word cloud
-  console.log("WordCloud Data:", finalWordCloudData);
-  console.log(
-    "Has database data:",
-    finalWordCloudData && finalWordCloudData?.length > 0
-  );
-  console.log("Total words:", finalWordCloudData?.length || 0);
 
   return (
     <div>
@@ -340,7 +288,6 @@ export const Skills = (): JSX.Element => {
                     rows={3}
                     onChange={(e) => {
               
-                      console.log(e.target.value);
                     }}
                   />
                 </div>

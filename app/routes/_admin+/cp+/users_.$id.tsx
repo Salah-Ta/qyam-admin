@@ -3,6 +3,7 @@ import {
   ActionFunctionArgs,
   LoaderFunctionArgs,
   unstable_parseMultipartFormData,
+  data,
 } from "@remix-run/cloudflare";
 import { Link, useFetcher, useLoaderData } from "@remix-run/react";
 import { useCallback, useReducer, useState } from "react";
@@ -30,14 +31,25 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
   }
 
   try {
-    const result = await userDB.getUserWithCertificates(
-      userId,
-      context.cloudflare.env.DATABASE_URL
-    );
-    if (result.status === "error" || !result.data) {
+    const DBurl = context.cloudflare.env.DATABASE_URL;
+    const [certResult, userResult] = await Promise.all([
+      userDB.getUserWithCertificates(userId, DBurl),
+      userDB.getUser(userId, DBurl).catch(() => null),
+    ]);
+    if (certResult.status === "error" || !certResult.data) {
       throw new Response("User not found", { status: 404 });
     }
-    return result.data;
+    // Merge enriched name fields from getUser into the certificates result
+    const enrichedUser = userResult?.status === "success" && userResult.data
+      ? Array.isArray(userResult.data) ? userResult.data[0] : userResult.data
+      : null;
+    const userData = {
+      ...certResult.data,
+      regionName: enrichedUser?.regionName || null,
+      eduAdminName: enrichedUser?.eduAdminName || null,
+      schoolName: enrichedUser?.schoolName || null,
+    };
+    return userData;
   } catch (error) {
     throw new Response("Failed to load user", { status: 500 });
   }
@@ -91,7 +103,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         uploadHandler as any
       );
 
-      return Response.json(
+      return data(
         { success: true },
         {
           headers: await createToastHeaders({
@@ -102,7 +114,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         }
       );
     } catch (error) {
-      return Response.json(
+      return data(
         { success: false },
         {
           headers: await createToastHeaders({
@@ -127,7 +139,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
           context.cloudflare.env.DATABASE_URL
         )
         .then(async () => {
-          return Response.json(
+          return data(
             { success: true },
             {
               headers: await createToastHeaders({
@@ -139,7 +151,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
           );
         })
         .catch(async () => {
-          return Response.json(
+          return data(
             { success: false },
             {
               headers: await createToastHeaders({
@@ -164,7 +176,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
           data: { trainingHours, noStudents }
         })
         .then(async () => {
-          return Response.json(
+          return data(
             { success: true },
             {
               headers: await createToastHeaders({
@@ -176,7 +188,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
           );
         })
         .catch(async () => {
-          return Response.json(
+          return data(
             { success: false },
             {
               headers: await createToastHeaders({
@@ -261,7 +273,7 @@ const User = () => {
         <p className="text-[#475467] bg-white border border-[#D0D5DD] rounded-lg p-2 w-72 text-right">
           <span className="text-secondary"> المنطقة :</span>
 
-          {user.region}
+          {user.regionName || user.region || "-"}
         </p>
 
         <p className="text-[#475467] bg-white border flex items-center border-[#D0D5DD] rounded-lg p-2 w-72 text-right">

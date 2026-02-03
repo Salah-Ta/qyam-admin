@@ -89,7 +89,8 @@ const Certificates = () => {
       cert.data.fullName &&
       cert.data.administration &&
       cert.data.school &&
-      cert.data.hours
+      cert.data.hours &&
+      cert.data.coordinator
     );
 
     if (allComplete) {
@@ -103,7 +104,8 @@ const Certificates = () => {
     cert.data.fullName &&
     cert.data.administration &&
     cert.data.school &&
-    cert.data.hours
+    cert.data.hours &&
+    cert.data.coordinator
   );
 
   return submitted ? (

@@ -1,5 +1,5 @@
 // import ProgramContainer from "~/components/programContainer";
-import { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/cloudflare";
+import { ActionFunctionArgs, LoaderFunctionArgs, data } from "@remix-run/cloudflare";
 import programDB from "~/db/program/program.server";
 import { useFetcher, useLoaderData } from "@remix-run/react";
 import { Program } from "~/types/types";
@@ -23,9 +23,9 @@ export async function loader({ context }: LoaderFunctionArgs) {
     const programs = await programDB.getAllPrograms(
       context.cloudflare.env.DATABASE_URL
     );
-    return Response.json({ success: true, programs });
+    return { success: true, programs };
   } catch (error) {
-    return Response.json({ success: false, error });
+    return { success: false, error };
   }
 }
 type EditMode = "CREATE" | "UPDATE" | "DELETE";
@@ -34,7 +34,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
   let failureMsg = "حدث خطأ أثناء إضافة البرنامج";
   try {
     const formData = await request.formData();
-    // console.log({
     //   title: formData.get("title") as string,
     //   link: formData.get("link") as string,
     //   description: formData.get("description") as string,
@@ -104,7 +103,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
           break;
     }
 
-    return Response.json(
+    return data(
       { success: true },
       {
         headers: await createToastHeaders({
@@ -115,9 +114,8 @@ export async function action({ request, context }: ActionFunctionArgs) {
       }
     );
   } catch (error) {
-    console.error("Loader error:", error);
-    Response.json(
-      { success: true },
+    return data(
+      { success: false },
       {
         headers: await createToastHeaders({
           description: "",

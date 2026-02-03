@@ -1,4 +1,4 @@
-import { redirect, json } from "@remix-run/react";
+import { redirect } from "@remix-run/react";
 import { getAuthenticated } from "~/lib/get-authenticated.server";
 import { QUser } from "~/types/types";
 
@@ -12,9 +12,9 @@ export async function loader({ request, context }: LoaderContext) {
   const user = await getAuthenticated({ request, context });
   
   if (!user) {
-    return Response.json(
-      { message: "Unauthorized - Please login to access this resource" },
-      { status: 401 }
+    return new Response(
+      JSON.stringify({ message: "Unauthorized - Please login to access this resource" }),
+      { status: 401, headers: { "Content-Type": "application/json" } }
     );
   }
   else if ((user as QUser).acceptenceState && ["denied", "idle"].includes((user as QUser).acceptenceState!))

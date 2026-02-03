@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { LoaderFunctionArgs } from "@remix-run/cloudflare";
+import { LoaderFunctionArgs, data } from "@remix-run/cloudflare";
 import { useLoaderData, useNavigate } from "@remix-run/react";
 import { MoreVerticalIcon } from "lucide-react";
 import {
@@ -30,7 +30,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     // Check authentication
     const user = await getAuthenticated({ request, context });
     if (!user) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+      return data({ error: "Unauthorized" }, { status: 401 });
     }
 
     const dbUrl = context.cloudflare.env.DATABASE_URL;
@@ -45,7 +45,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
       statisticsService.getRegionalBreakdown(dbUrl),
     ]);
 
-    return Response.json({
+    return data({
       statistics,
       regions: regions.data || [],
       schools: schools.data || [],
@@ -54,8 +54,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
       regionalBreakdown: regionalBreakdown || [],
     });
   } catch (error) {
-    console.error("Error loading statistics:", error);
-    return Response.json({ error: "Failed to load data" }, { status: 500 });
+    return data({ error: "Failed to load data" }, { status: 500 });
   }
 }
 

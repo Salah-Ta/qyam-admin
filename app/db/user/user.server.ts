@@ -892,7 +892,6 @@ const backupUsersWithInvalidIds = async (dbUrl?: string): Promise<StatusResponse
       u => !isValidCuid(u.eduAdminId) || !isValidCuid(u.schoolId)
     );
 
-    console.log(`Backing up ${usersToBackup.length} users with invalid IDs`);
 
     return {
       status: "success",
@@ -904,7 +903,6 @@ const backupUsersWithInvalidIds = async (dbUrl?: string): Promise<StatusResponse
       message: `تم حفظ نسخة احتياطية لـ ${usersToBackup.length} مستخدم`
     };
   } catch (error: any) {
-    console.log("ERROR [backupUsersWithInvalidIds]: ", error);
     return {
       status: "error",
       message: "فشل إنشاء النسخة الاحتياطية",
@@ -945,7 +943,6 @@ const restoreUsersFromBackup = async (
       restored++;
     }
 
-    console.log(`Restored ${restored} users from backup`);
 
     return {
       status: "success",
@@ -953,7 +950,6 @@ const restoreUsersFromBackup = async (
       message: `تم استعادة ${restored} مستخدم من النسخة الاحتياطية`
     };
   } catch (error: any) {
-    console.log("ERROR [restoreUsersFromBackup]: ", error);
     return {
       status: "error",
       message: "فشل استعادة النسخة الاحتياطية",
@@ -987,7 +983,6 @@ const migrateUserEntityIds = async (dbUrl?: string): Promise<StatusResponse<{
       u => !isValidCuid(u.eduAdminId) || !isValidCuid(u.schoolId)
     );
 
-    console.log(`Found ${usersToMigrate.length} users to migrate`);
 
     // Get all eduAdmins and schools for matching
     const [eduAdmins, schools] = await Promise.all([
@@ -1065,7 +1060,6 @@ const migrateUserEntityIds = async (dbUrl?: string): Promise<StatusResponse<{
       }
     }
 
-    console.log(`Migration complete: ${eduAdminMatched} eduAdmins matched, ${schoolMatched} schools matched`);
 
     return {
       status: "success",
@@ -1080,7 +1074,6 @@ const migrateUserEntityIds = async (dbUrl?: string): Promise<StatusResponse<{
       message: `تم ربط ${eduAdminMatched} إدارة تعليمية و ${schoolMatched} مدرسة`
     };
   } catch (error: any) {
-    console.log("ERROR [migrateUserEntityIds]: ", error);
     return {
       status: "error",
       message: "فشل عملية الترحيل",
@@ -1177,7 +1170,6 @@ const getUsersBackupByEmails = async (
       }
     };
   } catch (error) {
-    console.log("ERROR [getUsersBackupByEmails]: ", error);
     return {
       status: "error",
       message: "حدث خطأ أثناء تجهيز النسخة الاحتياطية"
@@ -1232,7 +1224,6 @@ const bulkFixUserAccounts = async (
       return true;
     });
 
-    console.log(`Processing ${uniqueUsers.length} unique users (${results.skipped} duplicates skipped)`);
 
     for (const userData of uniqueUsers) {
       const normalizedEmail = userData.email.trim().toLowerCase();
@@ -1286,7 +1277,6 @@ const bulkFixUserAccounts = async (
           }
 
           results.passwordReset++;
-          console.log(`Password reset for: ${normalizedEmail}`);
         } else {
           // User doesn't exist - create new account
           const now = new Date();
@@ -1333,10 +1323,8 @@ const bulkFixUserAccounts = async (
           });
 
           results.created++;
-          console.log(`Created new user: ${normalizedEmail}`);
         }
       } catch (userError: any) {
-        console.log(`Error processing ${normalizedEmail}:`, userError.message);
         results.errors.push({
           email: normalizedEmail,
           error: userError.message || "خطأ غير معروف"
@@ -1344,7 +1332,6 @@ const bulkFixUserAccounts = async (
       }
     }
 
-    console.log(`Bulk fix complete: ${results.passwordReset} reset, ${results.created} created, ${results.errors.length} errors`);
 
     return {
       status: "success",
@@ -1352,7 +1339,6 @@ const bulkFixUserAccounts = async (
       message: `تم معالجة ${results.processed} مستخدم: ${results.passwordReset} إعادة تعيين كلمة المرور، ${results.created} حساب جديد`
     };
   } catch (error: any) {
-    console.log("ERROR [bulkFixUserAccounts]: ", error);
     return {
       status: "error",
       message: "فشل عملية إصلاح الحسابات",

@@ -6,7 +6,6 @@ export default function ProgramStaticsLayout(): JSX.Element {
   const location = useLocation();
 
   // Debug: Log the current pathname
-  console.log("Current pathname:", location.pathname);
 
   // More robust active state detection
   const isStatisticsActive =
@@ -17,12 +16,6 @@ export default function ProgramStaticsLayout(): JSX.Element {
 
   const isSkillsActive = location.pathname.includes("/skills");
 
-  console.log(
-    "Statistics active:",
-    isStatisticsActive,
-    "Skills active:",
-    isSkillsActive
-  );
 
   const tabItems = [
     {

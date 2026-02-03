@@ -34,7 +34,6 @@ const ClientWordCloud: React.FC<ClientWordCloudProps> = ({
           setReactWordcloud(() => module.default);
         }
       } catch (err) {
-        console.error('Failed to load react-wordcloud, using fallback:', err);
         setError(true);
       } finally {
         setLoading(false);
@@ -108,10 +107,8 @@ const ClientWordCloud: React.FC<ClientWordCloudProps> = ({
 
   const callbacks = {
     onWordClick: (word: WordData) => {
-      console.log('Word clicked:', word);
     },
     onWordMouseOver: (word: WordData) => {
-      console.log('Word hovered:', word);
     },
   };
 
@@ -128,7 +125,6 @@ const ClientWordCloud: React.FC<ClientWordCloudProps> = ({
       </div>
     );
   } catch (renderError) {
-    console.error('Error rendering react-wordcloud, using fallback:', renderError);
     return <FallbackWordCloud words={words} width={width} height={height} />;
   }
 };

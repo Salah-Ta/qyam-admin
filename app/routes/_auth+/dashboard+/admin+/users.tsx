@@ -446,13 +446,12 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
       Promise.race([regionDB.getAllRegions(DBurl), timeoutPromise]),
     ]);
 
-    return Response.json({
+    return {
       users: (usersRes as any).data || [],
       regions: (regionsRes as any).data || [],
-    });
+    };
   } catch (error) {
-    console.error("Loader error:", error);
-    return Response.json({ users: [], regions: [] });
+    return { users: [], regions: [] };
   }
 }
 
@@ -666,7 +665,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
       { status: 400 }
     );
   } catch (error) {
-    console.error("Action error:", error);
     return new Response(
       JSON.stringify({ success: false, message: "حدث خطأ أثناء العملية" }),
       { status: 500 }
@@ -681,7 +679,6 @@ export const Users = (): React.JSX.Element => {
   const loaderData = useLoaderData<{ users: QUser[]; regions: any[] }>();
   const users = Array.isArray(loaderData?.users) ? loaderData.users : (Array.isArray(loaderData) ? loaderData : []);
   const regions = loaderData?.regions || [];
-  console.log("Loader data:", users);
 
   // Create User Dialog state
   const [isCreateUserDialogOpen, setIsCreateUserDialogOpen] = useState(false);

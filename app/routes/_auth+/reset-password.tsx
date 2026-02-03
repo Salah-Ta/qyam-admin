@@ -44,7 +44,6 @@ const ResetPassword = () => {
         },
         {
           onRequest: () => {
-            console.log("Password reset request started");
           },
           onSuccess: () => {
             setLoading(false);
@@ -60,7 +59,6 @@ const ResetPassword = () => {
               description: glossary.resetPassword.toast.error,
             });
             setResetError(msg);
-            console.log("msg error in reset password", error);
           },
         }
       );

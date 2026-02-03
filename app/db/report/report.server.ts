@@ -39,7 +39,6 @@ async function getAllReports(dbUrl?: string) {
 
     return { success: true, data: reports };
   } catch (error: any) {
-    console.error("Error fetching reports:", error);
     return { success: false, error: error.message };
   }
 }
@@ -68,7 +67,6 @@ async function getReport(id: string, dbUrl?: string) {
 
     return { success: true, data: report };
   } catch (error: any) {
-    console.error("Error fetching report:", error);
     return { success: false, error: error.message };
   }
 }
@@ -146,7 +144,6 @@ async function createReport(data: CreateReportData, dbUrl?: string) {
 
     return { success: true, data: reportWithRelations };
   } catch (error: any) {
-    console.error("Error creating report:", error);
     return { success: false, error: error.message };
   }
 }
@@ -164,7 +161,6 @@ async function getAllSkills(dbUrl?: string) {
 
     return { success: true, data: skills };
   } catch (error: any) {
-    console.error("Error fetching skills:", error);
     return { success: false, error: error.message };
   }
 }
@@ -182,7 +178,6 @@ const deleteReport = async (id: string, dbUrl?: string): Promise<StatusResponse<
       message: "تم حذف التقرير بنجاح",
     };
   } catch (error: any) {
-    console.error("Error deleting report:", error);
     return {
       status: "error",
       message: "فشل حذف التقرير",
@@ -212,9 +207,7 @@ async function deleteReportsWithHighVolunteerCount(dbUrl?: string) {
       }
     });
 
-    console.log(`Found ${reportsToDelete.length} reports with volunteerCount > 200:`);
     reportsToDelete.forEach(report => {
-      console.log(`- Report ID: ${report.id}, Volunteer Count: ${report.volunteerCount}, User ID: ${report.userId}, Created: ${report.createdAt}`);
     });
 
     if (reportsToDelete.length === 0) {
@@ -235,7 +228,6 @@ async function deleteReportsWithHighVolunteerCount(dbUrl?: string) {
       }
     });
 
-    console.log(`Successfully deleted ${deleteResult.count} reports with volunteerCount > 200`);
 
     return {
       success: true,
@@ -244,7 +236,6 @@ async function deleteReportsWithHighVolunteerCount(dbUrl?: string) {
       deletedReports: reportsToDelete
     };
   } catch (error: any) {
-    console.error("Error deleting reports with high volunteer count:", error);
     return {
       success: false,
       error: error.message,
@@ -273,7 +264,6 @@ async function getRegionReports(regionId: string, dbUrl?: string) {
 
     return { success: true, data: regionReports };
   } catch (error: any) {
-    console.error("Error fetching region reports:", error);
     return { success: false, error: error.message };
   }
 }
@@ -297,7 +287,6 @@ async function getEduAdminReports(eduAdminId: string, dbUrl?: string) {
 
     return { success: true, data: eduAdminReports };
   } catch (error: any) {
-    console.error("Error fetching eduAdmin reports:", error);
     return { success: false, error: error.message };
   }
 }
@@ -321,7 +310,6 @@ async function getSchoolReports(schoolId: string, dbUrl?: string) {
 
     return { success: true, data: schoolReports };
   } catch (error: any) {
-    console.error("Error fetching school reports:", error);
     return { success: false, error: error.message };
   }
 
@@ -341,7 +329,6 @@ async function getUserTotalStats(userId: string, dbUrl?: string) {
 
     return { success: true, data: getTotalStatsFromReports(userReports) };
   } catch (error: any) {
-    console.error("Error fetching user statistics:", error);
     return { success: false, error: error.message };
   }
 }

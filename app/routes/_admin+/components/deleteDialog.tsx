@@ -25,7 +25,6 @@ const DeleteDialoug = ({
     program
   }:TProps)=>{
     const handleConfirm = (e:any) => {
-        // console.log("handle confirm");
         
         e.preventDefault();
         onConfirm(program);

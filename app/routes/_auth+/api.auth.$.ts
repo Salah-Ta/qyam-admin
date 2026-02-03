@@ -9,9 +9,7 @@ export async function loader({ request,context }: LoaderFunctionArgs) {
 
  
 export async function action({ request ,context}: ActionFunctionArgs) {
-    // console.log("The request in the action auth api:  ", request);
     const auth = getAuth(context)
-    console.log("auth in api.auth action:   ",auth, request,context);
 
 
     return auth.handler(request)

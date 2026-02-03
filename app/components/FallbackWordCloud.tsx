@@ -72,7 +72,6 @@ const FallbackWordCloud: React.FC<FallbackWordCloudProps> = ({
             key={`${word.text}-${index}`}
             style={getWordStyle(word, index)}
             className="hover:opacity-80 transition-opacity"
-            onClick={() => console.log('Word clicked:', word)}
             onMouseEnter={(e) => {
               if (containerRef.current) {
                 const rect = containerRef.current.getBoundingClientRect();

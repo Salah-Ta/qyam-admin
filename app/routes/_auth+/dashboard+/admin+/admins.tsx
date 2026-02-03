@@ -316,19 +316,14 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
   const materials = await materialDB
     .getAllMaterials(context.cloudflare.env.DATABASE_URL)
     .then((res: any) => {
-      return Response.json(res.data);
+      return res.data;
     })
     .catch(() => null);
-  console.log("Materials loaded:", materials);
 
-  // const { toast, headers } = await getToast(request);
-
-  // return Response.json({ materials, DBurl, toast, headers });
   // Fetch data from your backend
-  console.log("Fetching users from loader");
   return userDB
     .getAllUsers(context.cloudflare.env.DATABASE_URL)
-    .then((res: any) => Response.json(res.data))
+    .then((res: any) => res.data)
     .catch(() => null);
     
 }
@@ -338,7 +333,6 @@ export const Admins = (): JSX.Element => {
   const itemsPerPage = 10;
   const rawUsers = useLoaderData<QUser[]>();
   const users = Array.isArray(rawUsers) ? rawUsers : []; // Fetch users from loader with safe navigation
-  console.log("users from API:", users); // This will log the data returned from loader
 
   metricsData.students.value = users
     .reduce((acc, user) => acc + (user?.noStudents || 0), 0)
@@ -355,7 +349,6 @@ export const Admins = (): JSX.Element => {
     )
     .length.toString();
 
-  console.log("Metrics Data:", metricsData);
   // filter users based on role user with safe navigation
   const filteredUsers = users.filter(
     (user) => user?.role?.toLowerCase() === "supervisor" || user?.role === "مشرف"
@@ -380,7 +373,6 @@ export const Admins = (): JSX.Element => {
  
     return matchesSearch && matchesAcceptance;
   });
-  console.log("Filtered Data:", filteredData);
 
   const selectedBadgeStyle = {
     background: "#22c55e", // Tailwind's green-500
@@ -650,7 +642,7 @@ const statusTranslation = {
                         </TableCell>
                         <TableCell className="py-1 px-2 text-right max-md:hidden ">
                           <span className=" font-medium text-[#027163] text-base [direction:rtl]">
-                            {row?.region || '-'}
+                            {row?.regionName || row?.region || '-'}
                           </span>
                         </TableCell>
                         <TableCell className="py-1 px-2 text-right max-md:hidden ">

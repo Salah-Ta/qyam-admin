@@ -8,7 +8,7 @@ export async function loader({ context }: LoaderFunctionArgs) {
   return articleDB
     .getAllArticles(context.cloudflare.env.DATABASE_URL)
     .then((res) => {
-      return Response.json(res.data);
+      return res.data;
     })
     .catch(() => {
       return [];

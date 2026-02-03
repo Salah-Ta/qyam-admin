@@ -1,8 +1,9 @@
-import { LoaderFunctionArgs, json, ActionFunctionArgs } from "@remix-run/cloudflare";
+import { LoaderFunctionArgs, ActionFunctionArgs, data } from "@remix-run/cloudflare";
 import materialDB from "~/db/material/material.server";
 import reportDB from "~/db/report/report.server";
 import skillDB from "~/db/skill/skill.server";
 import messageDB from "~/db/message/message.server";
+import userDB from "~/db/user/user.server";
 import { getAuthenticated } from "~/lib/get-authenticated.server";
 import { MinusCircleIcon, XIcon, CheckIcon } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "./assets/avatar";
@@ -47,6 +48,18 @@ export async function loader({
 
   // Fetch other data as needed
   const DBurl = context.cloudflare.env.DATABASE_URL;
+
+  // Fetch enriched user with region/eduAdmin/school names
+  let enrichedUser = null;
+  try {
+    const userResult = await userDB.getUser(currentUser.id, DBurl);
+    if (userResult.status === "success" && userResult.data) {
+      enrichedUser = Array.isArray(userResult.data) ? userResult.data[0] : userResult.data;
+    }
+  } catch (error) {
+    // Fall back to basic user from auth
+  }
+
   const materials = await materialDB.getAllMaterials(
     context.cloudflare.env.DATABASE_URL
   );
@@ -73,17 +86,17 @@ export async function loader({
       allMessages = messagesResult.data; // Get all messages
     }
   } catch (error) {
-    console.error("Error fetching messages:", error);
     // Continue without messages
   }
 
-  return Response.json({
+  return data({
     materials: materials.data,
     DBurl,
     reports: reports.data,
     skills: skills.data,
     allMessages,
-    latestMessage: allMessages.length > 0 ? allMessages[0] : null, // Keep for backward compatibility
+    latestMessage: allMessages.length > 0 ? allMessages[0] : null,
+    enrichedUser,
   });
 }
 
@@ -91,7 +104,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
   const currentUser = await getAuthenticated({ request, context });
 
   if (!currentUser) {
-    return Response.json(
+    return data(
       {
         status: "error",
         message: "غير مخول للوصول",
@@ -108,7 +121,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const messageId = formData.get("messageId")?.toString();
 
     if (!messageId) {
-      return Response.json(
+      return data(
         {
           status: "error",
           message: "معرف الرسالة مطلوب",
@@ -119,14 +132,13 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
     try {
       const result = await messageDB.markAsRead(messageId, DBurl);
-      return Response.json({
+      return data({
         status: "success",
         message: "تم تحديث حالة الرسالة بنجاح",
         data: result,
       });
     } catch (error) {
-      console.error("Error marking message as read:", error);
-      return Response.json(
+      return data(
         {
           status: "error",
           message: "فشل في تحديث حالة الرسالة",
@@ -138,34 +150,27 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
   // Original report creation logic
   const reportData = JSON.parse(formData.get("reportData") as string);
-  console.log("Received report data:", reportData);
 
   try {
     await reportDB.createReport(reportData, DBurl);
-    return json({ success: true });
+    return { success: true };
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : "An unknown error occurred";
-    return json(
-      { success: false, error: errorMessage },
-      { status: 500 }
-    );
+    return { success: false, error: errorMessage };
   }
 }
 
 export const TrainerProfile = () => {
-  const { user } = useRouteLoaderData<any>("root");
-  const { materials, DBurl, reports, skills, latestMessage, allMessages = [] } = useLoaderData<any>();
+  const { user: rootUser } = useRouteLoaderData<any>("root");
+  const { materials, DBurl, reports, skills, latestMessage, allMessages = [], enrichedUser } = useLoaderData<any>();
+  const user = enrichedUser || rootUser;
   const actionData = useActionData<any>();
   const navigation = useNavigation();
 
   // State for showing all messages
   const [showAllMessages, setShowAllMessages] = useState(false);
 
-  console.log(user, materials, reports);
-  console.log("All Skills:", skills);
-  console.log("Latest Message:", latestMessage);
-  console.log("All Messages:", allMessages);
 
   // Show toast if present
 
@@ -184,9 +189,6 @@ export const TrainerProfile = () => {
   const [submitMessage, setSubmitMessage] = useState("");
 
   // Debug logging
-  console.log("Navigation state:", navigation.state, "Form method:", navigation.formMethod);
-  console.log("Action data:", actionData);
-  console.log("Show submit popup:", showSubmitPopup, "Submit status:", submitStatus);
 
   // Function to reset all form data
   const resetFormData = React.useCallback(() => {
@@ -246,7 +248,6 @@ export const TrainerProfile = () => {
   React.useEffect(() => {
     if (actionData && actionData.status === "success" && actionData.message === "تم تحديث حالة الرسالة بنجاح") {
       // Message was marked as read successfully
-      console.log("Message marked as read successfully");
       // The loader will automatically refresh the data
     }
   }, [actionData]);
@@ -294,7 +295,6 @@ export const TrainerProfile = () => {
       })),
     };
 
-    console.log("Submitting report data:", latestReportData);
 
     const formData = new FormData();
     formData.append("reportData", JSON.stringify(latestReportData));
@@ -378,9 +378,9 @@ export const TrainerProfile = () => {
       id: 4,
       label: "المنطقة : ",
       icon: region,
-      key: "region",
+      key: "regionName",
     },
-    { id: 5, label: "الإدارة : ", icon: null, key: "education" },
+    { id: 5, label: "الإدارة : ", icon: null, key: "eduAdminName" },
   ];
 
   // Helper function to format time ago
@@ -508,8 +508,6 @@ export const TrainerProfile = () => {
     field: keyof CreateReportData,
     value: string
   ) => {
-    console.log(`Updating field ${field} with value:`, value);
-    console.log(` reportData: ---- `, reportData);
 
     setReportData((prev) => ({
       ...prev,
@@ -568,11 +566,9 @@ export const TrainerProfile = () => {
   React.useEffect(() => {
     // If we have action data and popup is showing, process the response
     if (actionData && showSubmitPopup) {
-      console.log("Processing action data:", actionData);
       
       if (actionData.success === true) {
         // Success case
-        console.log("Success detected");
         setSubmitStatus('success');
         setSubmitMessage('شكراً لك على إرسال التقرير. تم حفظ جميع البيانات بنجاح وسيتم مراجعتها قريباً.');
         
@@ -588,7 +584,6 @@ export const TrainerProfile = () => {
         }, 4000);
       } else if (actionData.success === false) {
         // Error case
-        console.log("Error detected:", actionData.error);
         setSubmitStatus('error');
         setSubmitMessage(actionData.error || 'حدث خطأ أثناء إرسال التقرير. يرجى المحاولة مرة أخرى.');
       }
@@ -598,7 +593,6 @@ export const TrainerProfile = () => {
   // Fallback: If navigation becomes idle but we're still loading, assume success
   React.useEffect(() => {
     if (navigation.state === "idle" && showSubmitPopup && submitStatus === 'loading' && navigation.formMethod === "post") {
-      console.log("Fallback success trigger - no action data but submission completed");
       setSubmitStatus('success');
       setSubmitMessage('تم إرسال التقرير بنجاح!');
       
@@ -616,7 +610,6 @@ export const TrainerProfile = () => {
   // Populate skills from API when component loads
   React.useEffect(() => {
     if (skills && Array.isArray(skills) && skills.length > 0) {
-      console.log("Populating skills from API:", skills);
       
       // Transform API skills to match component format
       const apiSkills = skills.map((skill: any) => ({
@@ -631,7 +624,6 @@ export const TrainerProfile = () => {
       const column3 = apiSkills.slice(Math.ceil(apiSkills.length * 2 / 3));
       
       setSkillsColumns([column1, column2, column3]);
-      console.log("Skills columns populated:", [column1, column2, column3]);
     }
   }, [skills]); // Dependency on skills to run when skills are loaded
 

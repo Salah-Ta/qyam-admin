@@ -15,7 +15,6 @@ const getAllRegions = (dbUrl: string): Promise<StatusResponse<Region[]>> => {
         resolve({ status: "success", data: res });
       })
       .catch((error: any) => {
-        console.log("ERROR [getAllRegions]: ", error);
         reject({
           status: "error",
           message: glossary.status_response.error.general,
@@ -35,7 +34,6 @@ const getRegion = (id: string, dbUrl: string): Promise<StatusResponse<Region>> =
         resolve({ status: "success", data: res });
       })
       .catch((error: any) => {
-        console.log("ERROR [getRegion]: ", error);
         reject({
           status: "error",
           message: glossary.status_response.error.general,
@@ -59,7 +57,6 @@ const createRegion = (name: string, dbUrl: string): Promise<StatusResponse<Regio
         });
       })
       .catch((error: any) => {
-        console.log("ERROR [createRegion]: ", error);
         reject({
           status: "error",
           message: "فشل إضافة المنطقة",
@@ -83,7 +80,6 @@ const updateRegion = (id: string, name: string, dbUrl: string): Promise<StatusRe
         });
       })
       .catch((error: any) => {
-        console.log("ERROR [updateRegion]: ", error);
         reject({
           status: "error",
           message: "فشل تحديث المنطقة",
@@ -106,7 +102,6 @@ const deleteRegion = (id: string, dbUrl: string): Promise<StatusResponse<null>> 
         });
       })
       .catch((error: any) => {
-        console.log("ERROR [deleteRegion]: ", error);
         reject({
           status: "error",
           message: "فشل حذف المنطقة",
