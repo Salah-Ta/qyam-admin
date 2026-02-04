@@ -270,7 +270,7 @@ export async function generateCertificatePDF(
     // Draw coordinator (المنسقة) name at bottom left of certificate
     if (certificateData.coordinator) {
       const coordinatorX = 145;
-      const coordinatorY = 80;
+      const coordinatorY = 50;
 
       drawArabicText(
         page,
