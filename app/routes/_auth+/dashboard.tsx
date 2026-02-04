@@ -41,11 +41,18 @@ import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@radix-ui/react-avatar";
 import ProfileImage from "../../assets/images/profile.png";
 export async function loader({ request, context }: LoaderFunctionArgs) {
-  const user = await getAuthenticated({ request, context });
-  if (!user) return null;
-  if (user) return user;
-  // else if ((user as QUser).acceptenceState === "accepted") return redirect("/");
-  // else return redirect(`/404?status=${(user as QUser).acceptenceState}`);
+  try {
+    const user = await Promise.race([
+      getAuthenticated({ request, context }),
+      new Promise<null>((_, reject) =>
+        setTimeout(() => reject(new Error("Auth timeout")), 10000)
+      ),
+    ]);
+    if (!user) return null;
+    if (user) return user;
+  } catch {
+    return null;
+  }
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
