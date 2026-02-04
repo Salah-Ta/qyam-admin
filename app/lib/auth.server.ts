@@ -113,7 +113,7 @@ export const getAuth = (context: AppLoadContext) => {
       },
     },
     database: prismaAdapter(
-      client(context.cloudflare.env.DATABASE_URL) as any,
+      dbClient as any,
       {
         provider: "postgresql",
       }
