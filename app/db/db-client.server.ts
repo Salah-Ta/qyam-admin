@@ -6,9 +6,6 @@ import { AppLoadContext } from "@remix-run/cloudflare";
 import ws from "ws";
 neonConfig.webSocketConstructor = ws;
 
-// Cache PrismaClient per connection string to avoid creating multiple pools per request
-const clientCache = new Map<string, PrismaClient>();
-
 export const createPrismaClient = (dbUrl?: string, context?: AppLoadContext): PrismaClient => {
   let connectionString = dbUrl ||
                         context?.cloudflare?.env?.DATABASE_URL ||
@@ -16,12 +13,6 @@ export const createPrismaClient = (dbUrl?: string, context?: AppLoadContext): Pr
 
   if (!connectionString) {
     throw new Error("No database connection string found in any source");
-  }
-
-  // Return cached client if one exists for this connection string
-  const cached = clientCache.get(connectionString);
-  if (cached) {
-    return cached;
   }
 
   try {
@@ -34,13 +25,10 @@ export const createPrismaClient = (dbUrl?: string, context?: AppLoadContext): Pr
       });
 
       const adapter = new PrismaNeon(pool);
-      const prisma = new PrismaClient({
+      return new PrismaClient({
         adapter,
         log: ['error'],
       });
-
-      clientCache.set(connectionString, prisma);
-      return prisma;
 
   } catch (e) {
     throw e;
