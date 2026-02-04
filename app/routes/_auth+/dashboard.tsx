@@ -42,7 +42,6 @@ import { Avatar, AvatarImage, AvatarFallback } from "@radix-ui/react-avatar";
 import ProfileImage from "../../assets/images/profile.png";
 export async function loader({ request, context }: LoaderFunctionArgs) {
   const user = await getAuthenticated({ request, context });
-  console.clear();
   if (!user) return null;
   if (user) return user;
   // else if ((user as QUser).acceptenceState === "accepted") return redirect("/");
