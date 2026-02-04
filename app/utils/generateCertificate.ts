@@ -212,9 +212,9 @@ export async function generateCertificatePDF(
     const { width, height } = page.getSize();
 
     const fullNameX = 380 + width * 0.10;
-    const administrationX = 480 + width * 0.10;
+    const schoolX = 480 + width * 0.10;
 
-    const administrationY = height / 2 + 8 - 2;
+    const schoolY = height / 2 + 8 - 2;
     const fullNameY = height / 2 - 27 - 5;
 
     // Draw fullName
@@ -231,14 +231,14 @@ export async function generateCertificatePDF(
       );
     }
 
-    // Draw administration
-    if (certificateData.administration) {
+    // Draw school (المدرسة)
+    if (certificateData.school) {
       drawArabicText(
         page,
         selectedFont,
-        certificateData.administration,
-        administrationX,
-        administrationY,
+        certificateData.school,
+        schoolX,
+        schoolY,
         16,
         [0.3, 0.3, 0.3],
         "right"
@@ -267,30 +267,17 @@ export async function generateCertificatePDF(
       );
     }
 
-    // Cover "منسقة التطوع" text with white rectangle and draw coordinator name
-    // Position at bottom left of certificate
-    const coverX = 70;
-    const coverY = 100;
-    const coverWidth = 150;
-    const coverHeight = 30;
-
-    // Draw white rectangle to cover existing text
-    page.drawRectangle({
-      x: coverX,
-      y: coverY,
-      width: coverWidth,
-      height: coverHeight,
-      color: rgb(1, 1, 1), // White
-    });
-
-    // Draw coordinator (المنسقة) name in the covered area
+    // Draw coordinator (المنسقة) name at bottom left of certificate
     if (certificateData.coordinator) {
+      const coordinatorX = 145;
+      const coordinatorY = 80;
+
       drawArabicText(
         page,
         arabicFontBold,
         certificateData.coordinator,
-        coverX + coverWidth / 2,
-        coverY + 10,
+        coordinatorX,
+        coordinatorY,
         12,
         [0.3, 0.3, 0.3],
         "center"

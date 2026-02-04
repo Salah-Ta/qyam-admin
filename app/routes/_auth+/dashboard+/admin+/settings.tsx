@@ -1932,14 +1932,7 @@ export const ManageData = (): JSX.Element => {
                           >
                             <span className="text-white text-sm font-bold">+</span>
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteClick("eduAdmin", eduAdmin.id, eduAdmin.name)}
-                            className="w-8 h-8 bg-red-500 rounded-lg flex items-center justify-center hover:bg-red-600 transition-colors shadow-sm shrink-0"
-                            title="حذف الإدارة"
-                          >
-                            <XIcon className="w-5 h-5 text-white" />
-                          </button>
+                          {/* Delete button hidden - foreign key constraints prevent deletion */}
                         </div>
                       </div>
 
