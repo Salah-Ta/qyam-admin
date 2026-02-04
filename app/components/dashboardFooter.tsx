@@ -108,7 +108,7 @@ const DashboardFooter = (): JSX.Element => {
                 <div className="relative flex-1 mt-[-1.00px] font-normal text-white text-base text-left tracking-[0] leading-6 [direction:rtl]">
                   © جميع الحقوق محفوظة لجمعية رواء العلم.
                 </div>
-                <span className="text-white/60 text-xs">v1.2.16</span>
+                <span className="text-white/60 text-xs">v1.2.17</span>
               </div>
             </div>
           </footer>

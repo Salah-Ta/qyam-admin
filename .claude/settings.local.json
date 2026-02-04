@@ -39,7 +39,17 @@
       "Bash(git add:*)",
       "Bash(npx eslint:*)",
       "Bash(node:*)",
-      "Bash(git status:*)"
+      "Bash(git status:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfeat: remove console statements, fix navigation, display names, and add coordinator to certificates\n\n- Remove all console.log/error/warn statements across 66 files\n- Fix admin users back button to navigate based on user role\n- Fix region/eduAdmin/school name display across trainer profile,\n  allTrainers, admins, cp/users, and cp/users detail pages\n- Add coordinator \\(المنسقة\\) field to certificate form and PDF generation\n- Improve MaterialManagement search/sort UI styling\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nchore: bump version to v1.2.11\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(CLOUDFLARE_ACCOUNT_ID=e8d9f88be00c353b8171b285efcee10a npm run deploy:*)",
+      "Bash(ls:*)",
+      "Bash(npm ls:*)",
+      "Bash(CLOUDFLARE_ACCOUNT_ID=e8d9f88be00c353b8171b285efcee10a npx wrangler pages deployment list:*)",
+      "Bash(curl:*)",
+      "Bash(git commit:*)",
+      "Bash(CLOUDFLARE_ACCOUNT_ID=e8d9f88be00c353b8171b285efcee10a npm run build:*)",
+      "Bash(CLOUDFLARE_ACCOUNT_ID=e8d9f88be00c353b8171b285efcee10a npx wrangler pages deploy:*)"
     ]
   }
 }

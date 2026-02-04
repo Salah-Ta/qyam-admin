@@ -13,7 +13,7 @@ npm run dev          # Start development server
 npm run build        # Build for production (copies fonts, updates sprites, runs vite build)
 npm run typecheck    # TypeScript type checking
 npm run lint         # ESLint
-npm run deploy       # Build and deploy to Cloudflare Pages
+npm run deploy       # Build and deploy to Cloudflare Pages (see Deployment section below)
 npm run preview      # Build and preview locally with Wrangler
 
 # Database
@@ -111,3 +111,19 @@ This project uses `v3_singleFetch: true` which enables turbo-stream encoding. **
 - **Redirects**: `redirect()` from `@remix-run/cloudflare` is still correct
 
 An ESLint rule enforces this: `no-restricted-syntax` flags `Response.json()` in route files.
+
+### Deployment (IMPORTANT)
+
+**Cloudflare Account**: The project is under `Mar46ramadan@gmail.com`'s account (`e8d9f88be00c353b8171b285efcee10a`). When deploying from a machine with multiple Cloudflare accounts, set the env var:
+```bash
+CLOUDFLARE_ACCOUNT_ID=e8d9f88be00c353b8171b285efcee10a
+```
+
+**WASM bundling issue**: Wrangler's default esbuild bundling corrupts the Prisma WASM query engine module, causing deployment failures with `WasmModuleObject::Compile` errors. Since Vite already bundles everything, wrangler's bundling step is redundant. **Always deploy with `--no-bundle`**:
+```bash
+CLOUDFLARE_ACCOUNT_ID=e8d9f88be00c353b8171b285efcee10a npm run build && wrangler pages deploy --no-bundle
+```
+
+**`npm run db:generate`** only regenerates TypeScript types and the WASM query engine from `schema.prisma`. It does NOT touch the database. Safe to run anytime. On Windows/OneDrive, you may need to `rm -f node_modules/.prisma/client/query_engine-windows.dll.node` first if you get permission errors.
+
+**`npm install`** requires `--legacy-peer-deps` flag due to `react-wordcloud` peer dependency conflict.
