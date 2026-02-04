@@ -22,6 +22,8 @@ import {
   useLoaderData,
   useRouteLoaderData,
   useFetcher,
+  useSearchParams,
+  useNavigation,
 } from "@remix-run/react";
 import { QUser } from "~/types/types";
 import { Link } from "@remix-run/react";
@@ -432,26 +434,61 @@ const metricsData = {
 };
 
 // Loader for Remix
-export async function loader({ request, context, params }: LoaderFunctionArgs) {
+export async function loader({ request, context }: LoaderFunctionArgs) {
   const DBurl = context.cloudflare.env.DATABASE_URL;
+  const url = new URL(request.url);
+  const page = Math.max(1, parseInt(url.searchParams.get("page") || "1", 10));
+  const search = url.searchParams.get("search") || "";
+  const acceptanceState = url.searchParams.get("acceptanceState") || "";
 
   try {
-    // Add timeout to prevent worker from hanging
     const timeoutPromise = new Promise((_, reject) =>
       setTimeout(() => reject(new Error("Database operation timeout")), 15000)
     );
 
     const [usersRes, regionsRes] = await Promise.all([
-      Promise.race([userDB.getAllUsers(DBurl), timeoutPromise]),
+      Promise.race([
+        userDB.getPaginatedUsers({
+          page,
+          limit: 10,
+          search: search || undefined,
+          acceptanceState: acceptanceState || undefined,
+          dbUrl: DBurl,
+        }),
+        timeoutPromise,
+      ]),
       Promise.race([regionDB.getAllRegions(DBurl), timeoutPromise]),
     ]);
 
+    const paginatedData = (usersRes as any).data || {
+      users: [],
+      totalCount: 0,
+      totalPages: 1,
+      currentPage: 1,
+      metrics: { students: 0, trainers: 0, supervisors: 0 },
+    };
+
     return {
-      users: (usersRes as any).data || [],
+      users: paginatedData.users,
       regions: (regionsRes as any).data || [],
+      totalPages: paginatedData.totalPages,
+      totalCount: paginatedData.totalCount,
+      currentPage: paginatedData.currentPage,
+      metrics: paginatedData.metrics,
+      search,
+      acceptanceState,
     };
   } catch (error) {
-    return { users: [], regions: [] };
+    return {
+      users: [],
+      regions: [],
+      totalPages: 1,
+      totalCount: 0,
+      currentPage: 1,
+      metrics: { students: 0, trainers: 0, supervisors: 0 },
+      search: "",
+      acceptanceState: "",
+    };
   }
 }
 
@@ -673,12 +710,66 @@ export async function action({ request, context }: ActionFunctionArgs) {
 }
 
 export const Users = (): React.JSX.Element => {
-  // State and data
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
-  const loaderData = useLoaderData<{ users: QUser[]; regions: any[] }>();
-  const users = Array.isArray(loaderData?.users) ? loaderData.users : (Array.isArray(loaderData) ? loaderData : []);
+  // URL-based state for search, filter, pagination
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigation = useNavigation();
+  const isNavigating = navigation.state === "loading";
+
+  const loaderData = useLoaderData<{
+    users: QUser[];
+    regions: any[];
+    totalPages: number;
+    totalCount: number;
+    currentPage: number;
+    metrics: { students: number; trainers: number; supervisors: number };
+    search: string;
+    acceptanceState: string;
+  }>();
+  const users = Array.isArray(loaderData?.users) ? loaderData.users : [];
   const regions = loaderData?.regions || [];
+  const totalPages = loaderData?.totalPages || 1;
+  const currentPage = loaderData?.currentPage || 1;
+  const serverSearch = loaderData?.search || "";
+  const serverAcceptanceState = loaderData?.acceptanceState || "";
+  const metrics = loaderData?.metrics || { students: 0, trainers: 0, supervisors: 0 };
+
+  // Local search input state for debouncing
+  const [searchInput, setSearchInput] = useState(serverSearch);
+
+  // Debounce search: update URL params after 400ms of no typing
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchInput !== serverSearch) {
+        const params = new URLSearchParams(searchParams);
+        if (searchInput) {
+          params.set("search", searchInput);
+        } else {
+          params.delete("search");
+        }
+        params.set("page", "1"); // Reset to page 1 on search
+        setSearchParams(params, { replace: true });
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  // Sync search input when server data changes (e.g. back/forward navigation)
+  useEffect(() => {
+    setSearchInput(serverSearch);
+  }, [serverSearch]);
+
+  // Helper to update URL params
+  const updateParams = (updates: Record<string, string | null>) => {
+    const params = new URLSearchParams(searchParams);
+    for (const [key, value] of Object.entries(updates)) {
+      if (value === null || value === "") {
+        params.delete(key);
+      } else {
+        params.set(key, value);
+      }
+    }
+    setSearchParams(params, { replace: true });
+  };
 
   // Create User Dialog state
   const [isCreateUserDialogOpen, setIsCreateUserDialogOpen] = useState(false);
@@ -794,35 +885,13 @@ export const Users = (): React.JSX.Element => {
     }
   };
 
-  // Metrics calculation
-  metricsData.students.value = users
-    .reduce((acc, user) => acc + (user?.noStudents || 0), 0)
-    .toString();
-  metricsData.teachers.value = users
-    .filter((user) => user?.role === "user")
-    .length.toString();
-  metricsData.supervisors.value = users
-    .filter((user) =>
-      ["مشرف", "supervisor", "SUPERVISOR"].includes(user?.role || "")
-    )
-    .length.toString();
+  // Metrics from server
+  metricsData.students.value = metrics.students.toString();
+  metricsData.teachers.value = metrics.trainers.toString();
+  metricsData.supervisors.value = metrics.supervisors.toString();
 
-  // Filtering
-  const [search, setSearch] = useState("");
-  const [acceptanceStateFilter, setAcceptanceStateFilter] = useState<
-    string | null
-  >(null);
-
-  const filteredUsers = users;
-  const filteredData = filteredUsers.filter((row) => {
-    const matchesSearch =
-      row?.name?.toLowerCase().includes(search.toLowerCase()) ||
-      row?.phone?.toString().includes(search) ||
-      row?.email?.toLowerCase().includes(search.toLowerCase());
-    const matchesAcceptance =
-      !acceptanceStateFilter || row?.acceptenceState === acceptanceStateFilter;
-    return matchesSearch && matchesAcceptance;
-  });
+  // Current acceptance state filter from URL
+  const acceptanceStateFilter = serverAcceptanceState || null;
 
   // Badge styles
   const selectedBadgeStyle = {
@@ -835,15 +904,14 @@ export const Users = (): React.JSX.Element => {
     color: "#22c55e",
     border: "1px solid #22c55e",
   };
-  const handleBadgeClick = (state: string) =>
-    setAcceptanceStateFilter((prev) => (prev === state ? null : state));
+  const handleBadgeClick = (state: string) => {
+    const newState = acceptanceStateFilter === state ? null : state;
+    updateParams({ acceptanceState: newState, page: "1" });
+  };
 
-  // Pagination
-  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
-  const getCurrentPageData = () => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    return filteredData.slice(startIndex, endIndex);
+  // Pagination via URL
+  const goToPage = (page: number) => {
+    updateParams({ page: page.toString() });
   };
 
   // Checkbox selection
@@ -1328,8 +1396,8 @@ export const Users = (): React.JSX.Element => {
                         <input
                           type="text"
                           placeholder="بحث"
-                          value={search}
-                          onChange={(e) => setSearch(e.target.value)}
+                          value={searchInput}
+                          onChange={(e) => setSearchInput(e.target.value)}
                           style={{
                             marginLeft: "8px",
                             background: "white",
@@ -1366,7 +1434,7 @@ export const Users = (): React.JSX.Element => {
                 src="https://c.animaapp.com/m9qfyf0iFAAeZK/img/vector-9.svg"
               />
               {/* Table */}
-              <div className="w-full">
+              <div className={`w-full ${isNavigating ? "opacity-50 pointer-events-none" : ""}`}>
                 <Table>
                   <TableHeader>
                     <TableRow className="mb-4 border-[#e4e7ec]  ">
@@ -1400,7 +1468,7 @@ export const Users = (): React.JSX.Element => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {getCurrentPageData().map((row:any, index) => (
+                    {users.map((row:any, index) => (
                       <TableRow
                         key={index}
                         className={`border-b border-[#e4e7ec] ${
@@ -1589,7 +1657,7 @@ export const Users = (): React.JSX.Element => {
                       variant="outline"
                       className="flex items-center gap-2 px-4 py-2.5 rounded-[0px_8px_8px_0px] border border-solid border-[#cfd4dc]"
                       onClick={() =>
-                        setCurrentPage(Math.max(1, currentPage - 1))
+                        goToPage(Math.max(1, currentPage - 1))
                       }
                       disabled={currentPage === 1}
                     >
@@ -1613,7 +1681,7 @@ export const Users = (): React.JSX.Element => {
                           >
                             <PaginationLink
                               className="w-10 h-10 flex items-center justify-center border-t border-b border-[#cfd4dc] font-medium"
-                              onClick={() => setCurrentPage(pageNumber)}
+                              onClick={() => goToPage(pageNumber)}
                             >
                               {pageNumber}
                             </PaginationLink>
@@ -1637,7 +1705,7 @@ export const Users = (): React.JSX.Element => {
                       variant="outline"
                       className="flex items-center gap-2 px-4 py-2.5 [direction:rtl] rounded-[8px_0px_0px_8px] border border-solid border-[#cfd4dc]"
                       onClick={() =>
-                        setCurrentPage(Math.min(totalPages, currentPage + 1))
+                        goToPage(Math.min(totalPages, currentPage + 1))
                       }
                       disabled={currentPage === totalPages}
                     >

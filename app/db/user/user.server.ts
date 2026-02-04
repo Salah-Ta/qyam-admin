@@ -1347,10 +1347,112 @@ const bulkFixUserAccounts = async (
   }
 };
 
+const getPaginatedUsers = async (options: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  acceptanceState?: string;
+  dbUrl?: string;
+}): Promise<StatusResponse<{
+  users: QUser[];
+  totalCount: number;
+  totalPages: number;
+  currentPage: number;
+  metrics: { students: number; trainers: number; supervisors: number };
+}>> => {
+  const { page = 1, limit = 10, search, acceptanceState, dbUrl } = options;
+  const db = initializeDatabase(dbUrl);
+
+  try {
+    // Build where clause for search/filter
+    const where: any = {};
+
+    if (search) {
+      const conditions: any[] = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+      ];
+      // Match phone if search is numeric
+      const phoneNum = parseInt(search, 10);
+      if (!isNaN(phoneNum) && search === phoneNum.toString()) {
+        conditions.push({ phone: phoneNum });
+      }
+      where.OR = conditions;
+    }
+
+    if (acceptanceState) {
+      where.acceptenceState = acceptanceState;
+    }
+
+    // Run paginated query, count, and global metrics in parallel
+    const [totalCount, users, studentsAgg, trainerCount, supervisorCount] = await Promise.all([
+      db.user.count({ where }),
+      db.user.findMany({
+        where,
+        orderBy: { name: 'asc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      // Global metrics (unfiltered)
+      db.user.aggregate({ _sum: { noStudents: true } }),
+      db.user.count({ where: { role: 'user' } }),
+      db.user.count({ where: { role: { in: ['مشرف', 'supervisor', 'SUPERVISOR'] } } }),
+    ]);
+
+    const totalPages = Math.ceil(totalCount / limit);
+
+    // Fetch related entity names for the current page only
+    const regionIds = [...new Set(users.map(u => u.regionId).filter((id): id is string => !!id))];
+    const eduAdminIds = [...new Set(users.map(u => u.eduAdminId).filter((id): id is string => !!id))];
+    const schoolIds = [...new Set(users.map(u => u.schoolId).filter((id): id is string => !!id))];
+
+    const [regions, eduAdmins, schools] = await Promise.all([
+      regionIds.length > 0 ? db.region.findMany({ where: { id: { in: regionIds } }, select: { id: true, name: true } }) : [],
+      eduAdminIds.length > 0 ? db.eduAdmin.findMany({ where: { id: { in: eduAdminIds } }, select: { id: true, name: true } }) : [],
+      schoolIds.length > 0 ? db.school.findMany({ where: { id: { in: schoolIds } }, select: { id: true, name: true } }) : [],
+    ]);
+
+    const regionMap = new Map(regions.map(r => [r.id, r.name]));
+    const eduAdminMap = new Map(eduAdmins.map(e => [e.id, e.name]));
+    const schoolMap = new Map(schools.map(s => [s.id, s.name]));
+
+    const transformedUsers = users.map(user => ({
+      ...user,
+      regionName: user.regionId ? regionMap.get(user.regionId) || null : null,
+      eduAdminName: user.eduAdminId ? eduAdminMap.get(user.eduAdminId) || null : null,
+      schoolName: user.schoolId ? schoolMap.get(user.schoolId) || null : null,
+      userRegion: user.regionId ? { id: user.regionId, name: regionMap.get(user.regionId) || null } : null,
+      userEduAdmin: user.eduAdminId ? { id: user.eduAdminId, name: eduAdminMap.get(user.eduAdminId) || null } : null,
+      userSchool: user.schoolId ? { id: user.schoolId, name: schoolMap.get(user.schoolId) || null } : null,
+    })) as QUser[];
+
+    return {
+      status: "success",
+      data: {
+        users: transformedUsers,
+        totalCount,
+        totalPages,
+        currentPage: page,
+        metrics: {
+          students: studentsAgg._sum.noStudents || 0,
+          trainers: trainerCount,
+          supervisors: supervisorCount,
+        },
+      },
+    };
+  } catch (error) {
+    return {
+      status: "error",
+      message: glossary.status_response.error.general,
+    };
+  }
+};
+
 export default {
   editUserRegisteration,
   bulkEditUserRegisteration,
   getAllUsers,
+  getPaginatedUsers,
   getUser,
   getUserByEmail,
   createUser,
