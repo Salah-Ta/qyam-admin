@@ -4,7 +4,15 @@ import { PrismaClient } from "@prisma/client";
 import { AppLoadContext } from "@remix-run/cloudflare";
 
 import ws from "ws";
-neonConfig.webSocketConstructor = ws;
+
+// Only use Node.js ws in local dev where native WebSocket may not exist.
+// In Cloudflare Workers, the native WebSocket is faster and more reliable.
+if (!globalThis.WebSocket) {
+  neonConfig.webSocketConstructor = ws;
+}
+
+// Enable connection caching for faster subsequent connections
+neonConfig.fetchConnectionCache = true;
 
 export const createPrismaClient = (dbUrl?: string, context?: AppLoadContext): PrismaClient => {
   let connectionString = dbUrl ||
@@ -20,7 +28,7 @@ export const createPrismaClient = (dbUrl?: string, context?: AppLoadContext): Pr
       const pool = new Pool({
         connectionString: connectionString,
         max: 5,
-        connectionTimeoutMillis: 10000,
+        connectionTimeoutMillis: 5000,
         idleTimeoutMillis: 30000,
       });
 
