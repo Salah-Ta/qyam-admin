@@ -21,8 +21,10 @@ export const createPrismaClient = (dbUrl?: string, context?: AppLoadContext): Pr
       const pool = new Pool({
         connectionString: connectionString,
         max: 1,
-        connectionTimeoutMillis: 15000,
-        idleTimeoutMillis: 10000,
+        connectionTimeoutMillis: 10000,
+        idleTimeoutMillis: 30000,
+        maxUses: 1,
+        allowExitOnIdle: true
       });
 
       const adapter = new PrismaNeon(pool);
