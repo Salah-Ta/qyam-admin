@@ -1750,21 +1750,13 @@ export const Users = (): React.JSX.Element => {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 المنطقة
               </label>
-              <Select
+              <SearchableSelect
+                options={regions.map((region: any) => ({ value: region.id, label: region.name }))}
                 value={createUserForm.regionId}
-                onValueChange={(value) => setCreateUserForm({ ...createUserForm, regionId: value })}
-              >
-                <SelectTrigger className="w-full h-11 text-right">
-                  <SelectValue placeholder="اختر المنطقة" />
-                </SelectTrigger>
-                <SelectContent>
-                  {regions.map((region: any) => (
-                    <SelectItem key={region.id} value={region.id}>
-                      {region.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onValueChange={(value) => setCreateUserForm({ ...createUserForm, regionId: value, eduAdminId: "", schoolId: "" })}
+                placeholder="اختر المنطقة"
+                searchPlaceholder="بحث عن منطقة..."
+              />
             </div>
 
             {/* EduAdmin */}
@@ -1772,28 +1764,20 @@ export const Users = (): React.JSX.Element => {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 الإدارة التعليمية
               </label>
-              <Select
+              <SearchableSelect
+                options={eduAdmins.map((eduAdmin) => ({ value: eduAdmin.id, label: eduAdmin.name }))}
                 value={createUserForm.eduAdminId}
-                onValueChange={(value) => setCreateUserForm({ ...createUserForm, eduAdminId: value })}
+                onValueChange={(value) => setCreateUserForm({ ...createUserForm, eduAdminId: value, schoolId: "" })}
+                placeholder={
+                  !createUserForm.regionId
+                    ? "اختر المنطقة أولاً"
+                    : eduAdminsFetcher.state === "loading"
+                      ? "جاري التحميل..."
+                      : "اختر الإدارة التعليمية"
+                }
+                searchPlaceholder="بحث عن إدارة تعليمية..."
                 disabled={!createUserForm.regionId || eduAdminsFetcher.state === "loading"}
-              >
-                <SelectTrigger className="w-full h-11 text-right disabled:bg-gray-100 disabled:cursor-not-allowed">
-                  <SelectValue placeholder={
-                    !createUserForm.regionId
-                      ? "اختر المنطقة أولاً"
-                      : eduAdminsFetcher.state === "loading"
-                        ? "جاري التحميل..."
-                        : "اختر الإدارة التعليمية"
-                  } />
-                </SelectTrigger>
-                <SelectContent>
-                  {eduAdmins.map((eduAdmin) => (
-                    <SelectItem key={eduAdmin.id} value={eduAdmin.id}>
-                      {eduAdmin.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              />
             </div>
 
             {/* School */}
@@ -1801,28 +1785,20 @@ export const Users = (): React.JSX.Element => {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 المدرسة
               </label>
-              <Select
+              <SearchableSelect
+                options={schools.map((school) => ({ value: school.id, label: school.name }))}
                 value={createUserForm.schoolId}
                 onValueChange={(value) => setCreateUserForm({ ...createUserForm, schoolId: value })}
+                placeholder={
+                  !createUserForm.eduAdminId
+                    ? "اختر الإدارة التعليمية أولاً"
+                    : schoolsFetcher.state === "loading"
+                      ? "جاري التحميل..."
+                      : "اختر المدرسة"
+                }
+                searchPlaceholder="بحث عن مدرسة..."
                 disabled={!createUserForm.eduAdminId || schoolsFetcher.state === "loading"}
-              >
-                <SelectTrigger className="w-full h-11 text-right disabled:bg-gray-100 disabled:cursor-not-allowed">
-                  <SelectValue placeholder={
-                    !createUserForm.eduAdminId
-                      ? "اختر الإدارة التعليمية أولاً"
-                      : schoolsFetcher.state === "loading"
-                        ? "جاري التحميل..."
-                        : "اختر المدرسة"
-                  } />
-                </SelectTrigger>
-                <SelectContent>
-                  {schools.map((school) => (
-                    <SelectItem key={school.id} value={school.id}>
-                      {school.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              />
             </div>
           </div>
 
