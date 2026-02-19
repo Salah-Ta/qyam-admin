@@ -20,7 +20,7 @@ async function getAdminDashboardDataStatistics(dbUrl?: string, filters?: {
 
     const db = initializeDatabase(dbUrl);
 
-    // Update totals calculation with correct trainer definition
+    // Consolidated query: single scan of report table + count subqueries for other tables
     const [totalStatsResult] = await db.$queryRaw<Array<{
         regions_total: number;
         eduadmins_total: number;
@@ -35,19 +35,31 @@ async function getAdminDashboardDataStatistics(dbUrl?: string, filters?: {
         skills_economic_value_total: number;
         skills_trained_count_total: number;
     }>>`
-        SELECT 
-            (SELECT COUNT(*)::INTEGER FROM "region") as regions_total,
-            (SELECT COUNT(*)::INTEGER FROM "eduAdministration") as eduadmins_total,
-            (SELECT COUNT(*)::INTEGER FROM "school") as schools_total,
-            (SELECT COUNT(*)::INTEGER FROM public."user" WHERE "schoolId" IS NOT NULL AND role = 'user') as trainers_total,
-            (SELECT COUNT(*)::INTEGER FROM "report") as reports_total,
-            (SELECT COALESCE(SUM("volunteerHours"), 0)::INTEGER FROM "report") as volunteer_hours_total,
-            (SELECT COALESCE(SUM("economicValue"), 0)::INTEGER FROM "report") as economic_value_total,
-            (SELECT COALESCE(SUM("volunteerOpportunities"), 0)::INTEGER FROM "report") as volunteer_opportunities_total,
-            (SELECT COALESCE(SUM("activitiesCount"), 0)::INTEGER FROM "report") as activities_count_total,
-            (SELECT COALESCE(SUM("volunteerCount"), 0)::INTEGER FROM "report") as volunteer_count_total,
-            (SELECT COALESCE(SUM("skillsEconomicValue"), 0)::INTEGER FROM "report") as skills_economic_value_total,
-            (SELECT COALESCE(SUM("skillsTrainedCount"), 0)::INTEGER FROM "report") as skills_trained_count_total
+        SELECT
+            (SELECT COUNT(*)::BIGINT FROM "region") as regions_total,
+            (SELECT COUNT(*)::BIGINT FROM "eduAdministration") as eduadmins_total,
+            (SELECT COUNT(*)::BIGINT FROM "school") as schools_total,
+            (SELECT COUNT(*)::BIGINT FROM public."user" WHERE "schoolId" IS NOT NULL AND role = 'user') as trainers_total,
+            r.reports_total,
+            r.volunteer_hours_total,
+            r.economic_value_total,
+            r.volunteer_opportunities_total,
+            r.activities_count_total,
+            r.volunteer_count_total,
+            r.skills_economic_value_total,
+            r.skills_trained_count_total
+        FROM (
+            SELECT
+                COUNT(*)::BIGINT as reports_total,
+                COALESCE(SUM("volunteerHours"), 0)::BIGINT as volunteer_hours_total,
+                COALESCE(SUM("economicValue"), 0)::BIGINT as economic_value_total,
+                COALESCE(SUM("volunteerOpportunities"), 0)::BIGINT as volunteer_opportunities_total,
+                COALESCE(SUM("activitiesCount"), 0)::BIGINT as activities_count_total,
+                COALESCE(SUM("volunteerCount"), 0)::BIGINT as volunteer_count_total,
+                COALESCE(SUM("skillsEconomicValue"), 0)::BIGINT as skills_economic_value_total,
+                COALESCE(SUM("skillsTrainedCount"), 0)::BIGINT as skills_trained_count_total
+            FROM "report"
+        ) r
     `;
 
     // Convert BigInt to Number
@@ -110,15 +122,15 @@ async function getAdminDashboardDataStatistics(dbUrl?: string, filters?: {
             skills_trained_count: number;
         }>>`
             SELECT 
-                COUNT(DISTINCT CASE WHEN u.role = 'user' THEN u.id END)::INTEGER as trainers_count,
-                COUNT(DISTINCT rep.id)::INTEGER as reports_count,
-                COALESCE(SUM(rep."volunteerHours"), 0)::INTEGER as volunteer_hours,
-                COALESCE(SUM(rep."economicValue"), 0)::INTEGER as economic_value,
-                COALESCE(SUM(rep."volunteerOpportunities"), 0)::INTEGER as volunteer_opportunities,
-                COALESCE(SUM(rep."activitiesCount"), 0)::INTEGER as activities_count,
-                COALESCE(SUM(rep."volunteerCount"), 0)::INTEGER as volunteer_count,
-                COALESCE(SUM(rep."skillsEconomicValue"), 0)::INTEGER as skills_economic_value,
-                COALESCE(SUM(rep."skillsTrainedCount"), 0)::INTEGER as skills_trained_count
+                COUNT(DISTINCT CASE WHEN u.role = 'user' THEN u.id END)::BIGINT as trainers_count,
+                COUNT(DISTINCT rep.id)::BIGINT as reports_count,
+                COALESCE(SUM(rep."volunteerHours"), 0)::BIGINT as volunteer_hours,
+                COALESCE(SUM(rep."economicValue"), 0)::BIGINT as economic_value,
+                COALESCE(SUM(rep."volunteerOpportunities"), 0)::BIGINT as volunteer_opportunities,
+                COALESCE(SUM(rep."activitiesCount"), 0)::BIGINT as activities_count,
+                COALESCE(SUM(rep."volunteerCount"), 0)::BIGINT as volunteer_count,
+                COALESCE(SUM(rep."skillsEconomicValue"), 0)::BIGINT as skills_economic_value,
+                COALESCE(SUM(rep."skillsTrainedCount"), 0)::BIGINT as skills_trained_count
             FROM public."user" u
             LEFT JOIN "report" rep ON rep."userId" = u.id
             WHERE u."schoolId" = ${filters.schoolId}
@@ -179,16 +191,16 @@ async function getAdminDashboardDataStatistics(dbUrl?: string, filters?: {
             skills_trained_count: number;
         }>>`
             SELECT 
-                COUNT(DISTINCT s.id)::INTEGER as schools_count,
-                COUNT(DISTINCT CASE WHEN u.role = 'user' THEN u.id END)::INTEGER as trainers_count,
-                COUNT(DISTINCT rep.id)::INTEGER as reports_count,
-                COALESCE(SUM(rep."volunteerHours"), 0)::INTEGER as volunteer_hours,
-                COALESCE(SUM(rep."economicValue"), 0)::INTEGER as economic_value,
-                COALESCE(SUM(rep."volunteerOpportunities"), 0)::INTEGER as volunteer_opportunities,
-                COALESCE(SUM(rep."activitiesCount"), 0)::INTEGER as activities_count,
-                COALESCE(SUM(rep."volunteerCount"), 0)::INTEGER as volunteer_count,
-                COALESCE(SUM(rep."skillsEconomicValue"), 0)::INTEGER as skills_economic_value,
-                COALESCE(SUM(rep."skillsTrainedCount"), 0)::INTEGER as skills_trained_count
+                COUNT(DISTINCT s.id)::BIGINT as schools_count,
+                COUNT(DISTINCT CASE WHEN u.role = 'user' THEN u.id END)::BIGINT as trainers_count,
+                COUNT(DISTINCT rep.id)::BIGINT as reports_count,
+                COALESCE(SUM(rep."volunteerHours"), 0)::BIGINT as volunteer_hours,
+                COALESCE(SUM(rep."economicValue"), 0)::BIGINT as economic_value,
+                COALESCE(SUM(rep."volunteerOpportunities"), 0)::BIGINT as volunteer_opportunities,
+                COALESCE(SUM(rep."activitiesCount"), 0)::BIGINT as activities_count,
+                COALESCE(SUM(rep."volunteerCount"), 0)::BIGINT as volunteer_count,
+                COALESCE(SUM(rep."skillsEconomicValue"), 0)::BIGINT as skills_economic_value,
+                COALESCE(SUM(rep."skillsTrainedCount"), 0)::BIGINT as skills_trained_count
             FROM "school" s
             LEFT JOIN public."user" u ON u."schoolId" = s.id
             LEFT JOIN "report" rep ON rep."userId" = u.id
@@ -252,17 +264,17 @@ async function getAdminDashboardDataStatistics(dbUrl?: string, filters?: {
             skills_trained_count: number;
         }>>`
             SELECT 
-                COUNT(DISTINCT ea.id)::INTEGER as eduadmins_count,
-                COUNT(DISTINCT s.id)::INTEGER as schools_count,
-                COUNT(DISTINCT CASE WHEN u.role = 'user' THEN u.id END)::INTEGER as trainers_count,
-                COUNT(DISTINCT rep.id)::INTEGER as reports_count,
-                COALESCE(SUM(rep."volunteerHours"), 0)::INTEGER as volunteer_hours,
-                COALESCE(SUM(rep."economicValue"), 0)::INTEGER as economic_value,
-                COALESCE(SUM(rep."volunteerOpportunities"), 0)::INTEGER as volunteer_opportunities,
-                COALESCE(SUM(rep."activitiesCount"), 0)::INTEGER as activities_count,
-                COALESCE(SUM(rep."volunteerCount"), 0)::INTEGER as volunteer_count,
-                COALESCE(SUM(rep."skillsEconomicValue"), 0)::INTEGER as skills_economic_value,
-                COALESCE(SUM(rep."skillsTrainedCount"), 0)::INTEGER as skills_trained_count
+                COUNT(DISTINCT ea.id)::BIGINT as eduadmins_count,
+                COUNT(DISTINCT s.id)::BIGINT as schools_count,
+                COUNT(DISTINCT CASE WHEN u.role = 'user' THEN u.id END)::BIGINT as trainers_count,
+                COUNT(DISTINCT rep.id)::BIGINT as reports_count,
+                COALESCE(SUM(rep."volunteerHours"), 0)::BIGINT as volunteer_hours,
+                COALESCE(SUM(rep."economicValue"), 0)::BIGINT as economic_value,
+                COALESCE(SUM(rep."volunteerOpportunities"), 0)::BIGINT as volunteer_opportunities,
+                COALESCE(SUM(rep."activitiesCount"), 0)::BIGINT as activities_count,
+                COALESCE(SUM(rep."volunteerCount"), 0)::BIGINT as volunteer_count,
+                COALESCE(SUM(rep."skillsEconomicValue"), 0)::BIGINT as skills_economic_value,
+                COALESCE(SUM(rep."skillsTrainedCount"), 0)::BIGINT as skills_trained_count
             FROM "eduAdministration" ea
             LEFT JOIN "school" s ON s."eduAdminId" = ea.id
             LEFT JOIN public."user" u ON u."schoolId" = s.id
@@ -345,37 +357,34 @@ async function getAdminDashboardDataStatistics(dbUrl?: string, filters?: {
 async function getRegionalBreakdown(dbUrl?: string) {
     const db = initializeDatabase(dbUrl);
 
-    // Use user.regionId directly to link reports to regions
-    // First get user stats (noStudents) per region
-    const userStats = await db.$queryRaw`
-        SELECT
-            r.id,
-            COALESCE(SUM(u."noStudents"), 0)::INTEGER as "studentsCount"
-        FROM "region" r
-        LEFT JOIN public."user" u ON u."regionId" = r.id AND u.role = 'user'
-        GROUP BY r.id
-    `;
-
-    // Create a map of region id to students count
-    const studentsMap = new Map((userStats as any[]).map(s => [s.id, Number(s.studentsCount)]));
-
+    // Single query using CTE to combine students count and report stats
     const regionalStats = await db.$queryRaw`
+        WITH user_students AS (
+            SELECT
+                u."regionId",
+                COALESCE(SUM(u."noStudents"), 0)::BIGINT as "studentsCount"
+            FROM public."user" u
+            WHERE u.role = 'user' AND u."regionId" IS NOT NULL
+            GROUP BY u."regionId"
+        )
         SELECT
             r.id,
             r.name,
-            COUNT(DISTINCT CASE WHEN u.role = 'user' THEN u.id END)::INTEGER as "trainersCount",
-            COUNT(DISTINCT rep.id)::INTEGER as "reportsCount",
-            COALESCE(SUM(rep."volunteerHours"), 0)::INTEGER as "volunteerHours",
-            COALESCE(SUM(rep."economicValue"), 0)::INTEGER as "economicValue",
-            COALESCE(SUM(rep."volunteerOpportunities"), 0)::INTEGER as "volunteerOpportunities",
-            COALESCE(SUM(rep."activitiesCount"), 0)::INTEGER as "activitiesCount",
-            COALESCE(SUM(rep."volunteerCount"), 0)::INTEGER as "volunteerCount",
-            COALESCE(SUM(rep."skillsEconomicValue"), 0)::INTEGER as "skillsEconomicValue",
-            COALESCE(SUM(rep."skillsTrainedCount"), 0)::INTEGER as "skillsTrainedCount"
+            COUNT(DISTINCT CASE WHEN u.role = 'user' THEN u.id END)::BIGINT as "trainersCount",
+            COUNT(DISTINCT rep.id)::BIGINT as "reportsCount",
+            COALESCE(SUM(rep."volunteerHours"), 0)::BIGINT as "volunteerHours",
+            COALESCE(SUM(rep."economicValue"), 0)::BIGINT as "economicValue",
+            COALESCE(SUM(rep."volunteerOpportunities"), 0)::BIGINT as "volunteerOpportunities",
+            COALESCE(SUM(rep."activitiesCount"), 0)::BIGINT as "activitiesCount",
+            COALESCE(SUM(rep."volunteerCount"), 0)::BIGINT as "volunteerCount",
+            COALESCE(SUM(rep."skillsEconomicValue"), 0)::BIGINT as "skillsEconomicValue",
+            COALESCE(SUM(rep."skillsTrainedCount"), 0)::BIGINT as "skillsTrainedCount",
+            COALESCE(us."studentsCount", 0)::BIGINT as "studentsCount"
         FROM "region" r
         LEFT JOIN public."user" u ON u."regionId" = r.id
         LEFT JOIN "report" rep ON rep."userId" = u.id
-        GROUP BY r.id, r.name
+        LEFT JOIN user_students us ON us."regionId" = r.id
+        GROUP BY r.id, r.name, us."studentsCount"
         ORDER BY r.name
     `;
 
@@ -391,7 +400,7 @@ async function getRegionalBreakdown(dbUrl?: string) {
         volunteerCount: Number(stat.volunteerCount),
         skillsEconomicValue: Number(stat.skillsEconomicValue),
         skillsTrainedCount: Number(stat.skillsTrainedCount),
-        studentsCount: studentsMap.get(stat.id) || 0
+        studentsCount: Number(stat.studentsCount),
     }));
 }
 
@@ -404,16 +413,16 @@ async function getEduAdminBreakdown(dbUrl?: string) {
             ea.id,
             ea.name,
             ea."regionId",
-            COUNT(DISTINCT s.id)::INTEGER as "schoolsCount",
-            COUNT(DISTINCT CASE WHEN u.role = 'user' THEN u.id END)::INTEGER as "trainersCount",
-            COUNT(DISTINCT rep.id)::INTEGER as "reportsCount",
-            COALESCE(SUM(rep."volunteerHours"), 0)::INTEGER as "volunteerHours",
-            COALESCE(SUM(rep."economicValue"), 0)::INTEGER as "economicValue",
-            COALESCE(SUM(rep."volunteerOpportunities"), 0)::INTEGER as "volunteerOpportunities",
-            COALESCE(SUM(rep."activitiesCount"), 0)::INTEGER as "activitiesCount",
-            COALESCE(SUM(rep."volunteerCount"), 0)::INTEGER as "volunteerCount",
-            COALESCE(SUM(rep."skillsEconomicValue"), 0)::INTEGER as "skillsEconomicValue",
-            COALESCE(SUM(rep."skillsTrainedCount"), 0)::INTEGER as "skillsTrainedCount"
+            COUNT(DISTINCT s.id)::BIGINT as "schoolsCount",
+            COUNT(DISTINCT CASE WHEN u.role = 'user' THEN u.id END)::BIGINT as "trainersCount",
+            COUNT(DISTINCT rep.id)::BIGINT as "reportsCount",
+            COALESCE(SUM(rep."volunteerHours"), 0)::BIGINT as "volunteerHours",
+            COALESCE(SUM(rep."economicValue"), 0)::BIGINT as "economicValue",
+            COALESCE(SUM(rep."volunteerOpportunities"), 0)::BIGINT as "volunteerOpportunities",
+            COALESCE(SUM(rep."activitiesCount"), 0)::BIGINT as "activitiesCount",
+            COALESCE(SUM(rep."volunteerCount"), 0)::BIGINT as "volunteerCount",
+            COALESCE(SUM(rep."skillsEconomicValue"), 0)::BIGINT as "skillsEconomicValue",
+            COALESCE(SUM(rep."skillsTrainedCount"), 0)::BIGINT as "skillsTrainedCount"
         FROM "eduAdministration" ea
         LEFT JOIN "school" s ON s."eduAdminId" = ea.id
         LEFT JOIN public."user" u ON u."schoolId" = s.id
@@ -454,14 +463,14 @@ Promise<UserStatistics> {
         skills_trained_count: bigint;
     }>>`
         SELECT 
-            COUNT(id)::INTEGER AS reports_count,
-            COALESCE(SUM("volunteerHours"), 0)::INTEGER AS volunteer_hours,
-            COALESCE(SUM("economicValue"), 0)::INTEGER AS economic_value,
-            COALESCE(SUM("volunteerOpportunities"), 0)::INTEGER AS volunteer_opportunities,
-            COALESCE(SUM("activitiesCount"), 0)::INTEGER AS activities_count,
-            COALESCE(SUM("volunteerCount"), 0)::INTEGER AS volunteer_count,
-            COALESCE(SUM("skillsEconomicValue"), 0)::INTEGER AS skills_economic_value,
-            COALESCE(SUM("skillsTrainedCount"), 0)::INTEGER AS skills_trained_count
+            COUNT(id)::BIGINT AS reports_count,
+            COALESCE(SUM("volunteerHours"), 0)::BIGINT AS volunteer_hours,
+            COALESCE(SUM("economicValue"), 0)::BIGINT AS economic_value,
+            COALESCE(SUM("volunteerOpportunities"), 0)::BIGINT AS volunteer_opportunities,
+            COALESCE(SUM("activitiesCount"), 0)::BIGINT AS activities_count,
+            COALESCE(SUM("volunteerCount"), 0)::BIGINT AS volunteer_count,
+            COALESCE(SUM("skillsEconomicValue"), 0)::BIGINT AS skills_economic_value,
+            COALESCE(SUM("skillsTrainedCount"), 0)::BIGINT AS skills_trained_count
         FROM "report"
         WHERE "userId" = ${userId}
     `;

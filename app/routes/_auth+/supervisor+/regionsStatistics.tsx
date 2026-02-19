@@ -19,11 +19,7 @@ import School from "../../../assets/icons/schools.svg";
 import students from "../../../assets/icons/students.svg";
 import teacher from "../../../assets/icons/teachers.svg";
 import { useNavigate } from "@remix-run/react";
-import reportDB from "~/db/report/report.server";
-import regionDB from "~/db/region/region.server";
 import schoolDB from "~/db/school/school.server";
-import userDB from "~/db/user/user.server";
-import eduAdminDB from "~/db/eduAdmin/eduAdmin.server";
 import statisticsService from "~/db/statistics/statistics.server";
 import { getAuthenticated } from "~/lib/get-authenticated.server";
 import { ReportStatistics } from "~/types/types";
@@ -38,25 +34,28 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
     const dbUrl = context.cloudflare.env.DATABASE_URL;
 
-    // Fetch statistics and other data in parallel
-    const [statistics, regions, schools, users, eduAdmins, regionalBreakdown, eduAdminBreakdown] = await Promise.all([
+    // Fetch statistics and other data in parallel (reduced from 7 to 4 calls)
+    const [statistics, schools, regionalBreakdown, eduAdminBreakdown] = await Promise.all([
       statisticsService.getAdminDashboardDataStatistics(dbUrl),
-      regionDB.getAllRegions(dbUrl),
       schoolDB.getAllSchools(dbUrl),
-      userDB.getAllUsers(dbUrl),
-      eduAdminDB.getAllEduAdmins(dbUrl),
       statisticsService.getRegionalBreakdown(dbUrl),
       statisticsService.getEduAdminBreakdown(dbUrl),
     ]);
 
+    // Derive dropdown data from breakdown results instead of separate DB calls
+    const regions = (regionalBreakdown || []).map((r: any) => ({ id: r.id, name: r.name }));
+    const eduAdmins = (eduAdminBreakdown || []).map((e: any) => ({ id: e.id, name: e.name, regionId: e.regionId }));
+    // Derive total students count from regional breakdown instead of fetching all users
+    const totalStudents = (regionalBreakdown || []).reduce((acc: number, r: any) => acc + (r.studentsCount || 0), 0);
+
     return data({
       statistics,
-      regions: regions.data || [],
+      regions,
       schools: schools.data || [],
-      users: users.data || [],
-      eduAdmins: eduAdmins.data || [],
+      eduAdmins,
       regionalBreakdown: regionalBreakdown || [],
       eduAdminBreakdown: eduAdminBreakdown || [],
+      totalStudents,
     });
   } catch (error) {
     return data({ error: "Failed to load data" }, { status: 500 });
@@ -79,10 +78,10 @@ export const RegionsStatistics = (): JSX.Element => {
     statistics: any;
     regions: any[];
     schools: any[];
-    users: any[];
     eduAdmins: any[];
     regionalBreakdown: any[];
     eduAdminBreakdown: any[];
+    totalStudents: number;
   }>();
 
   // State for dropdown selections
@@ -101,7 +100,7 @@ export const RegionsStatistics = (): JSX.Element => {
     );
   }
 
-  const { statistics, regions, schools, users, eduAdmins, regionalBreakdown, eduAdminBreakdown } = loaderData;
+  const { statistics, regions, schools, eduAdmins, regionalBreakdown, eduAdminBreakdown, totalStudents } = loaderData;
 
   // Filter eduAdmins based on selected region
   const filteredEduAdmins = selectedRegion 
@@ -156,10 +155,10 @@ export const RegionsStatistics = (): JSX.Element => {
       icon: students,
       iconAlt: "Students",
       title: "عدد الطالبات",
-      value: users.reduce((acc, user) => acc + (user.noStudents || 0), 0).toString(),
+      value: (totalStudents || 0).toString(),
       max: "5000",
       color: "#004E5C",
-      percentage: Math.min(100, (users.reduce((acc, user) => acc + (user.noStudents || 0), 0) / 5000) * 100),
+      percentage: Math.min(100, ((totalStudents || 0) / 5000) * 100),
     },
   ];
 

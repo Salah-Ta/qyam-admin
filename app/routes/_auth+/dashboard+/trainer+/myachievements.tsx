@@ -1,6 +1,4 @@
 import React, { Component, ErrorInfo, ReactNode, useState, useEffect } from "react";
-import { RegionsChart } from "~/components/RegionsChart";
-
 // Error Boundary Component
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -188,26 +186,10 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
       // Continue with no message
     }
 
-    // Get regional statistics for the regions chart
-    let regionalStats: Array<{
-      id: string;
-      name: string;
-      volunteerCount: number;
-      volunteerHours: number;
-      trainersCount: number;
-    }> = [];
-    try {
-      const regionalPromise = statisticsDB.getRegionalBreakdown(context?.cloudflare?.env?.DATABASE_URL);
-      regionalStats = await Promise.race([regionalPromise, timeoutPromise]) as any;
-    } catch (error) {
-      // Continue with empty regional stats
-    }
-
     return {
       user: fullUserData || currentUser, // Use full user data if available, otherwise session user
       statistics: finalStatistics,
       lastMessage: lastReceivedMessage,
-      regionalStats,
       reports: [] // We don't need individual reports anymore since we have aggregated stats
     };
   } catch (error) {
@@ -226,7 +208,6 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         skillsTrainedCount: 0
       },
       lastMessage: null,
-      regionalStats: [],
       reports: [],
       error: "Failed to load achievements data"
     }; // Return 200 with error info instead of 500
@@ -338,7 +319,6 @@ export const MyAchievements = (): JSX.Element => {
   };
   const reports = Array.isArray(loaderData?.reports) ? loaderData.reports : [];
   const lastMessage = loaderData?.lastMessage as Message | null;
-  const regionalStats = Array.isArray(loaderData?.regionalStats) ? loaderData.regionalStats : [];
   
   // Debug logging to verify getUserStatisticsById integration
   
@@ -764,23 +744,6 @@ export const MyAchievements = (): JSX.Element => {
             </div>
           </div>
 
-          {/* Regions Section */}
-          <section className="flex flex-col gap-6 w-full mt-[36px]">
-            <div className="flex flex-col gap-5 w-full">
-              <div className="flex items-start gap-4 w-full h-full">
-
-                <div className="flex flex-col items-end justify-center gap-0.5 flex-1">
-                  <h2 className=" font-bold text-[#181d27] text-lg leading-7 [direction:rtl]">
-                    المناطق
-                  </h2>
-                </div>
-              </div>
-            </div>
-
-            <div className="border border-[#e9eaeb] rounded-xl bg-white p-6">
-              <RegionsChart regionalStats={regionalStats} />
-            </div>
-          </section>
         </div>
       </div>
     </div>
