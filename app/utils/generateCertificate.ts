@@ -211,11 +211,11 @@ export async function generateCertificatePDF(
     const page = pages[0];
     const { width, height } = page.getSize();
 
-    const schoolX = 548;
+    const schoolX = 568;
     const schoolY = 345;
 
-    const fullNameX = 470;
-    const fullNameY = 300;
+    const fullNameX = 475;
+    const fullNameY = 295;
 
     // Draw fullName
     if (certificateData.fullName) {
