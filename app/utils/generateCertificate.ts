@@ -14,7 +14,7 @@ export interface CertificateData {
 
 async function loadCertificateTemplate(): Promise<Uint8Array> {
   try {
-    const templatePath = "/assets/certificate-template.pdf";
+    const templatePath = "/assets/certificate-template.pdf?v=2";
 
     const response = await fetch(templatePath);
 
