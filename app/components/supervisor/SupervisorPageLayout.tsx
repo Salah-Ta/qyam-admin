@@ -1,5 +1,5 @@
 import React from "react";
-import { useNavigate, useLocation } from "@remix-run/react";
+import { Link, useLocation } from "@remix-run/react";
 import supervisorProfile from "../../assets/icons/user.png";
 import verifiedTick from "../../routes/_auth+/supervisor+/assets/verified-tick.svg";
 
@@ -43,7 +43,6 @@ export function SupervisorPageLayout({
   subtitle,
   children,
 }: SupervisorPageLayoutProps) {
-  const navigate = useNavigate();
   const location = useLocation();
 
   const tabs = tabItems.map((tab) => ({
@@ -99,9 +98,10 @@ export function SupervisorPageLayout({
             <div className="w-full">
               <div className="flex flex-col md:flex-row">
                 {tabs.map((tab, index) => (
-                  <button
+                  <Link
                     key={tab.id}
-                    onClick={() => navigate(tab.path)}
+                    to={tab.path}
+                    reloadDocument
                     className={`min-h-10 px-4 py-2 border border-[#D5D7DA] w-full md:w-auto [direction:rtl] transition-colors ${
                       tab.active
                         ? "bg-white shadow-sm z-10 -mb-px"
@@ -129,7 +129,7 @@ export function SupervisorPageLayout({
                         {tab.label}
                       </span>
                     </div>
-                  </button>
+                  </Link>
                 ))}
               </div>
             </div>
