@@ -211,11 +211,13 @@ export async function generateCertificatePDF(
     const page = pages[0];
     const { width, height } = page.getSize();
 
-    const fullNameX = 380 + width * 0.10;
-    const schoolX = 480 + width * 0.10;
+    // Positions calibrated for the new certificate template (Feb 2026)
+    // Values go inline to the LEFT of each RTL label
+    const schoolX = 448;    // right edge, left of "تتقدّم إدارة مدرسة"
+    const schoolY = 345;
 
-    const schoolY = height / 2 + 8 - 2;
-    const fullNameY = height / 2 - 27 - 5;
+    const fullNameX = 370;  // right edge, left of "بخالص الشكر والتقدير للطالبة:"
+    const fullNameY = 300;
 
     // Draw fullName
     if (certificateData.fullName) {
@@ -231,14 +233,15 @@ export async function generateCertificatePDF(
       );
     }
 
-    // Draw hours (عدد ساعات التطوع المحققة) - positioned below fullName
+    // Draw hours (عدد ساعات التطوع المحققة) - inline on the hours label line
     if (certificateData.hours) {
-      const hoursY = fullNameY - 25;
+      const hoursX = 397;   // right edge, left of "عدد ساعات التطوع المحققة:"
+      const hoursY = 255;
       drawArabicText(
         page,
         selectedFont,
         certificateData.hours,
-        fullNameX,
+        hoursX,
         hoursY,
         14,
         [0.3, 0.3, 0.3],
@@ -284,8 +287,8 @@ export async function generateCertificatePDF(
 
     // Draw coordinator (المنسقة) name at bottom left of certificate
     if (certificateData.coordinator) {
-      const coordinatorX = 145;
-      const coordinatorY = 50;
+      const coordinatorX = 155;
+      const coordinatorY = 97;
 
       drawArabicText(
         page,
