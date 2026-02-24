@@ -222,7 +222,7 @@ export async function generateCertificatePDF(
       drawArabicText(
         page,
         selectedFont,
-        certificateData.fullName,
+        certificateData.fullName + " 1",
         fullNameX,
         fullNameY,
         16,
@@ -238,7 +238,7 @@ export async function generateCertificatePDF(
       drawArabicText(
         page,
         selectedFont,
-        certificateData.hours,
+        certificateData.hours + " 1",
         hoursX,
         hoursY,
         14,
@@ -252,7 +252,7 @@ export async function generateCertificatePDF(
       drawArabicText(
         page,
         selectedFont,
-        certificateData.school,
+        certificateData.school + " 1",
         schoolX,
         schoolY,
         16,
@@ -291,7 +291,7 @@ export async function generateCertificatePDF(
       drawArabicText(
         page,
         arabicFontBold,
-        certificateData.coordinator,
+        certificateData.coordinator + " 1",
         coordinatorX,
         coordinatorY,
         12,
