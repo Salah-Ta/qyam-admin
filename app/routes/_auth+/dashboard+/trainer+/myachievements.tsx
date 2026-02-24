@@ -1,4 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode, useState, useEffect } from "react";
+import { InfoTooltip } from "~/components/ui/info-tooltip";
 // Error Boundary Component
 interface ErrorBoundaryProps {
   children: ReactNode;
