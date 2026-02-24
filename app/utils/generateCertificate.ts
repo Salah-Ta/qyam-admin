@@ -214,7 +214,7 @@ export async function generateCertificatePDF(
     const schoolX = 568;
     const schoolY = 345;
 
-    const fullNameX = 475;
+    const fullNameX = 460;
     const fullNameY = 295;
 
     // Draw fullName
