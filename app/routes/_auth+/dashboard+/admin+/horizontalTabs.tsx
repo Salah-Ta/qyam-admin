@@ -1,86 +1,55 @@
-import React, { useEffect, useState } from "react";
-import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
-import { useNavigate, useLocation } from "@remix-run/react";
+import React from "react";
+import { Link, useLocation } from "@remix-run/react";
 
 export const HorizontalTabs = (): JSX.Element => {
-  const navigate = useNavigate();
   const location = useLocation();
 
-  // Extract the active tab from the URL path with safe navigation
   const getActiveTabFromPath = () => {
-    if (!location?.pathname) {
-      return "programstatics"; // Default fallback
-    }
-
-    // Handle standalone routes
-    if (location.pathname === "/dashboard/admin/leaderboard") {
-      return "leaderboard";
-    }
+    if (!location?.pathname) return "programstatics";
+    if (location.pathname === "/dashboard/admin/leaderboard") return "leaderboard";
 
     const pathParts = location.pathname.split("/");
     const adminIndex = pathParts.indexOf("admin");
 
     if (adminIndex !== -1 && adminIndex + 1 < pathParts.length) {
       const tabPart = pathParts[adminIndex + 1];
-
-      // Handle parent-child relationships with safe navigation
-      // If we're on a child route, return the parent tab
-      if (tabPart === "programstatics" || (location?.pathname && location.pathname.includes("/programstatics"))) {
+      if (tabPart === "programstatics" || location.pathname.includes("/programstatics")) {
         return "programstatics";
       }
-
-      return tabPart || "programstatics"; // Fallback if tabPart is falsy
+      return tabPart || "programstatics";
     }
-
-    return "programstatics"; // Default fallback
+    return "programstatics";
   };
 
-  const [activeTab, setActiveTab] = useState(getActiveTabFromPath());
+  const activeTab = getActiveTabFromPath();
 
-  useEffect(() => {
-    // Update activeTab when the URL changes with safe navigation
-    if (location?.pathname) {
-      setActiveTab(getActiveTabFromPath());
-    }
-  }, [location?.pathname]);
-
-  const tabItems: { id: string; label: string; path?: string }[] = [
-    { id: "leaderboard", label: "لوحة المتصدرين" },
-    { id: "programstatics", label: "إحصاءات البرنامج" },
-    { id: "controlpanel", label: "مركز المعرفة" },
-    { id: "settings", label: "إعدادات النظام" },
-    // { id: "admins", label: "المشرفين" },
-    { id: "users", label: "الأعضاء" },
+  const tabItems = [
+    { id: "leaderboard", label: "لوحة المتصدرين", path: "/dashboard/admin/leaderboard" },
+    { id: "programstatics", label: "إحصاءات البرنامج", path: "/dashboard/admin/programstatics" },
+    { id: "controlpanel", label: "مركز المعرفة", path: "/dashboard/admin/controlpanel" },
+    { id: "settings", label: "إعدادات النظام", path: "/dashboard/admin/settings" },
+    { id: "users", label: "الأعضاء", path: "/dashboard/admin/users" },
   ];
 
   return (
-    <Tabs
-      defaultValue={activeTab}
-      className="w-full mb-[20px] lg:mt-[125px] rounded-md"
-      onValueChange={setActiveTab}
-    >
-      <TabsList className="flex flex-col rounded-xl md:flex-row w-full h-auto md:h-14 p-1.5 gap-1 bg-neutral-50 border border-solid border-[#e9e9eb] ">
-        {Array.isArray(tabItems) && tabItems.map((tab) => (
-          <TabsTrigger
-            key={tab?.id || 'default'}
-            value={tab?.id || 'default'}
-            onClick={() => {
-              if (tab?.id) {
-                setActiveTab(tab.id);
-                navigate(tab.path || `/dashboard/admin/${tab.id}`);
-              }
-            }}
-            className={`w-full md:flex-1 h-11 rounded-md [direction:rtl] font-bold text-base leading-6 ${
-              activeTab === tab?.id
+    <div className="w-full mb-[20px] lg:mt-[125px] rounded-md">
+      <div className="flex flex-col rounded-xl md:flex-row w-full h-auto md:h-14 p-1.5 gap-1 bg-neutral-50 border border-solid border-[#e9e9eb]">
+        {tabItems.map((tab) => (
+          <Link
+            key={tab.id}
+            to={tab.path}
+            reloadDocument
+            className={`w-full md:flex-1 h-11 rounded-md [direction:rtl] font-bold text-base leading-6 flex items-center justify-center ${
+              activeTab === tab.id
                 ? "bg-[#68c35c] text-white shadow-shadows-shadow-sm"
-                : "bg-transparent text-[#717680]"
+                : "bg-transparent text-[#717680] hover:bg-gray-100"
             }`}
           >
-            {tab?.label || 'تبويب غير محدد'}
-          </TabsTrigger>
+            {tab.label}
+          </Link>
         ))}
-      </TabsList>
-    </Tabs>
+      </div>
+    </div>
   );
 };
 

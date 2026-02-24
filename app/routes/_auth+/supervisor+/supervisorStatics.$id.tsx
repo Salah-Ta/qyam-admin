@@ -209,23 +209,29 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
 
     // Check if current user and target user are in the same region
     let canSendMessage = false;
-    let currentUserRole = "user";
+    // Use session role as primary source (reliable even if DB lookup fails)
+    let currentUserRole = (currentUser as any)?.role || "user";
+
     if (currentUserResult && currentUserResult.data) {
       const currentUserData: any = Array.isArray(currentUserResult.data) ? currentUserResult.data[0] : currentUserResult.data;
       const targetUserData: any = Array.isArray(userResult.data) ? userResult.data[0] : userResult.data;
 
-      currentUserRole = currentUserData.role || "user";
+      currentUserRole = currentUserData.role || currentUserRole;
 
       // Admins can message ALL users regardless of region
       if (currentUserRole === "admin") {
         canSendMessage = true;
       } else {
-        // For supervisors/users: compare regionId (reliable FK) with fallback to region text
-        const sameRegion = currentUserData.regionId && targetUserData.regionId
-          ? currentUserData.regionId === targetUserData.regionId
-          : currentUserData.region === targetUserData.region;
-        canSendMessage = sameRegion;
+        // For supervisors/users: compare regionId, then eduAdminId, then region text
+        const sameRegion =
+          (currentUserData.regionId && targetUserData.regionId && currentUserData.regionId === targetUserData.regionId) ||
+          (currentUserData.eduAdminId && targetUserData.eduAdminId && currentUserData.eduAdminId === targetUserData.eduAdminId) ||
+          (currentUserData.region && targetUserData.region && currentUserData.region === targetUserData.region);
+        canSendMessage = !!sameRegion;
       }
+    } else if (currentUserRole === "admin") {
+      // Fallback: if DB lookup failed but session says admin, still allow messaging
+      canSendMessage = true;
     }
 
     return data({
@@ -335,13 +341,14 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
       const currentUserData:any = Array.isArray(currentUserResult.data) ? currentUserResult.data[0] : currentUserResult.data;
       const targetUserData:any = Array.isArray(targetUserResult.data) ? targetUserResult.data[0] : targetUserResult.data;
 
-      const currentRole = currentUserData.role || "user";
+      const currentRole = currentUserData.role || (currentUser as any)?.role || "user";
 
       // Admins can message ALL users; supervisors/users must be in the same region
       if (currentRole !== "admin") {
-        const sameRegion = currentUserData.regionId && targetUserData.regionId
-          ? currentUserData.regionId === targetUserData.regionId
-          : currentUserData.region === targetUserData.region;
+        const sameRegion =
+          (currentUserData.regionId && targetUserData.regionId && currentUserData.regionId === targetUserData.regionId) ||
+          (currentUserData.eduAdminId && targetUserData.eduAdminId && currentUserData.eduAdminId === targetUserData.eduAdminId) ||
+          (currentUserData.region && targetUserData.region && currentUserData.region === targetUserData.region);
 
         if (!sameRegion) {
           return data(

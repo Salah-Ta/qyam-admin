@@ -3,7 +3,7 @@ import materialDB from "~/db/material/material.server";
 
 import { Button } from "./trainer+/assets/button";
 import { NavFeaturedCard } from "./trainer+/NavFeatureCard";
-import { Outlet, useLocation, useNavigate } from "@remix-run/react";
+import { Link, Outlet, useLocation, useNavigate } from "@remix-run/react";
 import { PlusCircleIcon } from "lucide-react";
 import { 
   Dialog,
@@ -137,22 +137,22 @@ export const Trainer = () => {
           {/* Menu Items */}
           <div className="flex flex-col gap-4 w-full mt-[51px]">
             {menuItems.map((item) => {
-              const isActive = location.pathname === item.path; // Check if the current path matches the button's path
+              const isActive = location.pathname === item.path;
               return (
-                <Button
+                <Link
                   key={item.id}
-                  variant="outline"
-                  className={`w-full h-[60px] justify-center items-center gap-2 px-[22px] py-4 rounded-lg border border-[#d5d6d9] shadow-shadows-shadow-xs-skeuomorphic ${
+                  to={item.path}
+                  reloadDocument
+                  className={`w-full h-[60px] flex justify-center items-center gap-2 px-[22px] py-4 rounded-lg border border-[#d5d6d9] shadow-shadows-shadow-xs-skeuomorphic ${
                     isActive
-                      ? "bg-[#68C35C] text-white hover:bg-[#4E9E48] hover:text-white" // Active styles with hover
-                      : "bg-white text-[#414651] hover:bg-[#f0f0f0]" // Default styles with hover
+                      ? "bg-[#68C35C] text-white hover:bg-[#4E9E48] hover:text-white"
+                      : "bg-white text-[#414651] hover:bg-[#f0f0f0]"
                   }`}
-                  onClick={() => item.path && navigate(`${item.path}`)}
                 >
-                  <span className="  font-bold text-lg leading-7 whitespace-nowrap [direction:rtl]">
+                  <span className="font-bold text-lg leading-7 whitespace-nowrap [direction:rtl]">
                     {item.title}
                   </span>
-                </Button>
+                </Link>
               );
             })}
           </div>
