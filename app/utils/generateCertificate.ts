@@ -211,10 +211,10 @@ export async function generateCertificatePDF(
     const page = pages[0];
     const { width, height } = page.getSize();
 
-    const schoolX = 598;
+    const schoolX = 548;
     const schoolY = 345;
 
-    const fullNameX = 520;
+    const fullNameX = 470;
     const fullNameY = 300;
 
     // Draw fullName
@@ -233,7 +233,7 @@ export async function generateCertificatePDF(
 
     // Draw hours (عدد ساعات التطوع المحققة)
     if (certificateData.hours) {
-      const hoursX = 547;
+      const hoursX = 497;
       const hoursY = 255;
       drawArabicText(
         page,
