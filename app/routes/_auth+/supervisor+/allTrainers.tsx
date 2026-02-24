@@ -374,6 +374,7 @@ export const AllTrainers = (): JSX.Element => {
     location.pathname === "/supervisor/skills/";
 
   const isTrainersActive = location.pathname.includes("/allTrainers");
+  const isLeaderboardActive = location.pathname === "/supervisor/leaderboard";
 
   // State and data
   const [currentPage, setCurrentPage] = useState(1);
@@ -500,6 +501,13 @@ export const AllTrainers = (): JSX.Element => {
       path: "/supervisor/allTrainers",
       active: isTrainersActive,
       hasIndicator: isTrainersActive,
+    },
+    {
+      id: "leaderboard",
+      label: "لوحة المتصدرين",
+      path: "/supervisor/leaderboard",
+      active: isLeaderboardActive,
+      hasIndicator: isLeaderboardActive,
     },
   ];
 

@@ -11,21 +11,27 @@ export const HorizontalTabs = (): JSX.Element => {
     if (!location?.pathname) {
       return "programstatics"; // Default fallback
     }
+
+    // Handle standalone routes
+    if (location.pathname === "/dashboard/admin/leaderboard") {
+      return "leaderboard";
+    }
+
     const pathParts = location.pathname.split("/");
     const adminIndex = pathParts.indexOf("admin");
-    
+
     if (adminIndex !== -1 && adminIndex + 1 < pathParts.length) {
       const tabPart = pathParts[adminIndex + 1];
-      
+
       // Handle parent-child relationships with safe navigation
       // If we're on a child route, return the parent tab
       if (tabPart === "programstatics" || (location?.pathname && location.pathname.includes("/programstatics"))) {
         return "programstatics";
       }
-      
+
       return tabPart || "programstatics"; // Fallback if tabPart is falsy
     }
-    
+
     return "programstatics"; // Default fallback
   };
 
@@ -38,7 +44,8 @@ export const HorizontalTabs = (): JSX.Element => {
     }
   }, [location?.pathname]);
 
-  const tabItems = [
+  const tabItems: { id: string; label: string; path?: string }[] = [
+    { id: "leaderboard", label: "لوحة المتصدرين" },
     { id: "programstatics", label: "إحصاءات البرنامج" },
     { id: "controlpanel", label: "مركز المعرفة" },
     { id: "settings", label: "إعدادات النظام" },
@@ -60,7 +67,7 @@ export const HorizontalTabs = (): JSX.Element => {
             onClick={() => {
               if (tab?.id) {
                 setActiveTab(tab.id);
-                navigate(`/dashboard/admin/${tab.id}`);
+                navigate(tab.path || `/dashboard/admin/${tab.id}`);
               }
             }}
             className={`w-full md:flex-1 h-11 rounded-md [direction:rtl] font-bold text-base leading-6 ${

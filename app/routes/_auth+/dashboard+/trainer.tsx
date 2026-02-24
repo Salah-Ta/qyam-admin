@@ -122,6 +122,11 @@ export const Trainer = () => {
       title: "تقرير إنجازاتي",
       path: "/dashboard/trainer/myachievements",
     },
+    {
+      id: 4,
+      title: "لوحة المتصدرين",
+      path: "/dashboard/trainer/leaderboard",
+    },
   ];
 
   return (

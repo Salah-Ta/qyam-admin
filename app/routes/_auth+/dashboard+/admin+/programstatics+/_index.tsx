@@ -20,6 +20,7 @@ import teacher from "../../../../../assets/icons/teachers.svg";
 import regionIcon from "../../../../../assets/icons/region.svg";
 import usersIcon from "../../../../../assets/icons/users-03.svg";
 
+import { InfoTooltip } from "~/components/ui/info-tooltip";
 import statisticsService from "~/db/statistics/statistics.server";
 import eduAdminService from "~/db/eduAdmin/eduAdmin.server";
 import schoolService from "~/db/school/school.server";
@@ -462,16 +463,6 @@ export default function ProgramStatisticsContent(): JSX.Element {
       ),
     },
     {
-      value: Math.round(safeStatistics.skillsEconomicValueFiltered).toString(),
-      unit: "مهارة",
-      title: "القيمة الاقتصادية للمهارات",
-      color: "#68C35C",
-      percentage: Math.min(
-        100,
-        (safeStatistics.skillsEconomicValueFiltered / 1000) * 100
-      ),
-    },
-    {
       value: Math.round(safeStatistics.volunteerHoursFiltered).toString(),
       unit: "ساعة تطوعية",
       title: "الساعات التطوعية المحققة",
@@ -501,9 +492,9 @@ export default function ProgramStatisticsContent(): JSX.Element {
   ];
 
   // Create regions data based on competition metrics:
-  // عدد الطالبات (studentsCount) + عدد الفرص التطوعية المنفذة (volunteerOpportunities)
+  // عدد المتطوعين (volunteerCount) + عدد الفرص التطوعية المنفذة (volunteerOpportunities)
   const calculateRegionScore = (region: any) => {
-    return (region?.studentsCount || 0) + (region?.volunteerOpportunities || 0);
+    return (region?.volunteerCount || 0) + (region?.volunteerOpportunities || 0);
   };
 
   const maxRegionScore = Math.max(...safeRegionalBreakdown.map((region: any) => calculateRegionScore(region)), 1);
@@ -513,7 +504,7 @@ export default function ProgramStatisticsContent(): JSX.Element {
       name: regionStat?.name || 'منطقة غير محددة',
       value: score,
       maxValue: maxRegionScore,
-      studentsCount: regionStat?.studentsCount || 0,
+      volunteerCount: regionStat?.volunteerCount || 0,
       volunteerOpportunities: regionStat?.volunteerOpportunities || 0,
     };
   });
@@ -672,9 +663,13 @@ export default function ProgramStatisticsContent(): JSX.Element {
             if (context.datasetIndex === 0) {
               const regionData = regionsData[context.dataIndex];
               if (regionData) {
+                const pct = regionData.maxValue > 0
+                  ? Math.round((regionData.value / regionData.maxValue) * 100)
+                  : 0;
                 return [
-                  `${regionData.studentsCount?.toLocaleString('ar-SA') || 0} طالبة`,
-                  `${regionData.volunteerOpportunities?.toLocaleString('ar-SA') || 0} فرصة تطوعية`
+                  `النسبة: ${pct}%`,
+                  `المتطوعين: ${regionData.volunteerCount?.toLocaleString('ar-SA') || 0}`,
+                  `الفرص التطوعية: ${regionData.volunteerOpportunities?.toLocaleString('ar-SA') || 0}`
                 ];
               }
               return `${context.parsed.y}`;
@@ -779,8 +774,9 @@ export default function ProgramStatisticsContent(): JSX.Element {
         <div className="flex flex-col items-start gap-5 w-full mb-3">
           <div className="flex items-start gap-4 w-full">
             <div className="flex flex-col items-end justify-center gap-0.5 flex-1">
-              <h2 className="self-stretch font-bold text-[#181d27] text-base sm:text-lg tracking-[0] leading-6 sm:leading-7 [direction:rtl]">
+              <h2 className="self-stretch font-bold text-[#181d27] text-base sm:text-lg tracking-[0] leading-6 sm:leading-7 [direction:rtl] flex items-center gap-1">
                 الإجمالي
+                <InfoTooltip text="يعرض إجمالي عدد المدارس والمعلمات والطالبات والمناطق وإدارات التعليم المسجلة، مع نسبة كل عنصر من الإجمالي الكلي" />
               </h2>
             </div>
           </div>
@@ -845,8 +841,9 @@ export default function ProgramStatisticsContent(): JSX.Element {
           <div className="flex flex-col items-start gap-5 w-full">
             <div className="flex items-start gap-4 w-full">
               <div className="flex flex-col items-end justify-center gap-0.5 flex-1">
-                <h2 className="self-stretch font-bold text-[#181d27] text-base sm:text-lg tracking-[0] leading-6 sm:leading-7 [direction:rtl]">
+                <h2 className="self-stretch font-bold text-[#181d27] text-base sm:text-lg tracking-[0] leading-6 sm:leading-7 [direction:rtl] flex items-center gap-1">
                   إدارات التعليم
+                  <InfoTooltip text="يعرض توزيع إدارات التعليم حسب مجموع الإحصائيات (المدارس، المعلمات، التقارير، ساعات التطوع وغيرها) كنسبة مئوية من الإجمالي" />
                 </h2>
               </div>
             </div>
@@ -917,8 +914,9 @@ export default function ProgramStatisticsContent(): JSX.Element {
           <div className="flex flex-col items-start gap-5 w-full">
             <div className="flex items-start gap-4 w-full">
               <div className="flex flex-col items-end justify-center gap-0.5 flex-1">
-                <h2 className="self-stretch font-bold text-[#181d27] text-base sm:text-lg tracking-[0] leading-6 sm:leading-7 [direction:rtl]">
+                <h2 className="self-stretch font-bold text-[#181d27] text-base sm:text-lg tracking-[0] leading-6 sm:leading-7 [direction:rtl] flex items-center gap-1">
                   التقارير
+                  <InfoTooltip text="يعرض إحصائيات التقارير: المهارات المكتسبة، ساعات التطوع، الأنشطة، الفرص التطوعية، وعدد المتطوعين. كل قيمة تظهر كنسبة من الهدف المحدد" />
                 </h2>
               </div>
             </div>
@@ -976,8 +974,9 @@ export default function ProgramStatisticsContent(): JSX.Element {
         <div className="flex flex-col gap-5 w-full">
           <div className="flex items-start gap-4 w-full h-full">
             <div className="flex flex-col items-end justify-center gap-0.5 flex-1">
-              <h2 className="font-bold text-[#181d27] text-base sm:text-lg leading-6 sm:leading-7 [direction:rtl]">
+              <h2 className="font-bold text-[#181d27] text-base sm:text-lg leading-6 sm:leading-7 [direction:rtl] flex items-center gap-1">
                 المناطق
+                <InfoTooltip text="يعرض مقارنة المناطق حسب مجموع عدد المتطوعين والفرص التطوعية. كل شريط يمثل نسبة المنطقة من أعلى قيمة" />
               </h2>
             </div>
           </div>

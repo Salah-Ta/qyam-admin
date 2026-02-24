@@ -1313,6 +1313,21 @@ export const ManageData = (): JSX.Element => {
                   {loadingStates["migrate-users"] ? "جاري الإصلاح..." : "إصلاح البيانات"}
                 </Button>
               </Form>
+              {/* Delete Local Storage Button */}
+              <Button
+                type="button"
+                variant="outline"
+                className="px-4 py-2 border-red-300 text-red-700 hover:bg-red-50"
+                onClick={() => {
+                  if (confirm("هل أنت متأكد من حذف جميع البيانات المخزنة محلياً؟ سيتم حذف جميع التعديلات غير المحفوظة.")) {
+                    localStorage.clear();
+                    alert("تم حذف البيانات المحلية بنجاح");
+                    window.location.reload();
+                  }
+                }}
+              >
+                حذف البيانات المحلية
+              </Button>
             </div>
           </div>
 

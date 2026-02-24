@@ -630,6 +630,22 @@ export async function action({ request, context }: ActionFunctionArgs) {
         JSON.stringify({ success: true, message: "تم حذف المستخدم بنجاح" }),
         { status: 200 }
       );
+    } else if (actionType === "deleteReports") {
+      if (!userId) {
+        return new Response(
+          JSON.stringify({ success: false, message: "معرف المستخدم مطلوب" }),
+          { status: 400 }
+        );
+      }
+      const reportDB = (await import("~/db/report/report.server")).default;
+      const result = await reportDB.deleteUserReports(userId as string, DBurl);
+      return new Response(
+        JSON.stringify({
+          success: result.status === "success",
+          message: result.message,
+        }),
+        { status: result.status === "success" ? 200 : 500 }
+      );
     } else if (actionType === "updateStatus") {
       if (!userId) {
         return new Response(
@@ -1072,6 +1088,27 @@ export const Users = (): React.JSX.Element => {
         fetcher.submit(
           {
             actionType: "delete",
+            id: user.id,
+          },
+          { method: "POST" }
+        );
+      },
+    });
+  };
+
+  const handleDeleteReports = (user: any, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    showConfirmation({
+      title: "تأكيد حذف التقارير",
+      message: `هل أنت متأكد من حذف جميع تقارير المستخدم "${user.name}"؟ هذا الإجراء لا يمكن التراجع عنه.`,
+      confirmText: "حذف التقارير",
+      type: "danger",
+      onConfirm: () => {
+        fetcher.submit(
+          {
+            actionType: "deleteReports",
             id: user.id,
           },
           { method: "POST" }
@@ -1533,6 +1570,28 @@ export const Users = (): React.JSX.Element => {
                                     title="إعادة تعيين كلمة المرور"
                                   >
                                     <LockIcon className="w-5 h-5" />
+                                  </button>
+                                  <button
+                                    onClick={(e) => handleDeleteReports(row, e)}
+                                    className="button p-2 rounded-lg text-orange-600 border border-orange-600 flex gap-1 hover:opacity-80 hover:bg-orange-600/10 transition-all"
+                                    title="حذف جميع تقارير المستخدم"
+                                  >
+                                    حذف التقارير
+                                    <svg
+                                      xmlns="http://www.w3.org/2000/svg"
+                                      width="20"
+                                      height="21"
+                                      viewBox="0 0 24 24"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      strokeWidth="1.5"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                    >
+                                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                      <polyline points="14 2 14 8 20 8" />
+                                      <line x1="9" y1="15" x2="15" y2="15" />
+                                    </svg>
                                   </button>
                                   <button
                                     onClick={(e) => handleDeleteUser(row, e)}

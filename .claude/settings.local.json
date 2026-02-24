@@ -49,7 +49,10 @@
       "Bash(curl:*)",
       "Bash(git commit:*)",
       "Bash(CLOUDFLARE_ACCOUNT_ID=e8d9f88be00c353b8171b285efcee10a npm run build:*)",
-      "Bash(CLOUDFLARE_ACCOUNT_ID=e8d9f88be00c353b8171b285efcee10a npx wrangler pages deploy:*)"
+      "Bash(CLOUDFLARE_ACCOUNT_ID=e8d9f88be00c353b8171b285efcee10a npx wrangler pages deploy:*)",
+      "Bash(git rebase:*)",
+      "Bash(GIT_EDITOR=true git rebase:*)",
+      "Bash(git -c core.editor=true rebase --continue)"
     ]
   }
 }

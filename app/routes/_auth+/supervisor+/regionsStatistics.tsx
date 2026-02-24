@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { LoaderFunctionArgs, data } from "@remix-run/cloudflare";
 import { useLoaderData } from "@remix-run/react";
 import { MoreVerticalIcon } from "lucide-react";
+import { InfoTooltip } from "~/components/ui/info-tooltip";
 import {
   Chart as ChartJS,
   ArcElement,
@@ -308,6 +309,12 @@ export const RegionsStatistics = (): JSX.Element => {
       path: "/supervisor/supervisorStatics",
       active: false,
     },
+    {
+      id: "leaderboard",
+      label: "لوحة المتصدرين",
+      path: "/supervisor/leaderboard",
+      active: false,
+    },
   ];
   return (
     <div className="bg-[#f9f9f9]  ">
@@ -496,8 +503,9 @@ export const RegionsStatistics = (): JSX.Element => {
             <div className="flex flex-col items-start gap-5 w-full">
               <div className="flex items-start gap-4 w-full">
                 <div className="flex flex-col items-end justify-center gap-0.5 flex-1">
-                  <h2 className="self-stretch  font-bold text-[#181d27] text-lg tracking-[0] leading-7 [direction:rtl]">
+                  <h2 className="self-stretch font-bold text-[#181d27] text-lg tracking-[0] leading-7 [direction:rtl] flex items-center gap-1">
                     إدارات التعليم
+                    <InfoTooltip text="يعرض توزيع إدارات التعليم حسب نسبة ساعات التطوع كنسبة مئوية من الإجمالي" />
                   </h2>
                 </div>
               </div>
@@ -560,8 +568,9 @@ export const RegionsStatistics = (): JSX.Element => {
             <div className="flex flex-col items-start gap-5 w-full">
               <div className="flex items-start gap-4 w-full">
                 <div className="flex flex-col items-end justify-center gap-0.5 flex-1">
-                  <h2 className="self-stretch font-bold text-[#181d27] text-lg tracking-[0] leading-7 [direction:rtl]">
+                  <h2 className="self-stretch font-bold text-[#181d27] text-lg tracking-[0] leading-7 [direction:rtl] flex items-center gap-1">
                     التقارير
+                    <InfoTooltip text="يعرض إحصائيات التقارير: المهارات المكتسبة، ساعات التطوع، الأنشطة، الفرص التطوعية، وعدد المتطوعين. كل قيمة تظهر كنسبة من الهدف المحدد" />
                   </h2>
                 </div>
               </div>
@@ -641,8 +650,9 @@ export const RegionsStatistics = (): JSX.Element => {
               </div>
 
               <div className="flex flex-col items-end justify-center gap-0.5 flex-1">
-                <h2 className=" font-bold text-[#181d27] text-lg leading-7 [direction:rtl]">
+                <h2 className="font-bold text-[#181d27] text-lg leading-7 [direction:rtl] flex items-center gap-1">
                   المناطق
+                  <InfoTooltip text="يعرض مقارنة المناطق حسب مجموع عدد المتطوعين والفرص التطوعية. كل شريط يمثل نسبة المنطقة من أعلى قيمة" />
                 </h2>
               </div>
             </div>

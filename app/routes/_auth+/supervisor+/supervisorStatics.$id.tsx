@@ -6,6 +6,7 @@ import React, {
   useEffect,
 } from "react";
 import { RegionsChart } from "~/components/RegionsChart";
+import { InfoTooltip } from "~/components/ui/info-tooltip";
 
 // Error Boundary Component
 interface ErrorBoundaryProps {
@@ -213,8 +214,18 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
       const currentUserData: any = Array.isArray(currentUserResult.data) ? currentUserResult.data[0] : currentUserResult.data;
       const targetUserData: any = Array.isArray(userResult.data) ? userResult.data[0] : userResult.data;
 
-      canSendMessage = currentUserData.region === targetUserData.region;
       currentUserRole = currentUserData.role || "user";
+
+      // Admins can message ALL users regardless of region
+      if (currentUserRole === "admin") {
+        canSendMessage = true;
+      } else {
+        // For supervisors/users: compare regionId (reliable FK) with fallback to region text
+        const sameRegion = currentUserData.regionId && targetUserData.regionId
+          ? currentUserData.regionId === targetUserData.regionId
+          : currentUserData.region === targetUserData.region;
+        canSendMessage = sameRegion;
+      }
     }
 
     return data({
@@ -324,16 +335,23 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
       const currentUserData:any = Array.isArray(currentUserResult.data) ? currentUserResult.data[0] : currentUserResult.data;
       const targetUserData:any = Array.isArray(targetUserResult.data) ? targetUserResult.data[0] : targetUserResult.data;
 
+      const currentRole = currentUserData.role || "user";
 
-      // Check if supervisor and target user are in the same region
-      if (currentUserData.region !== targetUserData.region) {
-        return data(
-          {
-            status: "error",
-            message: "لا يمكنك إرسال رسالة لمستخدم من منطقة أخرى. يمكنك فقط التواصل مع المستخدمين في منطقتك",
-          },
-          { status: 403 }
-        );
+      // Admins can message ALL users; supervisors/users must be in the same region
+      if (currentRole !== "admin") {
+        const sameRegion = currentUserData.regionId && targetUserData.regionId
+          ? currentUserData.regionId === targetUserData.regionId
+          : currentUserData.region === targetUserData.region;
+
+        if (!sameRegion) {
+          return data(
+            {
+              status: "error",
+              message: "لا يمكنك إرسال رسالة لمستخدم من منطقة أخرى. يمكنك فقط التواصل مع المستخدمين في منطقتك",
+            },
+            { status: 403 }
+          );
+        }
       }
 
       const messageDB = (await import("~/db/message/message.server")).default;
@@ -895,8 +913,9 @@ export const SupervisorStatistics = (): JSX.Element => {
             <div className="flex flex-col items-start gap-5 relative self-stretch w-full mb-6 mt-[72px]">
               <div className="flex items-start gap-4 relative self-stretch w-full">
                 <div className="flex flex-col items-end justify-center gap-0.5 relative flex-1 self-stretch">
-                  <h2 className="mt-[-1.00px] relative self-stretch font-bold text-[#181d27] text-lg tracking-[0] leading-7 [direction:rtl]">
+                  <h2 className="mt-[-1.00px] relative self-stretch font-bold text-[#181d27] text-lg tracking-[0] leading-7 [direction:rtl] flex items-center gap-1">
                     التقارير
+                    <InfoTooltip text="يعرض إحصائيات تقارير المعلمة: عدد المتطوعين، المهارات المكتسبة، ساعات التطوع، الأنشطة، والفرص التطوعية. كل قيمة تظهر كنسبة من الهدف المحدد" />
                   </h2>
                 </div>
               </div>
@@ -1032,8 +1051,9 @@ export const SupervisorStatistics = (): JSX.Element => {
               <div className="flex flex-col gap-5 w-full">
                 <div className="flex items-start gap-4 w-full h-full">
                   <div className="flex flex-col items-end justify-center gap-0.5 flex-1">
-                    <h2 className=" font-bold text-[#181d27] text-lg leading-7 [direction:rtl]">
+                    <h2 className="font-bold text-[#181d27] text-lg leading-7 [direction:rtl] flex items-center gap-1">
                       المناطق
+                      <InfoTooltip text="يعرض مقارنة المناطق حسب مجموع عدد المتطوعين والفرص التطوعية. كل شريط يمثل نسبة المنطقة من أعلى قيمة" />
                     </h2>
                   </div>
                 </div>

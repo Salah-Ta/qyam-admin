@@ -231,6 +231,21 @@ export async function generateCertificatePDF(
       );
     }
 
+    // Draw hours (عدد ساعات التطوع المحققة) - positioned below fullName
+    if (certificateData.hours) {
+      const hoursY = fullNameY - 25;
+      drawArabicText(
+        page,
+        selectedFont,
+        certificateData.hours,
+        fullNameX,
+        hoursY,
+        14,
+        [0.3, 0.3, 0.3],
+        "right"
+      );
+    }
+
     // Draw school (المدرسة)
     if (certificateData.school) {
       drawArabicText(

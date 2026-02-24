@@ -392,6 +392,36 @@ function sumReportFields(reports: Report[]): {
 }
 }
 
+/**
+ * Delete all reports for a user by userId, including related junction tables.
+ */
+async function deleteUserReports(userId: string, dbUrl?: string): Promise<StatusResponse<{ deletedCount: number }>> {
+  const db = initializeDatabase(dbUrl);
+
+  try {
+    const userReports = await db.report.findMany({
+      where: { userId },
+      select: { id: true },
+    });
+    const reportIds = userReports.map((r: { id: string }) => r.id);
+
+    if (reportIds.length === 0) {
+      return { status: "success", message: "لا توجد تقارير لهذا المستخدم", data: { deletedCount: 0 } };
+    }
+
+    // Delete junction tables first, then reports
+    await db.$transaction([
+      db.skillReport.deleteMany({ where: { reportId: { in: reportIds } } }),
+      db.testimonialReport.deleteMany({ where: { reportId: { in: reportIds } } }),
+      db.report.deleteMany({ where: { userId } }),
+    ]);
+
+    return { status: "success", message: `تم حذف ${reportIds.length} تقرير بنجاح`, data: { deletedCount: reportIds.length } };
+  } catch (error: any) {
+    return { status: "error", message: "فشل حذف تقارير المستخدم" };
+  }
+}
+
 export default {
   getAllReports,
   getReport,
@@ -399,6 +429,7 @@ export default {
   getAllSkills,
   deleteReport,
   deleteReportsWithHighVolunteerCount,
+  deleteUserReports,
   getEduAdminReports,
   getSchoolReports,
   getRegionReports

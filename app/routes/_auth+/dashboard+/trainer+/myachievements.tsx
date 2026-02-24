@@ -1,4 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode, useState, useEffect } from "react";
+import { RegionsChart } from "~/components/RegionsChart";
+import { InfoTooltip } from "~/components/ui/info-tooltip";
 // Error Boundary Component
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -618,8 +620,9 @@ export const MyAchievements = (): JSX.Element => {
           <div className="flex flex-col items-start gap-5 relative self-stretch w-full mb-6 mt-[72px]">
             <div className="flex items-start gap-4 relative self-stretch w-full">
               <div className="flex flex-col items-end justify-center gap-0.5 relative flex-1 self-stretch">
-                <h2 className="mt-[-1.00px] relative self-stretch font-bold text-[#181d27] text-lg tracking-[0] leading-7 [direction:rtl]">
+                <h2 className="mt-[-1.00px] relative self-stretch font-bold text-[#181d27] text-lg tracking-[0] leading-7 [direction:rtl] flex items-center gap-1">
                   إنجازاتي
+                  <InfoTooltip text="يعرض إحصائيات إنجازاتك: عدد الطالبات، المهارات المكتسبة، ساعات التطوع، الأنشطة، والفرص التطوعية. كل قيمة تظهر كنسبة من الهدف المحدد" />
                 </h2>
               </div>
             </div>
@@ -744,6 +747,24 @@ export const MyAchievements = (): JSX.Element => {
             </div>
           </div>
 
+          {/* Regions Section */}
+          <section className="flex flex-col gap-6 w-full mt-[36px]">
+            <div className="flex flex-col gap-5 w-full">
+              <div className="flex items-start gap-4 w-full h-full">
+
+                <div className="flex flex-col items-end justify-center gap-0.5 flex-1">
+                  <h2 className="font-bold text-[#181d27] text-lg leading-7 [direction:rtl] flex items-center gap-1">
+                    المناطق
+                    <InfoTooltip text="يعرض مقارنة المناطق حسب مجموع عدد المتطوعين والفرص التطوعية. كل شريط يمثل نسبة المنطقة من أعلى قيمة" />
+                  </h2>
+                </div>
+              </div>
+            </div>
+
+            <div className="border border-[#e9eaeb] rounded-xl bg-white p-6">
+              <RegionsChart regionalStats={regionalStats} />
+            </div>
+          </section>
         </div>
       </div>
     </div>

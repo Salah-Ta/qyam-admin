@@ -8,13 +8,12 @@ export default function ProgramStaticsLayout(): JSX.Element {
   // Debug: Log the current pathname
 
   // More robust active state detection
+  const isSkillsActive = location.pathname.includes("/skills");
   const isStatisticsActive =
+    !isSkillsActive && (
     location.pathname === "/dashboard/admin/programstatics" ||
     location.pathname === "/dashboard/admin/programstatics/" ||
-    (location.pathname.startsWith("/dashboard/admin/programstatics") &&
-      !location.pathname.includes("/skills"));
-
-  const isSkillsActive = location.pathname.includes("/skills");
+    location.pathname.startsWith("/dashboard/admin/programstatics"));
 
 
   const tabItems = [

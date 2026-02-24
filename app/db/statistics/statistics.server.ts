@@ -37,29 +37,17 @@ async function getAdminDashboardDataStatistics(dbUrl?: string, filters?: {
     }>>`
         SELECT
             (SELECT COUNT(*)::BIGINT FROM "region") as regions_total,
-            (SELECT COUNT(*)::BIGINT FROM "eduAdministration") as eduadmins_total,
-            (SELECT COUNT(*)::BIGINT FROM "school") as schools_total,
+            (SELECT COUNT(*)::BIGINT FROM "eduAdministration" WHERE "regionId" IS NOT NULL) as eduadmins_total,
+            (SELECT COUNT(*)::BIGINT FROM "school" s WHERE EXISTS (SELECT 1 FROM "eduAdministration" ea WHERE ea.id = s."eduAdminId" AND ea."regionId" IS NOT NULL)) as schools_total,
             (SELECT COUNT(*)::BIGINT FROM public."user" WHERE "schoolId" IS NOT NULL AND role = 'user') as trainers_total,
-            r.reports_total,
-            r.volunteer_hours_total,
-            r.economic_value_total,
-            r.volunteer_opportunities_total,
-            r.activities_count_total,
-            r.volunteer_count_total,
-            r.skills_economic_value_total,
-            r.skills_trained_count_total
-        FROM (
-            SELECT
-                COUNT(*)::BIGINT as reports_total,
-                COALESCE(SUM("volunteerHours"), 0)::BIGINT as volunteer_hours_total,
-                COALESCE(SUM("economicValue"), 0)::BIGINT as economic_value_total,
-                COALESCE(SUM("volunteerOpportunities"), 0)::BIGINT as volunteer_opportunities_total,
-                COALESCE(SUM("activitiesCount"), 0)::BIGINT as activities_count_total,
-                COALESCE(SUM("volunteerCount"), 0)::BIGINT as volunteer_count_total,
-                COALESCE(SUM("skillsEconomicValue"), 0)::BIGINT as skills_economic_value_total,
-                COALESCE(SUM("skillsTrainedCount"), 0)::BIGINT as skills_trained_count_total
-            FROM "report"
-        ) r
+            (SELECT COUNT(*)::BIGINT FROM "report" r WHERE EXISTS (SELECT 1 FROM public."user" u WHERE u.id = r."userId")) as reports_total,
+            (SELECT COALESCE(SUM(r."volunteerHours"), 0)::BIGINT FROM "report" r WHERE EXISTS (SELECT 1 FROM public."user" u WHERE u.id = r."userId")) as volunteer_hours_total,
+            (SELECT COALESCE(SUM(r."economicValue"), 0)::BIGINT FROM "report" r WHERE EXISTS (SELECT 1 FROM public."user" u WHERE u.id = r."userId")) as economic_value_total,
+            (SELECT COALESCE(SUM(r."volunteerOpportunities"), 0)::BIGINT FROM "report" r WHERE EXISTS (SELECT 1 FROM public."user" u WHERE u.id = r."userId")) as volunteer_opportunities_total,
+            (SELECT COALESCE(SUM(r."activitiesCount"), 0)::BIGINT FROM "report" r WHERE EXISTS (SELECT 1 FROM public."user" u WHERE u.id = r."userId")) as activities_count_total,
+            (SELECT COALESCE(SUM(r."volunteerCount"), 0)::BIGINT FROM "report" r WHERE EXISTS (SELECT 1 FROM public."user" u WHERE u.id = r."userId")) as volunteer_count_total,
+            (SELECT COALESCE(SUM(r."skillsEconomicValue"), 0)::BIGINT FROM "report" r WHERE EXISTS (SELECT 1 FROM public."user" u WHERE u.id = r."userId")) as skills_economic_value_total,
+            (SELECT COALESCE(SUM(r."skillsTrainedCount"), 0)::BIGINT FROM "report" r WHERE EXISTS (SELECT 1 FROM public."user" u WHERE u.id = r."userId")) as skills_trained_count_total
     `;
 
     // Convert BigInt to Number
@@ -409,7 +397,7 @@ async function getEduAdminBreakdown(dbUrl?: string) {
     const db = initializeDatabase(dbUrl);
 
     const eduAdminStats = await db.$queryRaw`
-        SELECT 
+        SELECT
             ea.id,
             ea.name,
             ea."regionId",
@@ -427,6 +415,7 @@ async function getEduAdminBreakdown(dbUrl?: string) {
         LEFT JOIN "school" s ON s."eduAdminId" = ea.id
         LEFT JOIN public."user" u ON u."schoolId" = s.id
         LEFT JOIN "report" rep ON rep."userId" = u.id
+        WHERE ea."regionId" IS NOT NULL
         GROUP BY ea.id, ea.name, ea."regionId"
         ORDER BY ea.name
     `;
@@ -502,12 +491,423 @@ Promise<UserStatistics> {
     };
 }
 
+/**
+ * Get region rankings with optional date range filter.
+ * Returns regions sorted by the specified metric.
+ */
+async function getRegionRankings(dbUrl?: string, options?: {
+    startDate?: string;
+    endDate?: string;
+    sortBy?: 'volunteerHours' | 'trainersCount' | 'volunteerOpportunities';
+    limit?: number;
+}) {
+    const db = initializeDatabase(dbUrl);
+    const sortBy = options?.sortBy || 'volunteerHours';
+    const limit = options?.limit || 20;
+
+    let dateFilter = '';
+    const params: any[] = [];
+    if (options?.startDate && options?.endDate) {
+        dateFilter = `AND rep."createdAt" >= $1 AND rep."createdAt" <= $2`;
+        params.push(new Date(options.startDate), new Date(options.endDate));
+    }
+
+    // Use parameterized query with date filter
+    const results = options?.startDate && options?.endDate
+        ? await db.$queryRaw`
+            SELECT
+                r.id,
+                r.name,
+                COUNT(DISTINCT CASE WHEN u.role = 'user' THEN u.id END)::INTEGER as "trainersCount",
+                COUNT(DISTINCT rep.id)::INTEGER as "reportsCount",
+                COALESCE(SUM(rep."volunteerHours"), 0)::INTEGER as "volunteerHours",
+                COALESCE(SUM(rep."economicValue"), 0)::INTEGER as "economicValue",
+                COALESCE(SUM(rep."volunteerOpportunities"), 0)::INTEGER as "volunteerOpportunities",
+                COALESCE(SUM(rep."activitiesCount"), 0)::INTEGER as "activitiesCount",
+                COALESCE(SUM(rep."volunteerCount"), 0)::INTEGER as "volunteerCount"
+            FROM "region" r
+            LEFT JOIN public."user" u ON u."regionId" = r.id
+            LEFT JOIN "report" rep ON rep."userId" = u.id
+                AND rep."createdAt" >= ${new Date(options.startDate)}
+                AND rep."createdAt" <= ${new Date(options.endDate)}
+            GROUP BY r.id, r.name
+            ORDER BY
+                CASE WHEN ${sortBy} = 'volunteerHours' THEN COALESCE(SUM(rep."volunteerHours"), 0) END DESC,
+                CASE WHEN ${sortBy} = 'trainersCount' THEN COUNT(DISTINCT CASE WHEN u.role = 'user' THEN u.id END) END DESC,
+                CASE WHEN ${sortBy} = 'volunteerOpportunities' THEN COALESCE(SUM(rep."volunteerOpportunities"), 0) END DESC
+            LIMIT ${limit}
+        `
+        : await db.$queryRaw`
+            SELECT
+                r.id,
+                r.name,
+                COUNT(DISTINCT CASE WHEN u.role = 'user' THEN u.id END)::INTEGER as "trainersCount",
+                COUNT(DISTINCT rep.id)::INTEGER as "reportsCount",
+                COALESCE(SUM(rep."volunteerHours"), 0)::INTEGER as "volunteerHours",
+                COALESCE(SUM(rep."economicValue"), 0)::INTEGER as "economicValue",
+                COALESCE(SUM(rep."volunteerOpportunities"), 0)::INTEGER as "volunteerOpportunities",
+                COALESCE(SUM(rep."activitiesCount"), 0)::INTEGER as "activitiesCount",
+                COALESCE(SUM(rep."volunteerCount"), 0)::INTEGER as "volunteerCount"
+            FROM "region" r
+            LEFT JOIN public."user" u ON u."regionId" = r.id
+            LEFT JOIN "report" rep ON rep."userId" = u.id
+            GROUP BY r.id, r.name
+            ORDER BY COALESCE(SUM(rep."volunteerHours"), 0) DESC
+            LIMIT ${limit}
+        `;
+
+    // Sort in JS since dynamic ORDER BY with CASE doesn't work well with Prisma tagged templates
+    const mapped = (results as any[]).map((stat: any, index: number) => ({
+        rank: index + 1,
+        id: stat.id,
+        name: stat.name,
+        trainersCount: Number(stat.trainersCount),
+        reportsCount: Number(stat.reportsCount),
+        volunteerHours: Number(stat.volunteerHours),
+        economicValue: Number(stat.economicValue),
+        volunteerOpportunities: Number(stat.volunteerOpportunities),
+        activitiesCount: Number(stat.activitiesCount),
+        volunteerCount: Number(stat.volunteerCount),
+    }));
+
+    // Sort in JS for reliability
+    mapped.sort((a: any, b: any) => {
+        if (sortBy === 'trainersCount') return b.trainersCount - a.trainersCount;
+        if (sortBy === 'volunteerOpportunities') return b.volunteerOpportunities - a.volunteerOpportunities;
+        return b.volunteerHours - a.volunteerHours;
+    });
+
+    // Re-assign rank after sort
+    return mapped.map((item: any, index: number) => ({ ...item, rank: index + 1 }));
+}
+
+/**
+ * Get teacher rankings with optional region and date range filters.
+ */
+async function getTeacherRankings(dbUrl?: string, options?: {
+    regionId?: string;
+    startDate?: string;
+    endDate?: string;
+    sortBy?: 'volunteerHours' | 'volunteerOpportunities' | 'reportsCount';
+    limit?: number;
+}) {
+    const db = initializeDatabase(dbUrl);
+    const limit = options?.limit || 20;
+    const sortBy = options?.sortBy || 'volunteerHours';
+
+    const hasDateFilter = options?.startDate && options?.endDate;
+    const hasRegionFilter = !!options?.regionId;
+
+    let results: any[];
+
+    if (hasDateFilter && hasRegionFilter) {
+        results = await db.$queryRaw`
+            SELECT
+                u.id,
+                u.name,
+                r.name as "regionName",
+                s.name as "schoolName",
+                COUNT(DISTINCT rep.id)::INTEGER as "reportsCount",
+                COALESCE(SUM(rep."volunteerHours"), 0)::INTEGER as "volunteerHours",
+                COALESCE(SUM(rep."volunteerOpportunities"), 0)::INTEGER as "volunteerOpportunities",
+                COALESCE(SUM(rep."activitiesCount"), 0)::INTEGER as "activitiesCount",
+                COALESCE(SUM(rep."volunteerCount"), 0)::INTEGER as "volunteerCount"
+            FROM public."user" u
+            LEFT JOIN "region" r ON u."regionId" = r.id
+            LEFT JOIN "school" s ON u."schoolId" = s.id
+            LEFT JOIN "report" rep ON rep."userId" = u.id
+                AND rep."createdAt" >= ${new Date(options.startDate!)}
+                AND rep."createdAt" <= ${new Date(options.endDate!)}
+            WHERE u.role = 'user' AND u."regionId" = ${options.regionId}
+            GROUP BY u.id, u.name, r.name, s.name
+            HAVING COUNT(rep.id) > 0
+            ORDER BY COALESCE(SUM(rep."volunteerHours"), 0) DESC
+            LIMIT ${limit}
+        `;
+    } else if (hasDateFilter) {
+        results = await db.$queryRaw`
+            SELECT
+                u.id,
+                u.name,
+                r.name as "regionName",
+                s.name as "schoolName",
+                COUNT(DISTINCT rep.id)::INTEGER as "reportsCount",
+                COALESCE(SUM(rep."volunteerHours"), 0)::INTEGER as "volunteerHours",
+                COALESCE(SUM(rep."volunteerOpportunities"), 0)::INTEGER as "volunteerOpportunities",
+                COALESCE(SUM(rep."activitiesCount"), 0)::INTEGER as "activitiesCount",
+                COALESCE(SUM(rep."volunteerCount"), 0)::INTEGER as "volunteerCount"
+            FROM public."user" u
+            LEFT JOIN "region" r ON u."regionId" = r.id
+            LEFT JOIN "school" s ON u."schoolId" = s.id
+            LEFT JOIN "report" rep ON rep."userId" = u.id
+                AND rep."createdAt" >= ${new Date(options.startDate!)}
+                AND rep."createdAt" <= ${new Date(options.endDate!)}
+            WHERE u.role = 'user'
+            GROUP BY u.id, u.name, r.name, s.name
+            HAVING COUNT(rep.id) > 0
+            ORDER BY COALESCE(SUM(rep."volunteerHours"), 0) DESC
+            LIMIT ${limit}
+        `;
+    } else if (hasRegionFilter) {
+        results = await db.$queryRaw`
+            SELECT
+                u.id,
+                u.name,
+                r.name as "regionName",
+                s.name as "schoolName",
+                COUNT(DISTINCT rep.id)::INTEGER as "reportsCount",
+                COALESCE(SUM(rep."volunteerHours"), 0)::INTEGER as "volunteerHours",
+                COALESCE(SUM(rep."volunteerOpportunities"), 0)::INTEGER as "volunteerOpportunities",
+                COALESCE(SUM(rep."activitiesCount"), 0)::INTEGER as "activitiesCount",
+                COALESCE(SUM(rep."volunteerCount"), 0)::INTEGER as "volunteerCount"
+            FROM public."user" u
+            LEFT JOIN "region" r ON u."regionId" = r.id
+            LEFT JOIN "school" s ON u."schoolId" = s.id
+            LEFT JOIN "report" rep ON rep."userId" = u.id
+            WHERE u.role = 'user' AND u."regionId" = ${options.regionId}
+            GROUP BY u.id, u.name, r.name, s.name
+            HAVING COUNT(rep.id) > 0
+            ORDER BY COALESCE(SUM(rep."volunteerHours"), 0) DESC
+            LIMIT ${limit}
+        `;
+    } else {
+        results = await db.$queryRaw`
+            SELECT
+                u.id,
+                u.name,
+                r.name as "regionName",
+                s.name as "schoolName",
+                COUNT(DISTINCT rep.id)::INTEGER as "reportsCount",
+                COALESCE(SUM(rep."volunteerHours"), 0)::INTEGER as "volunteerHours",
+                COALESCE(SUM(rep."volunteerOpportunities"), 0)::INTEGER as "volunteerOpportunities",
+                COALESCE(SUM(rep."activitiesCount"), 0)::INTEGER as "activitiesCount",
+                COALESCE(SUM(rep."volunteerCount"), 0)::INTEGER as "volunteerCount"
+            FROM public."user" u
+            LEFT JOIN "region" r ON u."regionId" = r.id
+            LEFT JOIN "school" s ON u."schoolId" = s.id
+            LEFT JOIN "report" rep ON rep."userId" = u.id
+            WHERE u.role = 'user'
+            GROUP BY u.id, u.name, r.name, s.name
+            HAVING COUNT(rep.id) > 0
+            ORDER BY COALESCE(SUM(rep."volunteerHours"), 0) DESC
+            LIMIT ${limit}
+        `;
+    }
+
+    const mapped = (results as any[]).map((stat: any) => ({
+        id: stat.id,
+        name: stat.name,
+        regionName: stat.regionName || 'غير محددة',
+        schoolName: stat.schoolName || 'غير محددة',
+        reportsCount: Number(stat.reportsCount),
+        volunteerHours: Number(stat.volunteerHours),
+        volunteerOpportunities: Number(stat.volunteerOpportunities),
+        activitiesCount: Number(stat.activitiesCount),
+        volunteerCount: Number(stat.volunteerCount),
+    }));
+
+    // Sort in JS for reliability
+    mapped.sort((a: any, b: any) => {
+        if (sortBy === 'reportsCount') return b.reportsCount - a.reportsCount;
+        if (sortBy === 'volunteerOpportunities') return b.volunteerOpportunities - a.volunteerOpportunities;
+        return b.volunteerHours - a.volunteerHours;
+    });
+
+    return mapped.map((item: any, index: number) => ({ ...item, rank: index + 1 }));
+}
+
+/**
+ * Get leaderboard data with points-based scoring.
+ * Points formula: (4 × volunteerCount) + (2 × volunteerOpportunities) + (1 × volunteerHours)
+ */
+async function getLeaderboardData(dbUrl?: string, options?: {
+    regionId?: string;
+    startDate?: string;
+    endDate?: string;
+}) {
+    const db = initializeDatabase(dbUrl);
+
+    const hasDateFilter = options?.startDate && options?.endDate;
+    const hasRegionFilter = !!options?.regionId;
+
+    let results: any[];
+
+    if (hasDateFilter && hasRegionFilter) {
+        results = await db.$queryRaw`
+            SELECT
+                u.id, u.name,
+                r.name as "regionName", r.id as "regionId",
+                s.name as "schoolName", s.id as "schoolId",
+                ea.name as "eduAdminName", ea.id as "eduAdminId",
+                COALESCE(SUM(rep."volunteerCount"), 0)::INTEGER as "volunteerCount",
+                COALESCE(SUM(rep."volunteerOpportunities"), 0)::INTEGER as "volunteerOpportunities",
+                COALESCE(SUM(rep."volunteerHours"), 0)::INTEGER as "volunteerHours",
+                COUNT(DISTINCT rep.id)::INTEGER as "reportsCount"
+            FROM public."user" u
+            LEFT JOIN "region" r ON u."regionId" = r.id
+            LEFT JOIN "school" s ON u."schoolId" = s.id
+            LEFT JOIN "eduAdministration" ea ON u."eduAdminId" = ea.id
+            LEFT JOIN "report" rep ON rep."userId" = u.id
+                AND rep."createdAt" >= ${new Date(options.startDate!)}
+                AND rep."createdAt" <= ${new Date(options.endDate!)}
+            WHERE u.role = 'user' AND u."regionId" = ${options.regionId}
+            GROUP BY u.id, u.name, r.name, r.id, s.name, s.id, ea.name, ea.id
+            HAVING COUNT(rep.id) > 0
+        `;
+    } else if (hasDateFilter) {
+        results = await db.$queryRaw`
+            SELECT
+                u.id, u.name,
+                r.name as "regionName", r.id as "regionId",
+                s.name as "schoolName", s.id as "schoolId",
+                ea.name as "eduAdminName", ea.id as "eduAdminId",
+                COALESCE(SUM(rep."volunteerCount"), 0)::INTEGER as "volunteerCount",
+                COALESCE(SUM(rep."volunteerOpportunities"), 0)::INTEGER as "volunteerOpportunities",
+                COALESCE(SUM(rep."volunteerHours"), 0)::INTEGER as "volunteerHours",
+                COUNT(DISTINCT rep.id)::INTEGER as "reportsCount"
+            FROM public."user" u
+            LEFT JOIN "region" r ON u."regionId" = r.id
+            LEFT JOIN "school" s ON u."schoolId" = s.id
+            LEFT JOIN "eduAdministration" ea ON u."eduAdminId" = ea.id
+            LEFT JOIN "report" rep ON rep."userId" = u.id
+                AND rep."createdAt" >= ${new Date(options.startDate!)}
+                AND rep."createdAt" <= ${new Date(options.endDate!)}
+            WHERE u.role = 'user'
+            GROUP BY u.id, u.name, r.name, r.id, s.name, s.id, ea.name, ea.id
+            HAVING COUNT(rep.id) > 0
+        `;
+    } else if (hasRegionFilter) {
+        results = await db.$queryRaw`
+            SELECT
+                u.id, u.name,
+                r.name as "regionName", r.id as "regionId",
+                s.name as "schoolName", s.id as "schoolId",
+                ea.name as "eduAdminName", ea.id as "eduAdminId",
+                COALESCE(SUM(rep."volunteerCount"), 0)::INTEGER as "volunteerCount",
+                COALESCE(SUM(rep."volunteerOpportunities"), 0)::INTEGER as "volunteerOpportunities",
+                COALESCE(SUM(rep."volunteerHours"), 0)::INTEGER as "volunteerHours",
+                COUNT(DISTINCT rep.id)::INTEGER as "reportsCount"
+            FROM public."user" u
+            LEFT JOIN "region" r ON u."regionId" = r.id
+            LEFT JOIN "school" s ON u."schoolId" = s.id
+            LEFT JOIN "eduAdministration" ea ON u."eduAdminId" = ea.id
+            LEFT JOIN "report" rep ON rep."userId" = u.id
+            WHERE u.role = 'user' AND u."regionId" = ${options.regionId}
+            GROUP BY u.id, u.name, r.name, r.id, s.name, s.id, ea.name, ea.id
+            HAVING COUNT(rep.id) > 0
+        `;
+    } else {
+        results = await db.$queryRaw`
+            SELECT
+                u.id, u.name,
+                r.name as "regionName", r.id as "regionId",
+                s.name as "schoolName", s.id as "schoolId",
+                ea.name as "eduAdminName", ea.id as "eduAdminId",
+                COALESCE(SUM(rep."volunteerCount"), 0)::INTEGER as "volunteerCount",
+                COALESCE(SUM(rep."volunteerOpportunities"), 0)::INTEGER as "volunteerOpportunities",
+                COALESCE(SUM(rep."volunteerHours"), 0)::INTEGER as "volunteerHours",
+                COUNT(DISTINCT rep.id)::INTEGER as "reportsCount"
+            FROM public."user" u
+            LEFT JOIN "region" r ON u."regionId" = r.id
+            LEFT JOIN "school" s ON u."schoolId" = s.id
+            LEFT JOIN "eduAdministration" ea ON u."eduAdminId" = ea.id
+            LEFT JOIN "report" rep ON rep."userId" = u.id
+            WHERE u.role = 'user'
+            GROUP BY u.id, u.name, r.name, r.id, s.name, s.id, ea.name, ea.id
+            HAVING COUNT(rep.id) > 0
+        `;
+    }
+
+    // Calculate points for each teacher
+    const teachers = (results as any[]).map((t: any) => {
+        const vc = Number(t.volunteerCount);
+        const vo = Number(t.volunteerOpportunities);
+        const vh = Number(t.volunteerHours);
+        return {
+            id: t.id,
+            name: t.name,
+            regionName: t.regionName || 'غير محددة',
+            regionId: t.regionId,
+            schoolName: t.schoolName || 'غير محددة',
+            schoolId: t.schoolId,
+            eduAdminName: t.eduAdminName || 'غير محددة',
+            eduAdminId: t.eduAdminId,
+            volunteerCount: vc,
+            volunteerOpportunities: vo,
+            volunteerHours: vh,
+            reportsCount: Number(t.reportsCount),
+            points: (4 * vc) + (2 * vo) + (1 * vh),
+        };
+    }).sort((a: any, b: any) => b.points - a.points)
+      .map((item: any, index: number) => ({ ...item, rank: index + 1 }));
+
+    // Aggregate school rankings
+    const schoolMap = new Map<string, { id: string; name: string; regionName: string; eduAdminName: string; teacherCount: number; totalPoints: number }>();
+    for (const t of teachers) {
+        if (!t.schoolId) continue;
+        const existing = schoolMap.get(t.schoolId);
+        if (existing) {
+            existing.teacherCount++;
+            existing.totalPoints += t.points;
+        } else {
+            schoolMap.set(t.schoolId, {
+                id: t.schoolId,
+                name: t.schoolName,
+                regionName: t.regionName,
+                eduAdminName: t.eduAdminName,
+                teacherCount: 1,
+                totalPoints: t.points,
+            });
+        }
+    }
+    const schools = Array.from(schoolMap.values())
+        .sort((a, b) => b.totalPoints - a.totalPoints)
+        .map((item, index) => ({ ...item, rank: index + 1 }));
+
+    // Aggregate region rankings
+    const regionMap = new Map<string, { id: string; name: string; schoolIds: Set<string>; teacherCount: number; totalPoints: number }>();
+    for (const t of teachers) {
+        if (!t.regionId) continue;
+        const existing = regionMap.get(t.regionId);
+        if (existing) {
+            existing.teacherCount++;
+            existing.totalPoints += t.points;
+            if (t.schoolId) existing.schoolIds.add(t.schoolId);
+        } else {
+            const schoolIds = new Set<string>();
+            if (t.schoolId) schoolIds.add(t.schoolId);
+            regionMap.set(t.regionId, {
+                id: t.regionId,
+                name: t.regionName,
+                schoolIds,
+                teacherCount: 1,
+                totalPoints: t.points,
+            });
+        }
+    }
+    const regions = Array.from(regionMap.values())
+        .sort((a, b) => b.totalPoints - a.totalPoints)
+        .map((item, index) => ({
+            rank: index + 1,
+            id: item.id,
+            name: item.name,
+            schoolCount: item.schoolIds.size,
+            teacherCount: item.teacherCount,
+            totalPoints: item.totalPoints,
+        }));
+
+    return { teachers, schools, regions };
+}
+
 // Export the function
 const statisticsService = {
     getAdminDashboardDataStatistics,
-    getRegionalBreakdown,  // This one is now optimized
-    getEduAdminBreakdown,   // This one is now optimized too
-    getUserStatisticsById   // This one is now optimized
+    getRegionalBreakdown,
+    getEduAdminBreakdown,
+    getUserStatisticsById,
+    getRegionRankings,
+    getTeacherRankings,
+    getLeaderboardData
 };
 
 export default statisticsService;

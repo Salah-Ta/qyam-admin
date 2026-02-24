@@ -8,10 +8,13 @@ import { LoaderFunctionArgs, data } from "@remix-run/cloudflare";
 import { useLoaderData } from "@remix-run/react";
 import skillDb from "../../../db/skill/skill.server";
 import testimonialDb from "../../../db/testimonial/testimonial.server";
+import userDB from "~/db/user/user.server";
 import ClientWordCloud from "../../../components/ClientWordCloud";
 import WordCloudErrorBoundary from "../../../components/WordCloudErrorBoundary";
 import SmoothColumnTestimonials from "../../../components/SmoothColumnTestimonials";
 import { getAuthenticated } from "~/lib/get-authenticated.server";
+import supervisorProfile from "../../../assets/icons/user.png";
+import verifiedTick from "./assets/verified-tick.svg";
 
 // Utility function
 const cn = (...inputs: any[]) => {
@@ -104,6 +107,15 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
     const dbUrl = context.cloudflare.env.DATABASE_URL;
 
+    // Fetch current user data
+    let currentUserData = null;
+    try {
+      const fullUserResult = await userDB.getUser((user as any).id, dbUrl) as any;
+      if (fullUserResult?.status === "success" && fullUserResult.data) {
+        currentUserData = Array.isArray(fullUserResult.data) ? fullUserResult.data[0] : fullUserResult.data;
+      }
+    } catch (error) {}
+
     // Fetch skills with usage counts and testimonials in parallel
     const [skillsResult, testimonialsResult] = await Promise.all([
       skillDb.getSkillsWithUsageCount(dbUrl),
@@ -117,10 +129,11 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
       );
     }
 
-    return data({
+    return {
       skills: skillsResult.data || [],
       testimonials: testimonialsResult.success ? testimonialsResult.data || [] : [],
-    });
+      currentUser: currentUserData,
+    };
   } catch (error) {
     return data({ error: "Internal server error" }, { status: 500 });
   }
@@ -156,9 +169,11 @@ export const Skills = (): JSX.Element => {
     location.pathname === "/supervisor/skills/";
 
   const isTrainersActive = location.pathname.includes("/allTrainers");
+  const isLeaderboardActive = location.pathname === "/supervisor/leaderboard";
 
   // Transform skills data for the word cloud
-  const wordCloudData = loaderData.skills.map((skill) => ({
+  const skills = loaderData?.skills || [];
+  const wordCloudData = skills.map((skill) => ({
     text: skill.name,
     value: skill.usageCount || 1, // Ensure minimum value of 1
   }));
@@ -213,173 +228,151 @@ export const Skills = (): JSX.Element => {
       active: isTrainersActive,
       hasIndicator: isTrainersActive,
     },
+    {
+      id: "leaderboard",
+      label: "لوحة المتصدرين",
+      path: "/supervisor/leaderboard",
+      active: isLeaderboardActive,
+      hasIndicator: isLeaderboardActive,
+    },
   ];
 
+  const currentUser = (loaderData as any)?.currentUser;
+
   return (
-    <div>
-      <div className="w-11/12 m-auto">
-        {/* Container Section */}
-        <div className="flex flex-col w-full items-end   -mt-[10px]">
-          <div className="flex flex-col items-end gap-6 relative self-stretch w-full">
-            {/* <div className="relative w-24 h-24 -mt-[48px]">
-              {" "} 
-              <div className="relative w-[104px] h-[104px]   -left-1">
-                <Avatar
-                  className="absolute w-[104px] h-[104px] rounded-full border-4 border-solid border-white shadow-shadows-shadow-lg overflow-hidden"
-                  image={content}
-                  fallback="NA"
-                />
-                <div className="w-24 h-24 rounded-full border border-solid border-[#00000014]" />
+    <div className="w-full mx-auto py-6 pt-12 md:pt-24 pb-36 lg:px-[112px] bg-section min-h-screen">
+      <div className="w-full rounded-2xl border border-gray-300 overflow-hidden rounded-xl bg-card text-card-foreground shadow">
+        {/* Banner Gradient */}
+        <div className="relative w-full h-24 bg-gradient-to-l from-[#17b169] to-[#0a5c3a] rounded-t-2xl" />
+
+        <div className="flex flex-col w-full p-6">
+          {/* Supervisor Profile Section */}
+          <div className="flex flex-col items-end gap-4 relative self-stretch w-full [direction:rtl] mb-6">
+            <div className="relative w-24 h-24 -mt-[72px]">
+              <div className="absolute w-[96px] h-[96px] rounded-full border-4 border-solid border-white shadow-lg overflow-hidden bg-white">
                 <img
-                  className="absolute w-6 h-6 top-[74px] left-[74px]"
-                  alt="Verified tick"
-                  src={verified}
+                  src={currentUser?.image || supervisorProfile}
+                  alt="صورة المشرف"
+                  className="w-full h-full object-cover"
                 />
               </div>
-            </div> */}
+              <img
+                className="absolute w-6 h-6 top-[70px] right-[70px]"
+                alt="Verified"
+                src={verifiedTick}
+              />
+            </div>
+            <div className="flex flex-col items-end gap-1 w-full">
+              <h2 className="text-xl font-bold text-[#181d27]">
+                {currentUser?.name || "المشرف"}
+              </h2>
+              <p className="text-sm text-[#535862]">
+                {currentUser?.regionName || currentUser?.region || ""}
+              </p>
+            </div>
+          </div>
 
-            {/* Rest of your existing code remains the same */}
-            {/* User Information */}
-            {/* <div className="flex flex-col items-end gap-0.5 relative self-stretch w-full">
-              <div className="relative self-stretch mt-[-1.00px] font-bold text-[#181d27] text-xl tracking-[0] leading-[30px] [direction:rtl]">
-                نورة علي الزهراني
-              </div>
-              <div className="self-stretch text-[#535861] text-base leading-6 relative font-normal tracking-[0] [direction:rtl]">
-                مدرسة خالد بن الوليد رضي الله عنه - الرياض - تعليم الزلفي
-              </div>
-            </div> */}
+          {/* Header Section */}
+          <div className="flex justify-between items-baseline w-full mx-auto py-6 rounded-xl [direction:rtl]">
+            <div className="flex flex-col items-start mb-6 pb-4 max-md:m-5">
+              <h1 className="text-2xl font-bold text-gray-800 mb-2">
+                إحصاءات البرنامج
+              </h1>
+              <p className="text-lg font-normal text-[#535862]">
+                المهارات الأكثر تعليما وانطباعات الطالبات
+              </p>
+            </div>
+          </div>
 
-            {/* Tabs Navigation */}
-            <div className="flex flex-col gap-4 relative self-stretch w-full [direction:rtl] ">
-              <div className="w-full mt-7">
-                <div className="flex flex-col md:flex-row">
-                  {tabItems.map((tab, index) => (
-                    <button
-                      key={tab.id}
-                      onClick={() => navigate(tab.path)}
-                      className={`min-h-10 px-4 py-2 border border-[#D5D7DA] w-full md:w-auto [direction:rtl] transition-colors ${
-                        tab.active 
-                          ? "bg-white shadow-sm z-10 -mb-px" 
-                          : "bg-[#F8F9FA] hover:bg-white z-[1]"
-                      }
-          ${index === 0 ? "md:rounded-r-md rounded-t-md md:rounded-l-none" : ""}
-          ${
-            index === tabItems.length - 1
-              ? "md:rounded-l-md rounded-b-md md:rounded-r-none"
-              : ""
-          }
-          ${
-            index !== tabItems.length - 1
-              ? "md:border-b"
-              : ""
-          }`}
-                    >
-                      <div className="flex items-center justify-center md:justify-start flex-row-reverse">
-                        {tab.hasIndicator && (
-                          <div className="relative w-2.5 h-2.5 ml-2">
-                            <div className="relative w-2 h-2 top-px -left-[5px] bg-[#17b169] rounded" />
-                          </div>
-                        )}
-                        <span className={`font-bold text-sm text-center md:text-right tracking-[0] leading-5 whitespace-nowrap ${
-                          tab.active ? "text-[#17b169]" : "text-[#414651]"
-                        }`}>
-                          {tab.label}
-                        </span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
+          {/* Tabs Navigation */}
+          <div className="flex flex-col gap-4 relative self-stretch w-full [direction:rtl] mb-6">
+            <div className="w-full">
+              <div className="flex flex-col md:flex-row">
+                {tabItems.map((tab, index) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => navigate(tab.path)}
+                    className={`min-h-10 px-4 py-2 border border-[#D5D7DA] w-full md:w-auto [direction:rtl] transition-colors ${
+                      tab.active
+                        ? "bg-white shadow-sm z-10 -mb-px"
+                        : "bg-[#F8F9FA] hover:bg-white z-[1]"
+                    }
+        ${index === 0 ? "md:rounded-r-md rounded-t-md md:rounded-l-none" : ""}
+        ${
+          index === tabItems.length - 1
+            ? "md:rounded-l-md rounded-b-md md:rounded-r-none"
+            : ""
+        }
+        ${
+          index !== tabItems.length - 1
+            ? "md:border-b"
+            : ""
+        }`}
+                  >
+                    <div className="flex items-center justify-center md:justify-start flex-row-reverse">
+                      {tab.hasIndicator && (
+                        <div className="relative w-2.5 h-2.5 ml-2">
+                          <div className="relative w-2 h-2 top-px -left-[5px] bg-[#17b169] rounded" />
+                        </div>
+                      )}
+                      <span className={`font-bold text-sm text-center md:text-right tracking-[0] leading-5 whitespace-nowrap ${
+                        tab.active ? "text-[#17b169]" : "text-[#414651]"
+                      }`}>
+                        {tab.label}
+                      </span>
+                    </div>
+                  </button>
+                ))}
               </div>
             </div>
           </div>
 
-          {/* <div className="w-full p-4 bg-white rounded-xl border border-solid border-[#e4e7ec]   rotate-180 mt-8 ">
-            <div className="flex items-start gap-4 p-0 mt-2">
-         
-              <div className="flex flex-col items-start gap-3 relative flex-1 grow">
-           
-                <div className="flex flex-col items-end gap-1 relative self-stretch w-full rotate-180">
-                  <div className="flex items-center justify-end gap-2 relative self-stretch w-full">
-                    <div className="relative w-fit mt-[-1.00px]   font-normal text-[#717680] text-sm tracking-[0] leading-5 whitespace-nowrap [direction:rtl]">
-                      منذ دقيقتين
-                    </div>
-                    <div className="relative w-fit mt-[-1.00px]   font-bold text-[#181d27] text-sm tracking-[0] leading-5 whitespace-nowrap [direction:rtl]">
-                      اسم المشرف
-                    </div>
+          {/* Skills Cloud Section */}
+          <section className="w-full mt-8">
+            <div className="flex flex-col items-center gap-8 w-full">
+              <div className="flex flex-col items-center gap-5 max-w-screen-md w-full">
+                <h2 className="font-display-md-semibold text-[#181d27] text-[36px] text-center tracking-[-0.72px] leading-[44px] font-bold rtl">
+                  سحابة المهارات
+                </h2>
+                <p className="font-normal text-[#535861] text-xl text-center leading-[30px] rtl">
+                  المهارات الأكثر تعليما للمتدربات
+                </p>
+              </div>
+
+              <div className="relative w-full h-[600px] flex justify-center items-center">
+                {finalWordCloudData.length > 0 ? (
+                  <WordCloudErrorBoundary>
+                    <ClientWordCloud
+                      words={finalWordCloudData}
+                      width={900}
+                      height={600}
+                    />
+                  </WordCloudErrorBoundary>
+                ) : (
+                  <div className="flex items-center justify-center h-full">
+                    <p className="text-gray-500 text-xl">لا توجد مهارات متاحة</p>
                   </div>
-                  <textarea
-                    className="self-stretch mt-[-1.00px] text-[#414651] text-sm leading-5 relative font-normal tracking-[0] [direction:rtl] bg-transparent border-none focus:outline-none resize-none"
-                    defaultValue="نص الرسالة يكتب هنا"
-                    rows={3}
-                    onChange={(e) => {
-              
-                    }}
-                  />
-                </div>
+                )}
               </div>
             </div>
+          </section>
 
-   
-            <div className="flex items-baseline justify-between">
-              <Avatar className="w-10 h-10 rotate-180" fallback="OR" />
-              <Button
-                variant="outline"
-                className="inline-flex items-center justify-center gap-1 px-3 py-2 bg-white rounded-lg rotate-180 shadow-shadows-shadow-xs-skeuomorphic"
-              >
-                <PlusIcon className="w-5 h-5 -rotate-180" />
-                <span className="font-bold text-[#414651] text-sm text-left tracking-[0] leading-5 whitespace-nowrap [direction:rtl]">
-                  رسالة جديدة
-                </span>
-              </Button>
+          {/* Testimonial Section */}
+          <section className="flex flex-col w-full items-center mt-24">
+            <div className="flex flex-col items-center gap-8 px-8 w-full max-w-screen-xl pb-12">
+              <div className="flex flex-col max-w-screen-md items-center gap-5 w-full">
+                <h2 className="w-full font-display-md-semibold text-[#181d27] text-[36px] text-center tracking-[-0.72px] leading-[44px] [direction:rtl]">
+                  انطباع الطالبات
+                </h2>
+                <p className="w-full font-normal text-[#535861] text-xl text-center tracking-[0] leading-[30px] [direction:rtl]">
+                  آراء المتدربات اللاتي شاركن في الدورة التدريبة
+                </p>
+              </div>
             </div>
-          </div> */}
+            <SmoothColumnTestimonials testimonials={loaderData?.testimonials || []} />
+          </section>
         </div>
       </div>
-
-      {/* Skills Cloud Section */}
-      <section className="w-full  mt-[132px] ">
-        <div className="flex flex-col items-center gap-8 w-full">
-          <div className="flex flex-col items-center gap-5 max-w-screen-md w-full">
-            <h2 className="font-display-md-semibold text-[#181d27] text-[36px] text-center tracking-[-0.72px] leading-[44px] font-bold rtl">
-              سحابة المهارات
-            </h2>
-            <p className="  font-normal text-[#535861] text-xl text-center leading-[30px] rtl">
-              المهارات الأكثر تعليما للمتدربات
-            </p>
-          </div>
-
-          <div className="relative w-full h-[600px] flex justify-center items-center">
-            {finalWordCloudData.length > 0 ? (
-              <WordCloudErrorBoundary>
-                <ClientWordCloud
-                  words={finalWordCloudData}
-                  width={900}
-                  height={600}
-                />
-              </WordCloudErrorBoundary>
-            ) : (
-              <div className="flex items-center justify-center h-full">
-                <p className="text-gray-500 text-xl">لا توجد مهارات متاحة</p>
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonial Section */}
-      <section className="flex flex-col w-full items-center mt-24">
-        <div className="flex flex-col items-center gap-8 px-8 w-full max-w-screen-xl pb-12">
-          <div className="flex flex-col max-w-screen-md items-center gap-5 w-full">
-            <h2 className="w-full font-display-md-semibold text-[#181d27] text-[36px] text-center tracking-[-0.72px] leading-[44px] [direction:rtl]">
-              انطباع الطالبات
-            </h2>
-            <p className="w-full font-normal text-[#535861] text-xl text-center tracking-[0] leading-[30px] [direction:rtl]">
-              آراء المتدربات اللاتي شاركن في الدورة التدريبة
-            </p>
-          </div>
-        </div>
-        <SmoothColumnTestimonials testimonials={loaderData.testimonials} />
-      </section>
     </div>
   );
 };
