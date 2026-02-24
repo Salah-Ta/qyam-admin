@@ -234,7 +234,7 @@ export async function generateCertificatePDF(
     // Draw hours (عدد ساعات التطوع المحققة)
     if (certificateData.hours) {
       const hoursX = 497;
-      const hoursY = 255;
+      const hoursY = 252;
       drawArabicText(
         page,
         selectedFont,
