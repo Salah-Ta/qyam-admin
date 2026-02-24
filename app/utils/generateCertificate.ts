@@ -211,11 +211,11 @@ export async function generateCertificatePDF(
     const page = pages[0];
     const { width, height } = page.getSize();
 
-    const fullNameX = 380 + width * 0.10;
-    const schoolX = 480 + width * 0.10;
+    const schoolX = 448;
+    const schoolY = 345;
 
-    const schoolY = height / 2 + 8 - 2;
-    const fullNameY = height / 2 - 27 - 5;
+    const fullNameX = 370;
+    const fullNameY = 300;
 
     // Draw fullName
     if (certificateData.fullName) {
@@ -231,14 +231,15 @@ export async function generateCertificatePDF(
       );
     }
 
-    // Draw hours (عدد ساعات التطوع المحققة) - positioned below fullName
+    // Draw hours (عدد ساعات التطوع المحققة)
     if (certificateData.hours) {
-      const hoursY = fullNameY - 25;
+      const hoursX = 397;
+      const hoursY = 255;
       drawArabicText(
         page,
         selectedFont,
         certificateData.hours,
-        schoolX,
+        hoursX,
         hoursY,
         14,
         [0.3, 0.3, 0.3],
